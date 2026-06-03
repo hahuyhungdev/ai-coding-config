@@ -100,7 +100,7 @@ link_path() {
         win_target=$(cygpath -w "$target")
         local is_dir=""
         if [ -d "$source" ]; then
-            is_dir="/d"
+            is_dir="/j"
         fi
         if ! MSYS_NO_PATHCONV=1 cmd.exe /c mklink $is_dir "$win_target" "$win_source" >/dev/null 2>&1; then
             warn "Failed to create symlink, copying instead: $target"
@@ -399,14 +399,18 @@ done
 ok "Rules ($(count_files "$REPO_DIR/claude/rules/ecc" "*.md") files)"
 
 # Hooks
-if [ -d "$REPO_DIR/claude/hooks" ] && [ "$(ls -A "$REPO_DIR/claude/hooks" 2>/dev/null)" ]; then
+if [ -d "$REPO_DIR/claude/hooks" ]; then
+    hooks_linked=0
     for f in "$REPO_DIR"/claude/hooks/*; do
-        name="$(basename "$f")"
-        link_path "$f" "$CLAUDE_DIR/hooks/$name"
+        if [ -f "$f" ]; then
+            name="$(basename "$f")"
+            link_path "$f" "$CLAUDE_DIR/hooks/$name"
+            hooks_linked=$((hooks_linked + 1))
+        fi
     done
-    ok "Hooks"
-else
-    warn "No hooks to install"
+    if [ $hooks_linked -gt 0 ]; then
+        ok "Hooks ($hooks_linked files)"
+    fi
 fi
 fi
 
@@ -464,6 +468,11 @@ if [ -L "$HOME/.gemini/config/agents" ]; then
     ok "Agents directory is already symlinked for agy"
 else
     mkdir -p "$HOME/.gemini/config/agents"
+    for f in "$REPO_DIR"/claude/agents/*.md; do
+        name="$(basename "$f")"
+        link_path "$f" "$HOME/.gemini/config/agents/$name"
+    done
+    ok "Agents ($(count_files "$REPO_DIR/claude/agents" "*.md") files) linked to agy config"
 fi
 fi
 
