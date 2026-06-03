@@ -42,7 +42,3 @@ Thumbs.db
 
 # Project-specific (keep templates only)
 codex/config.local.toml
-
-# Compiled agents (generated dynamically at install time)
-claude/agents/
-codex/agents/

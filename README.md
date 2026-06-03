@@ -73,18 +73,23 @@ All CLIs are automatically integrated with the following model context protocol 
 
 ```
 ai-coding-config/
-├── claude/               # Claude Code configuration files
-│   ├── agents/           # Custom md agents definitions
+├── agents/               # Source of Truth: 15 Custom Agents (.md with YAML frontmatter)
+├── skills/               # Source of Truth: 25 shared skill packages
+├── claude/               # Claude-specific configuration files
 │   ├── rules/ecc/        # 12 Engineer Agentic Coding (ECC) rules
-│   ├── skills/           # 25 shared skill packages
+│   ├── hooks/            # Pre/Post tool hooks (tracked via .gitkeep)
+│   ├── CLAUDE.md         # Claude Code instructions
+│   ├── RTK.md            # Claude Code token optimization reference
 │   └── settings.json     # Claude settings & Playwright config
-├── codex/                # Codex CLI configuration files
-│   ├── agents/           # Custom toml agents definitions
+├── codex/                # Codex-specific configuration files
+│   ├── AGENTS.md         # Codex instructions
+│   ├── RTK.md            # Codex token optimization reference
 │   └── config.toml       # Shared Codex config template
+├── scripts/              # Build & management scripts
+│   └── compile-agents.js # Compiler script that parses root agents to target folders
 ├── install.sh            # Main installation Bash script
 ├── install.bat           # Windows command wrapper
-├── onboarding_guide.md   # Setup guide and installer walkthrough
-└── codebase_review.md    # Source code analysis & fixes documentation
+└── README.md
 ```
 
 ---

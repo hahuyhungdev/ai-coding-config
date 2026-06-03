@@ -64,7 +64,11 @@ fi
 
 # Compile shared Markdown agents to CLI-specific formats
 info "Compiling custom agents..."
-node "$REPO_DIR/scripts/compile-agents.js"
+COMPILE_FLAGS=""
+if [ "$INSTALL_CLAUDE" = "1" ]; then COMPILE_FLAGS="$COMPILE_FLAGS --claude"; fi
+if [ "$INSTALL_CODEX" = "1" ]; then COMPILE_FLAGS="$COMPILE_FLAGS --codex"; fi
+if [ "$INSTALL_AGY" = "1" ]; then COMPILE_FLAGS="$COMPILE_FLAGS --agy"; fi
+node "$REPO_DIR/scripts/compile-agents.js" $COMPILE_FLAGS
 
 
 command_exists() {
@@ -480,12 +484,8 @@ ok "settings.json"
 link_path "$REPO_DIR/claude/RTK.md" "$CLAUDE_DIR/RTK.md"
 ok "RTK.md"
 
-# Agents
-for f in "$REPO_DIR"/claude/agents/*.md; do
-    name="$(basename "$f")"
-    link_path "$f" "$CLAUDE_DIR/agents/$name"
-done
-ok "Agents ($(count_files "$REPO_DIR/claude/agents" "*.md") files)"
+# Agents (written directly by compiler)
+ok "Agents ($(count_files "$CLAUDE_DIR/agents" "*.md") files)"
 
 # Skills
 for d in "$REPO_DIR"/claude/skills/*/; do
@@ -537,12 +537,8 @@ install_local_config "$REPO_DIR/codex/config.toml" "$CODEX_DIR/config.toml"
 ok "config.toml"
 configure_codex_trusted_projects "$CODEX_DIR/config.toml"
 
-# Agents
-for f in "$REPO_DIR"/codex/agents/*.toml; do
-    name="$(basename "$f")"
-    link_path "$f" "$CODEX_DIR/agents/$name"
-done
-ok "Agents ($(count_files "$REPO_DIR/codex/agents" "*.toml") files)"
+# Agents (written directly by compiler)
+ok "Agents ($(count_files "$CODEX_DIR/agents" "*.toml") files)"
 
 # Skills
 for d in "$REPO_DIR"/claude/skills/*/; do
@@ -568,15 +564,10 @@ else
 fi
 
 if [ -L "$HOME/.gemini/config/agents" ]; then
-    ok "Agents directory is already symlinked for agy"
-else
-    mkdir -p "$HOME/.gemini/config/agents"
-    for f in "$REPO_DIR"/claude/agents/*.md; do
-        name="$(basename "$f")"
-        link_path "$f" "$HOME/.gemini/config/agents/$name"
-    done
-    ok "Agents ($(count_files "$REPO_DIR/claude/agents" "*.md") files) linked to agy config"
+    rm -f "$HOME/.gemini/config/agents"
 fi
+mkdir -p "$HOME/.gemini/config/agents"
+ok "Agents ($(count_files "$HOME/.gemini/config/agents" "*.md") files) configured for agy"
 fi
 
 # Update Playwright MCP configurations for all three CLIs (Claude, agy, Codex)
