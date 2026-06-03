@@ -54,7 +54,7 @@ link_path() {
         if [ -d "$source" ]; then
             is_dir="/d"
         fi
-        if ! cmd.exe /c mklink $is_dir "$win_target" "$win_source" >/dev/null 2>&1; then
+        if ! MSYS_NO_PATHCONV=1 cmd.exe /c mklink $is_dir "$win_target" "$win_source" >/dev/null 2>&1; then
             warn "Failed to create symlink, copying instead: $target"
             cp -R "$source" "$target"
         fi
