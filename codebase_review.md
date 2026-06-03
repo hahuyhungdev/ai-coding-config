@@ -28,6 +28,13 @@ Tài liệu này ghi lại quá trình đánh giá mã nguồn dự án `ai-codi
     1.  Tạo tệp `.gitkeep` trong `claude/hooks/` để đảm bảo Git luôn theo dõi thư mục này.
     2.  Sửa đổi script `install.sh`: Chỉ liên kết các tệp tin hợp lệ (`[ -f "$f" ]`), tự động bỏ qua các thư mục hoặc tệp tin đại diện không tồn tại và ẩn cảnh báo warning không cần thiết nếu người dùng không định nghĩa hook nào.
 
+### 🔄 Đồng Bộ Hóa Tự Động Cấu Hình Codex CLI (`config.toml`)
+*   **Vấn đề:** Khi `~/.codex/config.toml` đã tồn tại, trình cài đặt mặc định bỏ qua cấu hình này để tránh ghi đè làm mất danh sách các dự án tin cậy (`[projects]`) và tùy chọn cá nhân. Tuy nhiên, điều này khiến người dùng không nhận được các cấu hình MCP servers cập nhật (như playwright với `--isolated`) và custom agents được định nghĩa mới trong repository.
+*   **Giải pháp:** Tích hợp bộ giải quyết xung đột cấu hình TOML trực tiếp vào [install.sh](file:///home/huyhung/projects/personals/ai-coding-config/install.sh). Khi tệp cấu hình đích đã tồn tại, script tự động thực hiện:
+    1. Trích xuất và phân tích cấu hình từ tệp cấu hình của repo và tệp cá nhân của người dùng bằng Node.js.
+    2. Gộp các bảng/giá trị MCP servers và các agents tùy chỉnh từ repository vào cấu hình của người dùng.
+    3. Giữ nguyên mọi cài đặt cá nhân, di chuyển phiên bản cũ và danh sách dự án tin cậy (`[projects]`) an toàn.
+
 ---
 
 ## 📝 2. Đánh Giá Đề Xuất về Các Liên Kết ECC Rules Bị Hỏng (`../common/`)
