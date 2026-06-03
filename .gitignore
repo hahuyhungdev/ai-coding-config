@@ -1,0 +1,37 @@
+# Credentials and secrets
+*.json.bak
+.auth*
+credentials*
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Logs
+*.log
+bash-commands.log
+cost-tracker.log
+history.jsonl
+
+# Cache
+cache/
+.tmp/
+paste-cache/
+
+# Runtime
+daemon/
+daemon.*
+jobs/
+file-history/
+metrics/
+backups/
+ide/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific (keep templates only)
+codex/config.local.toml

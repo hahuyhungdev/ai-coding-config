@@ -1,0 +1,140 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+# ECC Codex Configuration
+# Docs: https://developers.openai.com/codex
+
+# Runtime settings
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+approvals_reviewer = "user"
+
+# Model
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
+
+# Persistent instructions
+persistent_instructions = "Follow project AGENTS.md guidelines. Use available MCP servers when they can help."
+
+# MCP Servers
+[mcp_servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+startup_timeout_sec = 30
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest", "--headless", "--browser", "chromium"]
+
+[mcp_servers.playwright.tools.browser_navigate]
+approval_mode = "approve"
+
+[mcp_servers.memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]
+startup_timeout_sec = 30
+
+[mcp_servers.sequential-thinking]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+startup_timeout_sec = 30
+
+# Features
+[features]
+memories = true
+multi_agent = true
+
+# Profiles
+[profiles.strict]
+approval_policy = "on-request"
+sandbox_mode = "read-only"
+web_search = "cached"
+
+[profiles.yolo]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+web_search = "live"
+
+# Agents
+[agents]
+max_threads = 6
+max_depth = 1
+
+[agents.explorer]
+description = "Read-only codebase explorer for gathering evidence before changes are proposed."
+config_file = "agents/explorer.toml"
+
+[agents.reviewer]
+description = "PR reviewer focused on correctness, security, and missing tests."
+config_file = "agents/reviewer.toml"
+
+[agents.docs_researcher]
+description = "Documentation specialist that verifies APIs, framework behavior, and release notes."
+config_file = "agents/docs-researcher.toml"
+
+[agents.planner]
+description = "Implementation planning specialist for complex features and refactoring."
+config_file = "agents/planner.toml"
+
+[agents.code_reviewer]
+description = "Code review specialist for security, quality, and maintainability."
+config_file = "agents/code-reviewer.toml"
+
+[agents.security_reviewer]
+description = "Security vulnerability detection and remediation specialist."
+config_file = "agents/security-reviewer.toml"
+
+[agents.build_error_resolver]
+description = "Build and TypeScript error resolution specialist."
+config_file = "agents/build-error-resolver.toml"
+
+[agents.tdd_guide]
+description = "Test-Driven Development specialist enforcing write-tests-first methodology."
+config_file = "agents/tdd-guide.toml"
+
+[agents.typescript_reviewer]
+description = "Expert TypeScript/JavaScript code reviewer for type safety and async correctness."
+config_file = "agents/typescript-reviewer.toml"
+
+[agents.database_reviewer]
+description = "PostgreSQL database specialist for query optimization and schema design."
+config_file = "agents/database-reviewer.toml"
+
+[agents.e2e_runner]
+description = "End-to-end testing specialist using Playwright."
+config_file = "agents/e2e-runner.toml"
+
+[agents.performance_optimizer]
+description = "Performance analysis and optimization specialist."
+config_file = "agents/performance-optimizer.toml"
+
+[agents.refactor_cleaner]
+description = "Dead code cleanup and consolidation specialist."
+config_file = "agents/refactor-cleaner.toml"
+
+[agents.code_explorer]
+description = "Codebase analysis specialist for tracing execution paths and mapping architecture."
+config_file = "agents/code-explorer.toml"
+
+[agents.architect]
+description = "Software architecture specialist for system design and scalability."
+config_file = "agents/architect.toml"
+
+# Project trust levels
+# ADD YOUR PROJECTS HERE:
+# [projects."/path/to/your/project"]
+# trust_level = "trusted"
+
+# UI/UX settings
+[notice]
+hide_full_access_warning = true
+fast_default_opt_out = true
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
