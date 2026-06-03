@@ -540,11 +540,11 @@ done
 ok "Agents ($(count_files "$REPO_DIR/codex/agents" "*.toml") files)"
 
 # Skills
-for d in "$REPO_DIR"/codex/skills/*/; do
+for d in "$REPO_DIR"/claude/skills/*/; do
     name="$(basename "$d")"
     link_path "$d" "$CODEX_DIR/skills/$name"
 done
-ok "Skills ($(count_dirs "$REPO_DIR/codex/skills") dirs)"
+ok "Skills ($(count_dirs "$REPO_DIR/claude/skills") dirs)"
 fi
 
 if [ "$INSTALL_AGY" = "1" ]; then

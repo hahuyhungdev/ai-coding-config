@@ -80,7 +80,6 @@ ai-coding-config/
 │   └── settings.json     # Claude settings & Playwright config
 ├── codex/                # Codex CLI configuration files
 │   ├── agents/           # Custom toml agents definitions
-│   ├── skills/           # 25 shared skill packages
 │   └── config.toml       # Shared Codex config template
 ├── install.sh            # Main installation Bash script
 ├── install.bat           # Windows command wrapper

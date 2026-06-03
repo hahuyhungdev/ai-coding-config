@@ -22,7 +22,6 @@ ai-coding-config/
 │   └── settings.json     # Cấu hình hệ thống (bao gồm danh sách MCP servers)
 ├── codex/                # Cấu hình cho Codex CLI
 │   ├── agents/           # Custom Agents dạng file TOML (.toml)
-│   ├── skills/           # Kỹ năng nâng cao cho Codex
 │   ├── AGENTS.md         # Tài liệu chỉ dẫn agents
 │   ├── RTK.md            # Tài liệu tham chiếu tối ưu hóa token cho Codex
 │   └── config.toml       # Mẫu cấu hình gốc của Codex (bao gồm mcpServers)
