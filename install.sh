@@ -14,6 +14,54 @@ info() { echo -e "\033[0;34m[INFO]\033[0m $1"; }
 ok()   { echo -e "\033[0;32m[OK]\033[0m $1"; }
 warn() { echo -e "\033[0;33m[WARN]\033[0m $1"; }
 
+INSTALL_CLAUDE=0
+INSTALL_CODEX=0
+INSTALL_AGY=0
+
+# Parse arguments
+if [ $# -eq 0 ]; then
+    INSTALL_CLAUDE=1
+    INSTALL_CODEX=1
+    INSTALL_AGY=1
+else
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --claude)
+                INSTALL_CLAUDE=1
+                shift
+                ;;
+            --codex)
+                INSTALL_CODEX=1
+                shift
+                ;;
+            --agy)
+                INSTALL_AGY=1
+                shift
+                ;;
+            --all)
+                INSTALL_CLAUDE=1
+                INSTALL_CODEX=1
+                INSTALL_AGY=1
+                shift
+                ;;
+            -h|--help)
+                echo "Usage: ./install.sh [options]"
+                echo "Options:"
+                echo "  --claude    Only install/configure Claude Code"
+                echo "  --codex     Only install/configure Codex CLI"
+                echo "  --agy       Only install/configure Antigravity CLI (agy)"
+                echo "  --all       Install/configure all three (default)"
+                echo "  -h, --help  Show this help message"
+                exit 0
+                ;;
+            *)
+                warn "Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+fi
+
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
@@ -298,6 +346,7 @@ try {
     fi
 }
 
+if [ "$INSTALL_CLAUDE" = "1" ]; then
 # --- Claude Code ---
 count_files() {
     local dir="$1"
@@ -359,7 +408,9 @@ if [ -d "$REPO_DIR/claude/hooks" ] && [ "$(ls -A "$REPO_DIR/claude/hooks" 2>/dev
 else
     warn "No hooks to install"
 fi
+fi
 
+if [ "$INSTALL_CODEX" = "1" ]; then
 # --- Codex CLI ---
 info "Setting up Codex CLI..."
 
@@ -392,7 +443,9 @@ for d in "$REPO_DIR"/codex/skills/*/; do
     link_path "$d" "$CODEX_DIR/skills/$name"
 done
 ok "Skills ($(count_dirs "$REPO_DIR/codex/skills") dirs)"
+fi
 
+if [ "$INSTALL_AGY" = "1" ]; then
 # --- Antigravity CLI (agy) ---
 info "Setting up Antigravity CLI (agy)..."
 
@@ -412,12 +465,19 @@ if [ -L "$HOME/.gemini/config/agents" ]; then
 else
     mkdir -p "$HOME/.gemini/config/agents"
 fi
+fi
 
 # Update Playwright MCP configurations for all three CLIs (Claude, agy, Codex)
-info "Ensuring Playwright MCP runs with --isolated..."
-update_json_mcp_config "$HOME/.claude.json"
-update_json_mcp_config "$HOME/.gemini/config/mcp_config.json"
-update_json_mcp_config "$HOME/.claude/ecc-source/mcp-configs/mcp-servers.json"
+if [ "$INSTALL_CLAUDE" = "1" ] || [ "$INSTALL_AGY" = "1" ]; then
+    info "Ensuring Playwright MCP runs with --isolated..."
+    if [ "$INSTALL_CLAUDE" = "1" ]; then
+        update_json_mcp_config "$HOME/.claude.json"
+        update_json_mcp_config "$HOME/.claude/ecc-source/mcp-configs/mcp-servers.json"
+    fi
+    if [ "$INSTALL_AGY" = "1" ]; then
+        update_json_mcp_config "$HOME/.gemini/config/mcp_config.json"
+    fi
+fi
 
 echo ""
 echo "Done! Restart Claude Code / Codex CLI / agy to pick up changes."
