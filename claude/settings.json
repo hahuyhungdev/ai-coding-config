@@ -47,5 +47,17 @@
       "Bash(git reset --hard *)"
     ],
     "defaultMode": "bypassPermissions"
-  }
+  },
+  "enabledPlugins": {
+    "ecc@ecc": true
+  },
+  "extraKnownMarketplaces": {
+    "ecc": {
+      "source": {
+        "source": "github",
+        "repo": "affaan-m/ECC"
+      }
+    }
+  },
+  "skipDangerousModePermissionPrompt": true
 }
