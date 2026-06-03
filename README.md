@@ -54,7 +54,7 @@ You can install configuration assets for all three CLIs at once, or target speci
 | :--- | :---: | :---: | :---: |
 | **Context File** | `CLAUDE.md` | `AGENTS.md` | — |
 | **System Settings** | `settings.json` | `config.toml` | `mcp_config.json` |
-| **Custom Agents** | 12 MD agents | 15 TOML agents | 12 MD agents (synced) |
+| **Custom Agents** | 15 MD agents | 15 TOML agents | 15 MD agents (synced) |
 | **Advanced Skills** | 25 skills | 25 skills | 25 skills (synced) |
 | **Rules (ECC)** | 12 rules | — | — |
 | **Playwright Isolation** | Yes (`--isolated`) | Yes (`--isolated`) | Yes (`--isolated`) |
