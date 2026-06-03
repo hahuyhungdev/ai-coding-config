@@ -35,6 +35,14 @@ Tài liệu này ghi lại quá trình đánh giá mã nguồn dự án `ai-codi
     2. Gộp các bảng/giá trị MCP servers và các agents tùy chỉnh từ repository vào cấu hình của người dùng.
     3. Giữ nguyên mọi cài đặt cá nhân, di chuyển phiên bản cũ và danh sách dự án tin cậy (`[projects]`) an toàn.
 
+### 🤖 Hệ Thống Biên Dịch Agents Dùng Chung (Unified Agent Compiler)
+*   **Vấn đề:** Các Custom Agents của Claude Code / agy dùng định dạng Markdown (`.md`), còn Codex CLI lại yêu cầu định dạng TOML (`.toml`). Điều này dẫn đến sự phân mảnh cấu hình, lặp lại thông tin và khó khăn khi cập nhật hướng dẫn cho các agent.
+*   **Giải pháp:** Đưa toàn bộ 15 Custom Agents về thư mục gốc `agents/` làm **Source of Truth** dưới dạng file Markdown (`.md`) kèm theo phần YAML frontmatter. Phát triển script [compile-agents.js](file:///home/huyhung/projects/personals/ai-coding-config/scripts/compile-agents.js) chạy tự động lúc cài đặt để:
+    1. Trích xuất frontmatter và nội dung prompt từ file Markdown gốc.
+    2. Xuất ra định dạng Markdown chuẩn cho Claude Code và agy (bỏ các trường thừa của Codex).
+    3. Tự động biên dịch sang định dạng TOML chuẩn cho Codex CLI, đưa toàn bộ prompt Markdown gốc vào trường `developer_instructions` dưới dạng multiline string, đồng thời ánh xạ các thuộc tính model phù hợp.
+    4. Thêm các thư mục build tạm thời vào `.gitignore` để giữ sạch repository.
+
 ---
 
 ## 📝 2. Đánh Giá Đề Xuất về Các Liên Kết ECC Rules Bị Hỏng (`../common/`)

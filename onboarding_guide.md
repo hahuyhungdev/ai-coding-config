@@ -11,20 +11,21 @@ Dự án này là trung tâm cấu hình tập trung (source of truth) cho các 
 ```
 ai-coding-config/
 ├── .playwright-mcp/      # Cấu hình độc lập cho Playwright MCP
-├── claude/               # Cấu hình cho Claude Code
-│   ├── agents/           # Các Custom Agents dạng file Markdown (.md)
+├── agents/               # Source of Truth: 15 Custom Agents dạng Markdown (.md)
+├── skills/               # Source of Truth: 25 kỹ năng nâng cao dùng chung
+├── claude/               # Cấu hình riêng cho Claude Code
 │   ├── rules/            # Quy tắc coding standards (ví dụ: ECC rules)
 │   │   └── ecc/          # 12 file quy tắc của bộ tiêu chuẩn ECC
-│   ├── skills/           # Các kỹ năng nâng cao (bao gồm kịch bản và mã nguồn)
 │   ├── hooks/            # Chứa các hooks (Pre/Post tool hooks) - được theo dõi qua .gitkeep
 │   ├── CLAUDE.md         # Tài liệu chỉ dẫn đặc thù cho Claude Code
 │   ├── RTK.md            # Tài liệu tham chiếu tối ưu hóa token cho Claude
 │   └── settings.json     # Cấu hình hệ thống (bao gồm danh sách MCP servers)
-├── codex/                # Cấu hình cho Codex CLI
-│   ├── agents/           # Custom Agents dạng file TOML (.toml)
+├── codex/                # Cấu hình riêng cho Codex CLI
 │   ├── AGENTS.md         # Tài liệu chỉ dẫn agents
 │   ├── RTK.md            # Tài liệu tham chiếu tối ưu hóa token cho Codex
 │   └── config.toml       # Mẫu cấu hình gốc của Codex (bao gồm mcpServers)
+├── scripts/              # Chứa các script quản lý & xây dựng
+│   └── compile-agents.js # Script biên dịch agents sang định dạng đích tương ứng
 ├── install.sh            # Script cài đặt/đồng bộ chính (Bash/Linux/Git Bash)
 ├── install.bat           # Wrapper chạy install.sh trên Windows CMD/PowerShell
 ├── README.md             # Tài liệu giới thiệu tổng quan dự án
