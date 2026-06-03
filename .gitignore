@@ -16,8 +16,11 @@ history.jsonl
 cache/
 .tmp/
 paste-cache/
+node_modules/
 
 # Runtime
+.claude/
+.codex/
 daemon/
 daemon.*
 jobs/
@@ -25,6 +28,8 @@ file-history/
 metrics/
 backups/
 ide/
+*.bak
+*.bak.*
 
 # Playwright MCP artifacts
 .playwright-mcp/
@@ -32,6 +37,8 @@ ide/
 # OS
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
 
 # Project-specific (keep templates only)
 codex/config.local.toml

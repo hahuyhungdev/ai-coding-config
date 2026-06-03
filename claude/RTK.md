@@ -46,20 +46,12 @@ rtk rg "pattern"
 rtk proxy git log --oneline -100
 ```
 
-## Integration with Claude Code Hooks
+## Optional Claude Hook Integration
 
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "command": "node ~/.claude/hooks/pre-bash-rtk.js",
-        "description": "RTK optimization for shell commands"
-      }
-    ]
-  }
-}
+If you want RTK to rewrite Claude Code shell commands automatically, use RTK's own initializer instead of a repo-local hook:
+
+```bash
+rtk init --global
 ```
 
 ## When to Use RTK

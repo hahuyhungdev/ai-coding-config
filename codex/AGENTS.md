@@ -69,7 +69,7 @@ Codex supports multi-agent workflows behind the `features.multi_agent` flag.
 
 | Feature | Claude Code | Codex CLI |
 |---------|------------|-----------|
-| Hooks | 8+ event types | Not yet supported |
+| Hooks | Multiple hook event types | Not yet supported |
 | Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
 | Skills | Skills loaded via plugin | `.agents/skills/` directory |
 | Commands | `/slash` commands | Instruction-based |

@@ -33,10 +33,12 @@
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/secrets/**)",
-      "Read(**/*secret*)",
-      "Read(**/*token*)",
-      "Read(**/*credential*)",
-      "Read(**/*private*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/*.pfx)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
       "Bash(rm -rf /)",
       "Bash(rm -rf ~)",
       "Bash(rm -rf .)",
@@ -46,7 +48,7 @@
       "Bash(git push --force *)",
       "Bash(git reset --hard *)"
     ],
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "acceptEdits"
   },
   "enabledPlugins": {
     "ecc@ecc": true
@@ -58,6 +60,5 @@
         "repo": "affaan-m/ECC"
       }
     }
-  },
-  "skipDangerousModePermissionPrompt": true
+  }
 }

@@ -6,6 +6,7 @@
 - For complex features, plan before implementation.
 - Use TDD when adding features or fixing bugs.
 - After modifying code, run relevant tests/lint/typecheck.
+- Use the extended ECC guidance in `~/.claude/rules/ecc/` when a task touches those domains.
 - Use specialized ECC agents/skills when useful:
   - planner for implementation plans
   - architect for architecture decisions
@@ -29,3 +30,5 @@
 - Prefer immutable updates where idiomatic.
 - No `console.log` or debug prints in production code unless intentional.
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
+
+@RTK.md

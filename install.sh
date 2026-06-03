@@ -23,6 +23,11 @@ link_path() {
     local target="$2"
     local backup
 
+    if [ ! -e "$source" ] && [ ! -L "$source" ]; then
+        warn "Source does not exist: $source"
+        return 1
+    fi
+
     if [ -L "$target" ]; then
         ln -sfn "$source" "$target"
         return
@@ -138,7 +143,7 @@ append_csv_trusted_projects() {
 trusted_project_count() {
     local config="$1"
 
-    sed -n 's/^\[projects\."\([^"]*\)"\]$/\1/p' "$config" | wc -l | tr -d ' '
+    sed -n 's/^\[projects\."\([^"]*\)"\]$/\1/p' "$config" | wc -l | awk '{print $1}'
 }
 
 trusted_project_exists() {
@@ -235,6 +240,19 @@ configure_codex_trusted_projects() {
 }
 
 # --- Claude Code ---
+count_files() {
+    local dir="$1"
+    local pattern="$2"
+
+    find "$dir" -maxdepth 1 -type f -name "$pattern" | wc -l | awk '{print $1}'
+}
+
+count_dirs() {
+    local dir="$1"
+
+    find "$dir" -mindepth 1 -maxdepth 1 -type d | wc -l | awk '{print $1}'
+}
+
 info "Setting up Claude Code..."
 
 mkdir -p "$CLAUDE_DIR"/{agents,skills,rules/ecc,hooks}
@@ -256,21 +274,21 @@ for f in "$REPO_DIR"/claude/agents/*.md; do
     name="$(basename "$f")"
     link_path "$f" "$CLAUDE_DIR/agents/$name"
 done
-ok "Agents ($(ls "$REPO_DIR"/claude/agents/*.md | wc -l) files)"
+ok "Agents ($(count_files "$REPO_DIR/claude/agents" "*.md") files)"
 
 # Skills
 for d in "$REPO_DIR"/claude/skills/*/; do
     name="$(basename "$d")"
     link_path "$d" "$CLAUDE_DIR/skills/$name"
 done
-ok "Skills ($(ls -d "$REPO_DIR"/claude/skills/*/ | wc -l) dirs)"
+ok "Skills ($(count_dirs "$REPO_DIR/claude/skills") dirs)"
 
 # Rules (ECC only)
 for f in "$REPO_DIR"/claude/rules/ecc/*.md; do
     name="$(basename "$f")"
     link_path "$f" "$CLAUDE_DIR/rules/ecc/$name"
 done
-ok "Rules ($(ls "$REPO_DIR"/claude/rules/ecc/*.md | wc -l) files)"
+ok "Rules ($(count_files "$REPO_DIR/claude/rules/ecc" "*.md") files)"
 
 # Hooks
 if [ -d "$REPO_DIR/claude/hooks" ] && [ "$(ls -A "$REPO_DIR/claude/hooks" 2>/dev/null)" ]; then
@@ -307,14 +325,14 @@ for f in "$REPO_DIR"/codex/agents/*.toml; do
     name="$(basename "$f")"
     link_path "$f" "$CODEX_DIR/agents/$name"
 done
-ok "Agents ($(ls "$REPO_DIR"/codex/agents/*.toml | wc -l) files)"
+ok "Agents ($(count_files "$REPO_DIR/codex/agents" "*.toml") files)"
 
 # Skills
 for d in "$REPO_DIR"/codex/skills/*/; do
     name="$(basename "$d")"
     link_path "$d" "$CODEX_DIR/skills/$name"
 done
-ok "Skills ($(ls -d "$REPO_DIR"/codex/skills/*/ | wc -l) dirs)"
+ok "Skills ($(count_dirs "$REPO_DIR/codex/skills") dirs)"
 
 echo ""
 echo "Done! Restart Claude Code / Codex CLI to pick up changes."
