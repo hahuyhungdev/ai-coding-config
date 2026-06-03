@@ -28,7 +28,7 @@ Skills are loaded from `~/.codex/skills/`. Each skill contains:
 
 ## MCP Servers
 
-Treat the project-local `.codex/config.toml` as the default Codex baseline for ECC.
+Treat `codex/config.toml` in this repo as the shared config template, copied to `~/.codex/config.toml` for runtime use.
 
 ## External Action Boundaries
 
@@ -41,8 +41,8 @@ When approval is ambiguous, produce a local plan or draft artifact instead of ta
 Codex supports multi-agent workflows behind the `features.multi_agent` flag.
 
 - Enable it in `.codex/config.toml` with `[features] multi_agent = true`
-- Define project-local roles under `[agents.<name>]`
-- Point each role at a TOML layer under `.codex/agents/`
+- Define roles under `[agents.<name>]`
+- Point each role at a TOML layer under `agents/` relative to the installed `~/.codex/config.toml`
 - Use `/agent` inside Codex CLI to inspect and steer child agents
 
 ### Available Agents (15)

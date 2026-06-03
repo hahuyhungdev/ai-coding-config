@@ -1,28 +1,31 @@
-# RTK (Rust Token Killer) — Codex CLI Reference
+# RTK (Rust Token Killer) - Codex CLI Reference
 
 RTK is a CLI proxy that reduces token usage by compacting shell output before it reaches the model.
 
 ## Installation
 
+`install.sh` checks for RTK, offers to install it when missing, and creates the default RTK config.
+
 ```bash
-curl -sSL https://rtk.apidocumentation.com/install.sh | bash
+tmp="$(mktemp)"
+curl -fsSL https://rtk.apidocumentation.com/install.sh -o "$tmp"
+bash "$tmp"
 ```
 
 ## Configuration
 
+RTK 0.40+ uses a config file, not `rtk config set`.
+
 ```bash
-rtk config set default.provider openai
-rtk config set default.model gpt-5.5
-rtk config set default.maxTokens 16000
-rtk config set default.cachePrompt true
+rtk config --create
+rtk --version
+rtk gain
 ```
 
-## Environment Variables
+## Non-Interactive Install
 
 ```bash
-export OPENAI_API_KEY="sk-..."
-export RTK_DEFAULT_PROVIDER=openai
-export RTK_DEFAULT_MODEL=gpt-5.5
+RTK_INSTALL=1 ./install.sh
 ```
 
 ## Usage
@@ -34,6 +37,7 @@ rtk git log --oneline -20
 rtk pnpm build
 rtk npx tsc --noEmit
 rtk pnpm test
+rtk rg "pattern"
 ```
 
 ## Bypass (full output)

@@ -124,17 +124,11 @@ description = "Software architecture specialist for system design and scalabilit
 config_file = "agents/architect.toml"
 
 # Project trust levels
-# ADD YOUR PROJECTS HERE:
-# [projects."/path/to/your/project"]
-# trust_level = "trusted"
+# Shared config intentionally has no [projects] entries.
+# install.sh writes machine-specific trusted roots to ~/.codex/config.toml.
+# Re-run with CODEX_RECONFIGURE_TRUST=1 to update them interactively.
 
 # UI/UX settings
 [notice]
 hide_full_access_warning = true
 fast_default_opt_out = true
-
-[notice.model_migrations]
-"gpt-5.3-codex" = "gpt-5.4"
-
-[tui.model_availability_nux]
-"gpt-5.5" = 4

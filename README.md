@@ -12,6 +12,10 @@ cd ~/ai-coding-config
 
 That's it! Restart Claude Code / Codex CLI to pick up changes.
 
+The repo files are the shared source of truth. The installer links shared assets into `~/.claude` and `~/.codex`; `~/.codex/config.toml` is copied as a local file so each machine can keep its own trusted projects.
+
+The installer also checks RTK. If RTK is missing in an interactive shell, it asks to install it; for automation, use `RTK_INSTALL=1 ./install.sh`.
+
 ## What's Included
 
 | Component | Claude Code | Codex CLI |
@@ -112,7 +116,27 @@ All 12 above, plus:
 
 ### Add a project to Codex trust list
 
-Edit `codex/config.toml`:
+During first-time `./install.sh`, the local setup wizard detects your Linux username and home directory, then suggests trusted roots such as `~/projects`, `~/projects/personals`, `~/projects/company`, and this config repo. Press Enter to accept the defaults, or enter comma-separated paths. Later runs keep the existing local trusted projects.
+
+For non-interactive setup, pass paths through `CODEX_TRUSTED_PROJECTS`:
+
+```bash
+CODEX_TRUSTED_PROJECTS="$HOME/projects,$HOME/work" ./install.sh
+```
+
+You can combine it with RTK installation:
+
+```bash
+RTK_INSTALL=1 CODEX_TRUSTED_PROJECTS="$HOME/projects,$HOME/work" ./install.sh
+```
+
+To re-run the interactive wizard even when trusted projects already exist:
+
+```bash
+CODEX_RECONFIGURE_TRUST=1 ./install.sh
+```
+
+You can also edit `~/.codex/config.toml` after install. Do not commit machine-specific paths to the shared `codex/config.toml`.
 
 ```toml
 [projects."/path/to/your/project"]

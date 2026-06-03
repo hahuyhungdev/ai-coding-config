@@ -14,9 +14,9 @@ Located in `~/.claude/agents/`:
 | build-error-resolver | Fix build errors | When build fails |
 | e2e-runner | E2E testing | Critical user flows |
 | refactor-cleaner | Dead code cleanup | Code maintenance |
-| doc-updater | Documentation | Updating docs |
-| rust-reviewer | Rust code review | Rust projects |
-| harmonyos-app-resolver | HarmonyOS app development | HarmonyOS/ArkTS projects |
+| typescript-reviewer | TypeScript/JavaScript review | TS/JS projects |
+| database-reviewer | PostgreSQL specialist | Schema changes, query optimization |
+| performance-optimizer | Performance analysis | Slow code, bundle size |
 
 ## Immediate Agent Usage
 

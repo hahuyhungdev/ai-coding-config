@@ -1,28 +1,31 @@
-# RTK (Rust Token Killer) — Claude Code Reference
+# RTK (Rust Token Killer) - Claude Code Reference
 
 RTK is a CLI proxy that reduces token usage by compacting shell output (git, npm, pnpm, docker, etc.) before it reaches the model.
 
 ## Installation
 
+`install.sh` checks for RTK, offers to install it when missing, and creates the default RTK config.
+
 ```bash
-curl -sSL https://rtk.apidocumentation.com/install.sh | bash
+tmp="$(mktemp)"
+curl -fsSL https://rtk.apidocumentation.com/install.sh -o "$tmp"
+bash "$tmp"
 ```
 
 ## Configuration
 
+RTK 0.40+ uses a config file, not `rtk config set`.
+
 ```bash
-rtk config set default.provider anthropic
-rtk config set default.model claude-opus-4-6
-rtk config set default.maxTokens 16000
-rtk config set default.cachePrompt true
+rtk config --create
+rtk --version
+rtk gain
 ```
 
-## Environment Variables
+## Non-Interactive Install
 
 ```bash
-export ANTHROPIC_AUTH_TOKEN="sk-ant-..."
-export RTK_DEFAULT_PROVIDER=anthropic
-export RTK_DEFAULT_MODEL=claude-opus-4-6
+RTK_INSTALL=1 ./install.sh
 ```
 
 ## Usage
@@ -34,6 +37,7 @@ rtk git log --oneline -20
 rtk pnpm build
 rtk npx tsc --noEmit
 rtk pnpm test
+rtk rg "pattern"
 ```
 
 ## Bypass (full output)
