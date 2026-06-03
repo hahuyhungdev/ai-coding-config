@@ -15,7 +15,7 @@ warn() { echo -e "\033[0;33m[WARN]\033[0m $1"; }
 # --- Claude Code ---
 info "Setting up Claude Code..."
 
-mkdir -p "$CLAUDE_DIR"/{agents,skills,rules/ecc,rules/common,hooks}
+mkdir -p "$CLAUDE_DIR"/{agents,skills,rules/ecc,hooks}
 
 # CLAUDE.md
 ln -sf "$REPO_DIR/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
@@ -47,16 +47,12 @@ for d in "$REPO_DIR"/claude/skills/*/; do
 done
 ok "Skills ($(ls -d "$REPO_DIR"/claude/skills/*/ | wc -l) dirs)"
 
-# Rules
+# Rules (ECC only)
 for f in "$REPO_DIR"/claude/rules/ecc/*.md; do
     name="$(basename "$f")"
     ln -sf "$f" "$CLAUDE_DIR/rules/ecc/$name"
 done
-for f in "$REPO_DIR"/claude/rules/common/*.md; do
-    name="$(basename "$f")"
-    ln -sf "$f" "$CLAUDE_DIR/rules/common/$name"
-done
-ok "Rules"
+ok "Rules ($(ls "$REPO_DIR"/claude/rules/ecc/*.md | wc -l) files)"
 
 # Hooks
 if [ -d "$REPO_DIR/claude/hooks" ] && [ "$(ls -A "$REPO_DIR/claude/hooks" 2>/dev/null)" ]; then
