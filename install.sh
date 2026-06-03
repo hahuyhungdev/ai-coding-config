@@ -267,11 +267,26 @@ update_json_mcp_config() {
 const fs = require("fs");
 const file = process.argv[1];
 try {
-    const data = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (data && data.mcpServers && data.mcpServers.playwright && data.mcpServers.playwright.args) {
-        const args = data.mcpServers.playwright.args;
+    let data = {};
+    const content = fs.readFileSync(file, "utf8").trim();
+    if (content) {
+        data = JSON.parse(content);
+    }
+    if (!data.mcpServers) {
+        data.mcpServers = {};
+    }
+    if (!data.mcpServers.playwright) {
+        data.mcpServers.playwright = {
+            command: "npx",
+            args: ["-y", "@playwright/mcp@latest", "--browser", "chromium", "--headless", "--ignore-https-errors", "--isolated"]
+        };
+        fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
+        console.log("Initialized playwright MCP in " + file);
+    } else {
+        const args = data.mcpServers.playwright.args || [];
         if (!args.includes("--isolated")) {
             args.push("--isolated");
+            data.mcpServers.playwright.args = args;
             fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
             console.log("Added --isolated to " + file);
         }
