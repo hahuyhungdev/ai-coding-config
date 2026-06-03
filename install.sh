@@ -62,6 +62,11 @@ else
     done
 fi
 
+# Compile shared Markdown agents to CLI-specific formats
+info "Compiling custom agents..."
+node "$REPO_DIR/scripts/compile-agents.js"
+
+
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
