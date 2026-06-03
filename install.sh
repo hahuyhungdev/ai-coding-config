@@ -488,11 +488,11 @@ ok "RTK.md"
 ok "Agents ($(count_files "$CLAUDE_DIR/agents" "*.md") files)"
 
 # Skills
-for d in "$REPO_DIR"/claude/skills/*/; do
+for d in "$REPO_DIR"/skills/*/; do
     name="$(basename "$d")"
     link_path "$d" "$CLAUDE_DIR/skills/$name"
 done
-ok "Skills ($(count_dirs "$REPO_DIR/claude/skills") dirs)"
+ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
 
 # Rules (ECC only)
 for f in "$REPO_DIR"/claude/rules/ecc/*.md; do
@@ -541,11 +541,11 @@ configure_codex_trusted_projects "$CODEX_DIR/config.toml"
 ok "Agents ($(count_files "$CODEX_DIR/agents" "*.toml") files)"
 
 # Skills
-for d in "$REPO_DIR"/claude/skills/*/; do
+for d in "$REPO_DIR"/skills/*/; do
     name="$(basename "$d")"
     link_path "$d" "$CODEX_DIR/skills/$name"
 done
-ok "Skills ($(count_dirs "$REPO_DIR/claude/skills") dirs)"
+ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
 fi
 
 if [ "$INSTALL_AGY" = "1" ]; then
@@ -556,11 +556,11 @@ if [ -L "$HOME/.gemini/config/skills" ]; then
     ok "Skills directory is already symlinked for agy"
 else
     mkdir -p "$HOME/.gemini/config/skills"
-    for d in "$REPO_DIR"/claude/skills/*/; do
+    for d in "$REPO_DIR"/skills/*/; do
         name="$(basename "$d")"
         link_path "$d" "$HOME/.gemini/config/skills/$name"
     done
-    ok "Skills ($(count_dirs "$REPO_DIR/claude/skills") dirs) linked to agy config"
+    ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs) linked to agy config"
 fi
 
 if [ -L "$HOME/.gemini/config/agents" ]; then
