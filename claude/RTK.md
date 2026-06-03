@@ -8,7 +8,7 @@ RTK is a CLI proxy that reduces token usage by compacting shell output (git, npm
 
 ```bash
 tmp="$(mktemp)"
-curl -fsSL https://rtk.apidocumentation.com/install.sh -o "$tmp"
+curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh -o "$tmp"
 bash "$tmp"
 ```
 

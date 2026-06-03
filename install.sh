@@ -8,6 +8,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="$HOME/.codex"
+RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh"
 
 info() { echo -e "\033[0;34m[INFO]\033[0m $1"; }
 ok()   { echo -e "\033[0;32m[OK]\033[0m $1"; }
@@ -67,7 +68,7 @@ install_rtk_binary() {
     temp_dir="$(mktemp -d)"
     install_script="$temp_dir/install-rtk.sh"
 
-    curl -fsSL https://rtk.apidocumentation.com/install.sh -o "$install_script"
+    curl -fsSL "$RTK_INSTALL_URL" -o "$install_script"
     bash "$install_script"
 
     export PATH="$HOME/.local/bin:$PATH"
@@ -140,14 +141,14 @@ trusted_project_count() {
     sed -n 's/^\[projects\."\([^"]*\)"\]$/\1/p' "$config" | wc -l | tr -d ' '
 }
 
-trusted_project_covers_path() {
+trusted_project_exists() {
     local config="$1"
     local project_path="$2"
     local trusted_path
 
     while IFS= read -r trusted_path; do
-        if [ "$project_path" = "$trusted_path" ] || [[ "$project_path" == "$trusted_path/"* ]]; then
-            ok "Trusted project already covered: $project_path"
+        if [ "$project_path" = "$trusted_path" ]; then
+            ok "Trusted project already present: $project_path"
             return 0
         fi
     done < <(sed -n 's/^\[projects\."\([^"]*\)"\]$/\1/p' "$config")
@@ -166,12 +167,12 @@ add_trusted_project() {
         return
     fi
 
-    if printf '%s' "$project_path" | grep -q '"'; then
-        warn "Skipping path with unsupported quote character: $project_path"
+    if printf '%s' "$project_path" | grep -q '["\\]'; then
+        warn "Skipping path with unsupported quote/backslash character: $project_path"
         return
     fi
 
-    if trusted_project_covers_path "$config" "$project_path"; then
+    if trusted_project_exists "$config" "$project_path"; then
         return
     fi
 
