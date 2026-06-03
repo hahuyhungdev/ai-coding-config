@@ -308,6 +308,19 @@ configure_codex_trusted_projects() {
     append_csv_trusted_projects "$config" "$paths"
 }
 
+count_files() {
+    local dir="$1"
+    local pattern="$2"
+
+    find "$dir" -maxdepth 1 -type f -name "$pattern" | wc -l | awk '{print $1}'
+}
+
+count_dirs() {
+    local dir="$1"
+
+    find "$dir" -mindepth 1 -maxdepth 1 -type d | wc -l | awk '{print $1}'
+}
+
 update_json_mcp_config() {
     local file="$1"
     if [ -f "$file" ]; then
@@ -348,19 +361,6 @@ try {
 
 if [ "$INSTALL_CLAUDE" = "1" ]; then
 # --- Claude Code ---
-count_files() {
-    local dir="$1"
-    local pattern="$2"
-
-    find "$dir" -maxdepth 1 -type f -name "$pattern" | wc -l | awk '{print $1}'
-}
-
-count_dirs() {
-    local dir="$1"
-
-    find "$dir" -mindepth 1 -maxdepth 1 -type d | wc -l | awk '{print $1}'
-}
-
 info "Setting up Claude Code..."
 
 mkdir -p "$CLAUDE_DIR"/{agents,skills,rules/ecc,hooks}
