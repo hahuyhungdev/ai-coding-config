@@ -1,166 +1,121 @@
-# AI Coding Config
+# 🚀 AI Coding Config
 
-Unified configuration for **Claude Code** and **Codex CLI** — agents, skills, rules, MCP servers, and hooks in one repo.
+A unified, centralized configuration hub for **Claude Code**, **Codex CLI**, and **Antigravity CLI (agy)**. Manage custom agents, skills, rules (ECC standards), MCP servers, and hooks in one repository and sync them seamlessly across your systems.
 
-## Quick Start
+---
 
+## ✨ Features
+
+*   **Multi-CLI Support**: Centralized configs for Claude Code, Codex CLI, and Antigravity CLI (`agy`).
+*   **Zero-Admin Windows Installation**: Uses Windows Directory Junctions (`mklink /j`) to install files natively without requiring Administrator privileges or Developer Mode.
+*   **Auto-Merge TOML Configurations**: Updates Codex's `config.toml` safely by merging new MCP servers and custom agents from the repo while leaving your personal trusted projects (`[projects]`) and settings completely intact.
+*   **Browser Lock Protection**: Configures Playwright MCP with `--isolated` automatically for all CLIs to avoid browser profile conflicts.
+
+---
+
+## ⚡ Quick Start
+
+Clone this repository and run the installer to link configuration files to their active CLI locations.
+
+### 🐧 Linux & macOS (Git Bash/WSL)
 ```bash
 git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/ai-coding-config
 cd ~/ai-coding-config
 ./install.sh
 ```
 
-That's it! Restart Claude Code / Codex CLI to pick up changes.
+### 🪟 Windows (CMD / PowerShell)
+Run the wrapper batch script (requires Git Bash to be installed in your PATH):
+```cmd
+git clone git@github.com:hahuyhungdev/ai-coding-config.git %USERPROFILE%\ai-coding-config
+cd %USERPROFILE%\ai-coding-config
+install.bat
+```
 
-The repo files are the shared source of truth. The installer links shared assets into `~/.claude` and `~/.codex`; `~/.codex/config.toml` is copied as a local file so each machine can keep its own trusted projects.
+---
 
-The installer also checks RTK. If RTK is missing in an interactive shell, it asks to install it; for automation, use `RTK_INSTALL=1 ./install.sh`.
+## ⚙️ Installation Options
 
-## What's Included
+You can install configuration assets for all three CLIs at once, or target specific tools selectively using command-line flags.
 
-| Component | Claude Code | Codex CLI |
-|-----------|------------|-----------|
-| Context file | `CLAUDE.md` | `AGENTS.md` |
-| Settings | `settings.json` | `config.toml` |
-| Agents | 12 (`.md`) | 15 (`.toml`) |
-| Skills | 25 | 25 |
-| Rules | 12 ECC rules | — |
-| MCP servers | 5 (via ECC) | 5 (config.toml) |
+| Flag | Action |
+|---|---|
+| `./install.sh --all` | Install configurations for **all** three CLIs (default if no flag is provided) |
+| `./install.sh --claude` | Configure **Claude Code** only (`~/.claude/` assets and `~/.claude.json`) |
+| `./install.sh --codex` | Configure **Codex CLI** only (`~/.codex/` assets and merging `config.toml`) |
+| `./install.sh --agy` | Configure **Antigravity CLI** only (`~/.gemini/config/` assets) |
+| `./install.sh -h` | Display the helper menu |
 
-## Structure
+---
+
+## 📂 What's Included
+
+| Component | Claude Code | Codex CLI | Antigravity CLI (`agy`) |
+| :--- | :---: | :---: | :---: |
+| **Context File** | `CLAUDE.md` | `AGENTS.md` | — |
+| **System Settings** | `settings.json` | `config.toml` | `mcp_config.json` |
+| **Custom Agents** | 12 MD agents | 15 TOML agents | 12 MD agents (synced) |
+| **Advanced Skills** | 25 skills | 25 skills | 25 skills (synced) |
+| **Rules (ECC)** | 12 rules | — | — |
+| **Playwright Isolation** | Yes (`--isolated`) | Yes (`--isolated`) | Yes (`--isolated`) |
+
+### 🛠️ Configured MCP Servers
+All CLIs are automatically integrated with the following model context protocol servers:
+*   `github`: Repository management, issues, and PR interactions.
+*   `context7`: Library documentation lookup.
+*   `playwright`: Browser automation (running in `--isolated` mode).
+*   `memory`: Persistent knowledge graphs.
+*   `sequential-thinking`: Step-by-step reasoning support.
+
+---
+
+## 📁 Repository Structure
 
 ```
 ai-coding-config/
-├── claude/
-│   ├── CLAUDE.md           # Global instructions
-│   ├── settings.json       # Permissions, env vars, hooks
-│   ├── RTK.md              # Token optimization reference
-│   ├── agents/             # 12 agent definitions (.md)
-│   ├── skills/             # 25 skills (SKILL.md each)
-│   ├── rules/
-│   │   └── ecc/            # 12 ECC rule files
-│   └── hooks/              # Pre/Post tool hooks
-├── codex/
-│   ├── AGENTS.md           # Codex instructions
-│   ├── config.toml         # MCP servers, agents, profiles
-│   ├── RTK.md              # Token optimization reference
-│   ├── agents/             # 15 agent definitions (.toml)
-│   └── skills/             # 25 skills (SKILL.md each)
-├── install.sh              # Symlink installer (one command setup)
-└── README.md
+├── claude/               # Claude Code configuration files
+│   ├── agents/           # Custom md agents definitions
+│   ├── rules/ecc/        # 12 Engineer Agentic Coding (ECC) rules
+│   ├── skills/           # 25 shared skill packages
+│   └── settings.json     # Claude settings & Playwright config
+├── codex/                # Codex CLI configuration files
+│   ├── agents/           # Custom toml agents definitions
+│   ├── skills/           # 25 shared skill packages
+│   └── config.toml       # Shared Codex config template
+├── install.sh            # Main installation Bash script
+├── install.bat           # Windows command wrapper
+├── onboarding_guide.md   # Setup guide and installer walkthrough
+└── codebase_review.md    # Source code analysis & fixes documentation
 ```
 
-## Rules (ECC)
+---
 
-12 rule files covering:
+## 🛠️ How it Works under the Hood
 
-| Rule | Purpose |
-|------|---------|
-| agents.md | Agent orchestration patterns |
-| code-review.md | Code review standards |
-| coding-style.md | Coding conventions |
-| design-quality.md | UI/UX quality standards |
-| development-workflow.md | Feature development process |
-| fastapi.md | FastAPI best practices |
-| git-workflow.md | Git commit & PR standards |
-| hooks.md | Hook recommendations |
-| patterns.md | Architecture patterns |
-| performance.md | Performance budgets |
-| security.md | Security rules |
-| testing.md | Testing standards |
+### 🔗 Windows Junctions
+Windows symbolic links usually require special Developer Mode permissions. The installer avoids this by using **Directory Junctions** (`mklink /j`) for folders and copying files as a fallback, enabling any standard command prompt or terminal user to install successfully.
 
-## Agents
+### 🔀 Smart TOML Merging
+When updating Codex CLI settings, your `~/.codex/config.toml` file is parsed and merged via Node.js:
+*   Any newly introduced custom agents or MCP server definitions in this repo are cleanly injected.
+*   Your local settings and machine-specific trusted projects (`[projects]`) are fully preserved.
 
-### Claude Code (12)
+---
 
-| Agent | Purpose |
-|-------|---------|
-| planner | Implementation planning |
-| code-reviewer | Code quality review |
-| security-reviewer | Security analysis |
-| build-error-resolver | Fix build/type errors |
-| tdd-guide | Test-driven development |
-| typescript-reviewer | TypeScript/JS review |
-| database-reviewer | PostgreSQL specialist |
-| e2e-runner | Playwright E2E testing |
-| performance-optimizer | Performance analysis |
-| refactor-cleaner | Dead code cleanup |
-| code-explorer | Codebase analysis |
-| architect | System design |
+## 🔄 How to Update
 
-### Codex CLI (15)
-
-All 12 above, plus:
-
-| Agent | Purpose |
-|-------|---------|
-| explorer | Read-only codebase exploration |
-| reviewer | PR review (correctness + security) |
-| docs-researcher | API/docs verification |
-
-## Skills (25)
-
-`api-design` · `backend-patterns` · `browser-qa` · `cli-creator` · `codebase-onboarding` · `coding-standards` · `composition-patterns` · `design-system` · `documentation-lookup` · `e2e-testing` · `eval-harness` · `frontend-design` · `frontend-patterns` · `gh-fix-ci` · `karpathy-guidelines` · `mcp-server-patterns` · `next-best-practices` · `nextjs-turbopack` · `playwright` · `product-lens` · `security-best-practices` · `security-review` · `strategic-compact` · `tdd-workflow` · `verification-loop`
-
-## MCP Servers
-
-| Server | Purpose |
-|--------|---------|
-| github | GitHub API (issues, PRs, repos) |
-| context7 | Library documentation lookup |
-| playwright | Browser automation |
-| memory | Persistent knowledge graph |
-| sequential-thinking | Step-by-step reasoning |
-
-## Customization
-
-### Add a project to Codex trust list
-
-During first-time `./install.sh`, the local setup wizard detects your Linux username and home directory, then suggests trusted roots such as `~/projects`, `~/projects/personals`, `~/projects/company`, and this config repo. Press Enter to accept the defaults, or enter comma-separated paths. Later runs keep the existing local trusted projects.
-
-For non-interactive setup, pass paths through `CODEX_TRUSTED_PROJECTS`:
-
-```bash
-CODEX_TRUSTED_PROJECTS="$HOME/projects,$HOME/work" ./install.sh
-```
-
-You can combine it with RTK installation:
-
-```bash
-RTK_INSTALL=1 CODEX_TRUSTED_PROJECTS="$HOME/projects,$HOME/work" ./install.sh
-```
-
-To re-run the interactive wizard even when trusted projects already exist:
-
-```bash
-CODEX_RECONFIGURE_TRUST=1 ./install.sh
-```
-
-You can also edit `~/.codex/config.toml` after install. Do not commit machine-specific paths to the shared `codex/config.toml`.
-
-```toml
-[projects."/path/to/your/project"]
-trust_level = "trusted"
-```
-
-### Add custom hooks
-
-Create files in `claude/hooks/` and reference them in your hooks config.
-
-### Add new skills
-
-Create a directory under `claude/skills/` or `codex/skills/` with a `SKILL.md` file.
-
-## Updating
+To fetch the latest agents, skills, and rules from this repo and sync them to your local CLIs, run:
 
 ```bash
 cd ~/ai-coding-config
 git pull
-./install.sh  # Re-symlinks (idempotent)
+./install.sh
 ```
 
-## Requirements
+---
 
-- **Claude Code**: [Install guide](https://docs.anthropic.com/en/docs/claude-code)
-- **Codex CLI**: [Install guide](https://developers.openai.com/codex)
-- **Node.js**: 18+ (for MCP servers)
+## 📋 Requirements
+
+*   **Node.js**: v18+ (needed for Playwright MCP server execution and TOML merging)
+*   **Claude Code**: [Install Guide](https://docs.anthropic.com/en/docs/claude-code)
+*   **Codex CLI**: [Install Guide](https://developers.openai.com/codex)
