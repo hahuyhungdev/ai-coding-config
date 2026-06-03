@@ -27,7 +27,7 @@ url = "https://mcp.context7.com/mcp"
 
 [mcp_servers.playwright]
 command = "npx"
-args = ["-y", "@playwright/mcp@latest", "--headless", "--browser", "chromium"]
+args = ["-y", "@playwright/mcp@latest", "--headless", "--browser", "chromium", "--isolated"]
 
 [mcp_servers.playwright.tools.browser_navigate]
 approval_mode = "approve"

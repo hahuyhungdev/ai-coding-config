@@ -18,6 +18,13 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+is_windows() {
+    case "$(uname -s)" in
+        *MSYS*|*MINGW*|*CYGWIN*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 link_path() {
     local source="$1"
     local target="$2"
@@ -28,18 +35,32 @@ link_path() {
         return 1
     fi
 
-    if [ -L "$target" ]; then
-        ln -sfn "$source" "$target"
-        return
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        if [ -L "$target" ] || (is_windows && [ -d "$target" ]); then
+            rm -rf "$target"
+        else
+            backup="$target.bak.$(date +%Y%m%d%H%M%S)"
+            warn "$(basename "$target") exists - moving to $(basename "$backup")"
+            mv "$target" "$backup"
+        fi
     fi
 
-    if [ -e "$target" ]; then
-        backup="$target.bak.$(date +%Y%m%d%H%M%S)"
-        warn "$(basename "$target") exists - moving to $(basename "$backup")"
-        mv "$target" "$backup"
+    if is_windows; then
+        local win_source
+        local win_target
+        win_source=$(cygpath -w "$source")
+        win_target=$(cygpath -w "$target")
+        local is_dir=""
+        if [ -d "$source" ]; then
+            is_dir="/d"
+        fi
+        if ! cmd.exe /c mklink $is_dir "$win_target" "$win_source" >/dev/null 2>&1; then
+            warn "Failed to create symlink, copying instead: $target"
+            cp -R "$source" "$target"
+        fi
+    else
+        ln -s "$source" "$target"
     fi
-
-    ln -s "$source" "$target"
 }
 
 install_local_config() {
@@ -218,7 +239,7 @@ configure_codex_trusted_projects() {
     info "Configuring local Codex trusted projects..."
 
     detected_username="${CODEX_LOCAL_USERNAME:-$(detect_username)}"
-    read -r -p "Linux username [$detected_username]: " username
+    read -r -p "OS username [$detected_username]: " username
     username="${username:-$detected_username}"
 
     default_home="${CODEX_LOCAL_HOME:-$HOME}"
@@ -237,6 +258,29 @@ configure_codex_trusted_projects() {
     paths="${paths:-$default_paths}"
 
     append_csv_trusted_projects "$config" "$paths"
+}
+
+update_json_mcp_config() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        node -e '
+const fs = require("fs");
+const file = process.argv[1];
+try {
+    const data = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (data && data.mcpServers && data.mcpServers.playwright && data.mcpServers.playwright.args) {
+        const args = data.mcpServers.playwright.args;
+        if (!args.includes("--isolated")) {
+            args.push("--isolated");
+            fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
+            console.log("Added --isolated to " + file);
+        }
+    }
+} catch (e) {
+    console.error("Error updating " + file + ":", e.message);
+}
+' "$file"
+    fi
 }
 
 # --- Claude Code ---
@@ -334,8 +378,34 @@ for d in "$REPO_DIR"/codex/skills/*/; do
 done
 ok "Skills ($(count_dirs "$REPO_DIR/codex/skills") dirs)"
 
+# --- Antigravity CLI (agy) ---
+info "Setting up Antigravity CLI (agy)..."
+
+if [ -L "$HOME/.gemini/config/skills" ]; then
+    ok "Skills directory is already symlinked for agy"
+else
+    mkdir -p "$HOME/.gemini/config/skills"
+    for d in "$REPO_DIR"/claude/skills/*/; do
+        name="$(basename "$d")"
+        link_path "$d" "$HOME/.gemini/config/skills/$name"
+    done
+    ok "Skills ($(count_dirs "$REPO_DIR/claude/skills") dirs) linked to agy config"
+fi
+
+if [ -L "$HOME/.gemini/config/agents" ]; then
+    ok "Agents directory is already symlinked for agy"
+else
+    mkdir -p "$HOME/.gemini/config/agents"
+fi
+
+# Update Playwright MCP configurations for all three CLIs (Claude, agy, Codex)
+info "Ensuring Playwright MCP runs with --isolated..."
+update_json_mcp_config "$HOME/.claude.json"
+update_json_mcp_config "$HOME/.gemini/config/mcp_config.json"
+update_json_mcp_config "$HOME/.claude/ecc-source/mcp-configs/mcp-servers.json"
+
 echo ""
-echo "Done! Restart Claude Code / Codex CLI to pick up changes."
+echo "Done! Restart Claude Code / Codex CLI / agy to pick up changes."
 echo ""
 echo "NOTE: Re-run ./install.sh any time to refresh shared assets."
 echo "      Personal Codex trusted projects stay in ~/.codex/config.toml."

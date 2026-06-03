@@ -60,5 +60,6 @@
         "repo": "affaan-m/ECC"
       }
     }
-  }
+  },
+  "skipDangerousModePermissionPrompt": true
 }
