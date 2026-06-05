@@ -8,7 +8,7 @@
 
 ## 2. Token & Context Management
 - **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors).
-- **On-Demand Skills**: Only load and read specific skills under `~/.claude/skills/<skill-name>/SKILL.md` when a task touches that domain. Do not load all skills globally.
+- **Lazy-Load Skills on Description Match**: Never read or load a skill's `SKILL.md` at the beginning of a session. Only load and read a specific skill under `~/.claude/skills/<skill-name>/SKILL.md` when the current task directly matches the skill's domain and description (e.g., loading `frontend-design` only when modifying UI/components). Limit to at most 1-2 relevant skills per task to prevent token bloat and avoid arbitrary loading.
 - **Strategic Compaction**: Proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 3. MCP & Tools Integration
@@ -22,7 +22,13 @@
 - **Premium Interfaces**: Use the `frontend-design` and `design-system` skills to build high-contrast, bento-grid, glassmorphic layouts with distinctive typography pairing and smooth hover transitions.
 
 ## 5. Specialized Agents
-Load and delegate complex tasks to specialized agents under `~/.claude/agents/`:
+Load and delegate complex tasks to specialized agents under `~/.claude/agents/` strictly following these lazy-loading and anti-abuse best practices:
+- **Spawning Triggers**: Do not spawn or call subagents for simple tasks. Only invoke a specialized agent when the task complexity requires it and matches the agent's specific description/role.
+- **Parent-First Policy**: Solve tasks yourself (the parent agent) by default. Only delegate to a subagent when:
+  1. A background task is long-running and you need to continue working.
+  2. The task requires highly specialized domain knowledge (e.g., security audits or complex SQL optimization) matching the agent's description.
+  3. The task requires a fresh context to avoid cluttering the parent conversation.
+- **No Fanout Abuse**: Never spawn multiple subagents concurrently or in a loop unless explicitly requested by the user.
 
 | Agent | Purpose | When to Use |
 |-------|---------|-------------|
@@ -43,4 +49,5 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/`:
 | architect | System design | Architecture decisions |
 
 @RTK.md
+
 
