@@ -24,11 +24,20 @@ Use `rtk proxy <cmd>` to bypass when full output is needed (debugging build fail
 ## Skills Discovery
 
 Skills are loaded from `~/.codex/skills/`. Each skill contains:
-- `SKILL.md` — Detailed instructions and workflow (loaded on-demand, not all at once)
+- `SKILL.md` — Detailed instructions and workflow.
+- **On-demand Loading**: Only read the specific `SKILL.md` file using file-reading tools when a task directly touches its domain. Do not load all skills.
 
 ## MCP Servers
 
 Treat `codex/config.toml` in this repo as the shared config template, copied to `~/.codex/config.toml` for runtime use.
+Active MCP servers configured in `config.toml` include:
+*   `github`: Repository, PR, and issue management.
+*   `context7`: Documentation lookup via HTTP.
+*   `playwright`: Browser automation using `--browser msedge --headless --isolated`.
+*   `memory` / `sequential-thinking`: Long-term graph memory and reasoning steps.
+*   `postgres` / `sqlite`: DB schema and query verification.
+*   `docker`: Containerized services management.
+*   `aws`: AWS Lambda/Bedrock resource management (run via `uvx`).
 
 ## External Action Boundaries
 

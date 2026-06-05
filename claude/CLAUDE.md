@@ -6,6 +6,10 @@
 - For complex features, plan before implementation.
 - Use TDD when adding features or fixing bugs.
 - After modifying code, run relevant tests/lint/typecheck.
+- **On-Demand Skills**: Only load and read skills under `~/.claude/skills/<skill-name>/SKILL.md` when a task touches that domain. Do not load all skills into context at once.
+- **Context Management**: Use the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
+- **MCP Verification**: Use local `postgres` and `sqlite` MCP servers to check schemas and ORM queries directly.
+- **Playwright Browser**: Run E2E tests and visual verification using Playwright MCP on the `msedge` (Microsoft Edge) channel.
 - Use the extended ECC guidance in `~/.claude/rules/ecc/` when a task touches those domains.
 - Use specialized ECC agents/skills when useful:
   - planner for implementation plans
