@@ -1,60 +1,28 @@
 # ECC for Codex CLI
 
-This supplements the root `AGENTS.md` with Codex-specific guidance.
+## 1. Core Workflow
+- **Research-first development**: Always inspect existing code and architecture before proposing changes.
+- **Strict Planning**: For complex features, generate a step-by-step implementation plan before coding.
+- **TDD / Verification**: Write tests first when adding features or fixing bugs. Run relevant tests/lint/typecheck after modifications.
+- **Conventional Commits**: Format commit messages as `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
 
-## Model Recommendations
+## 2. Token & Context Management
+- **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors). See `~/.codex/RTK.md` for reference.
+- **On-Demand Skills**: Only load and read specific skills under `~/.codex/skills/<skill-name>/SKILL.md` when a task touches that domain. Do not load all skills globally.
+- **Strategic Compaction**: Proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
-| Task Type | Recommended Model |
-|-----------|------------------|
-| All tasks | GPT 5.5 |
+## 3. MCP & Tools Integration
+- **Database Verification**: Use local `postgres` and `sqlite` MCP servers to inspect schemas and validate ORM queries directly.
+- **Container Audit**: Check active services (databases, queues) using the `docker` MCP server when debugging backends.
+- **AWS Operations**: Access Lambda and Bedrock resources using the `aws` MCP server (run via `uvx`).
+- **Browser Automation**: Run E2E tests and visual verification using Playwright MCP on the `msedge` (Microsoft Edge) channel.
 
-## Token Optimization (RTK)
+## 4. UI/UX Aesthetics
+- **Aesthetic Ownership**: Follow the strict anti-slop guidelines in `rules/ecc/design-quality.md`.
+- **Premium Interfaces**: Use the `frontend-design` and `design-system` skills to build high-contrast, bento-grid, glassmorphic layouts with distinctive typography pairing and smooth hover transitions.
 
-Always prefix shell commands with `rtk` for token savings. See `~/.codex/RTK.md` for full reference.
-
-```bash
-rtk git status
-rtk pnpm build
-rtk pnpm test
-rtk npx tsc --noEmit
-```
-
-Use `rtk proxy <cmd>` to bypass when full output is needed (debugging build failures, test output).
-
-## Skills Discovery
-
-Skills are loaded from `~/.codex/skills/`. Each skill contains:
-- `SKILL.md` — Detailed instructions and workflow.
-- **On-demand Loading**: Only read the specific `SKILL.md` file using file-reading tools when a task directly touches its domain. Do not load all skills.
-
-## MCP Servers
-
-Treat `codex/config.toml` in this repo as the shared config template, copied to `~/.codex/config.toml` for runtime use.
-Active MCP servers configured in `config.toml` include:
-*   `github`: Repository, PR, and issue management.
-*   `context7`: Documentation lookup via HTTP.
-*   `playwright`: Browser automation using `--browser msedge --headless --isolated`.
-*   `memory` / `sequential-thinking`: Long-term graph memory and reasoning steps.
-*   `postgres` / `sqlite`: DB schema and query verification.
-*   `docker`: Containerized services management.
-*   `aws`: AWS Lambda/Bedrock resource management (run via `uvx`).
-
-## External Action Boundaries
-
-Treat networked tools as read-only by default. Search, inspect, and draft freely within the user's requested scope, but require explicit user approval before posting, publishing, pushing, merging, opening paid jobs, dispatching remote agents, changing third-party resources, or modifying credentials.
-
-When approval is ambiguous, produce a local plan or draft artifact instead of taking the external action. Preserve user config and private state unless the user specifically asks for a scoped change.
-
-## Multi-Agent Support
-
-Codex supports multi-agent workflows behind the `features.multi_agent` flag.
-
-- Enable it in `.codex/config.toml` with `[features] multi_agent = true`
-- Define roles under `[agents.<name>]`
-- Point each role at a TOML layer under `agents/` relative to the installed `~/.codex/config.toml`
-- Use `/agent` inside Codex CLI to inspect and steer child agents
-
-### Available Agents (15)
+## 5. Specialized Agents
+Load and delegate complex tasks to specialized agents under `~/.codex/agents/` using the `/agent` command:
 
 | Agent | Purpose | When to Use |
 |-------|---------|-------------|
@@ -74,23 +42,3 @@ Codex supports multi-agent workflows behind the `features.multi_agent` flag.
 | code-explorer | Codebase analysis | Trace execution paths |
 | architect | System design | Architecture decisions |
 
-## Key Differences from Claude Code
-
-| Feature | Claude Code | Codex CLI |
-|---------|------------|-----------|
-| Hooks | Multiple hook event types | Not yet supported |
-| Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
-| Skills | Skills loaded via plugin | `.agents/skills/` directory |
-| Commands | `/slash` commands | Instruction-based |
-| Agents | Subagent Task tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
-| Security | Hook-based enforcement | Instruction + sandbox |
-| MCP | Full support | Supported via `config.toml` and `codex mcp add` |
-
-## Security Without Hooks
-
-Since Codex lacks hooks, security enforcement is instruction-based:
-1. Always validate inputs at system boundaries
-2. Never hardcode secrets — use environment variables
-3. Run `npm audit` / `pip audit` before committing
-4. Review `git diff` before every push
-5. Use `sandbox_mode = "workspace-write"` in config

@@ -1,27 +1,44 @@
 # Global Antigravity CLI Instructions
 
-## Core workflow
-
+## 1. Core Workflow
 - **Research-first development**: Always inspect existing code and architecture before proposing changes.
 - **Strict Planning**: For complex features, generate a step-by-step implementation plan before coding.
-- **On-Demand Skills**: Only load and read skills under `~/.gemini/config/skills/<skill-name>/SKILL.md` when a task touches that domain. Do not load all skills into the context window at once.
-- **Context Management**: Leverage the large Gemini context window, but proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
+- **TDD / Verification**: Write tests first when adding features or fixing bugs. Run relevant tests/lint/typecheck after modifications.
+- **Conventional Commits**: Format commit messages as `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
 
-## UI/UX Leadership
+## 2. Token & Context Management
+- **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors).
+- **On-Demand Skills**: Only load and read specific skills under `~/.gemini/config/skills/<skill-name>/SKILL.md` when a task touches that domain. Do not load all skills globally.
+- **Strategic Compaction**: Proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
-- **Aesthetic Ownership**: Gemini is the primary owner for UI/UX visual design. Always follow the strict anti-slop guidelines in `rules/ecc/design-quality.md`.
+## 3. MCP & Tools Integration
+- **Database Verification**: Use local `postgres` and `sqlite` MCP servers to inspect schemas and validate ORM queries directly.
+- **Container Audit**: Check active services (databases, queues) using the `docker` MCP server when debugging backends.
+- **AWS Operations**: Access Lambda and Bedrock resources using the `aws` MCP server (run via `uvx`).
+- **Browser Automation**: Run E2E tests and visual verification using Playwright MCP on the `msedge` (Microsoft Edge) channel.
+
+## 4. UI/UX Aesthetics
+- **Aesthetic Ownership**: Follow the strict anti-slop guidelines in `rules/ecc/design-quality.md`.
 - **Premium Interfaces**: Use the `frontend-design` and `design-system` skills to build high-contrast, bento-grid, glassmorphic layouts with distinctive typography pairing and smooth hover transitions.
 
-## MCP & Testing Integration
+## 5. Specialized Agents
+Load and delegate complex tasks to specialized agents under `~/.gemini/config/agents/`:
 
-- **Database Verification**: Use the local `postgres` and `sqlite` MCP servers to inspect tables, verify migrations, and validate ORM queries directly rather than guessing.
-- **Container Audit**: Check active services (Postgres, Redis, BullMQ) using the `docker` MCP server when debugging backends.
-- **AWS Operations**: Access Lambda and Bedrock resources using the `aws` MCP server (run via `uvx`).
-- **Browser Automation**: Run E2E tests and visual verification using Playwright MCP configured on the `msedge` (Microsoft Edge) channel.
+| Agent | Purpose | When to Use |
+|-------|---------|-------------|
+| explorer | Read-only codebase exploration | Gather evidence before changes |
+| reviewer | PR review (correctness + security) | After writing code |
+| docs-researcher | API/docs verification | Before implementing APIs |
+| planner | Implementation planning | Complex features, refactoring |
+| code-reviewer | Code quality review | After writing code |
+| security-reviewer | Security analysis | Auth, user input, API endpoints |
+| build-error-resolver | Fix build/type errors | When build fails |
+| tdd-guide | Test-driven development | New features, bug fixes |
+| typescript-reviewer | TypeScript/JS review | All TS/JS changes |
+| database-reviewer | PostgreSQL specialist | Schema changes, query optimization |
+| e2e-runner | Playwright E2E testing | Critical user flows |
+| performance-optimizer | Performance analysis | Slow code, bundle size |
+| refactor-cleaner | Dead code cleanup | Code maintenance |
+| code-explorer | Codebase analysis | Trace execution paths |
+| architect | System design | Architecture decisions |
 
-## Coding Preferences
-
-- Small, single-responsibility files over large monolithic files.
-- Clear, descriptive naming over clever or complex abstractions.
-- Prefer immutable data updates where idiomatic.
-- Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
