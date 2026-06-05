@@ -11,7 +11,7 @@ CODEX_DIR="$HOME/.codex"
 RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh"
 
 info() { echo -e "\033[0;34m[INFO]\033[0m $1"; }
-ok()   { echo -e "\033[0;32m[OK]\033[0m $1"; }
+ok() { echo -e "\033[0;32m[OK]\033[0m $1"; }
 warn() { echo -e "\033[0;33m[WARN]\033[0m $1"; }
 
 INSTALL_CLAUDE=0
@@ -44,7 +44,7 @@ else
                 INSTALL_AGY=1
                 shift
                 ;;
-            -h|--help)
+            -h | --help)
                 echo "Usage: ./install.sh [options]"
                 echo "Options:"
                 echo "  --claude    Only install/configure Claude Code"
@@ -70,14 +70,13 @@ if [ "$INSTALL_CODEX" = "1" ]; then COMPILE_FLAGS="$COMPILE_FLAGS --codex"; fi
 if [ "$INSTALL_AGY" = "1" ]; then COMPILE_FLAGS="$COMPILE_FLAGS --agy"; fi
 node "$REPO_DIR/scripts/compile-agents.js" $COMPILE_FLAGS
 
-
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
 is_windows() {
     case "$(uname -s)" in
-        *MSYS*|*MINGW*|*CYGWIN*) return 0 ;;
+        *MSYS* | *MINGW* | *CYGWIN*) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -133,104 +132,7 @@ install_local_config() {
 
     if [ -f "$target" ]; then
         info "Merging $source configurations into $target..."
-        node -e '
-const fs = require("fs");
-const path = require("path");
-
-const repoConfigPath = process.argv[1];
-const userConfigPath = process.argv[2];
-
-function parseTOML(content) {
-    const lines = content.split(/\r?\n/);
-    const root = {};
-    let currentTable = null;
-
-    for (let line of lines) {
-        line = line.trim();
-        if (!line || line.startsWith("#")) {
-            continue;
-        }
-
-        const tableMatch = line.match(/^\[([^\]]+)\]$/);
-        if (tableMatch) {
-            currentTable = tableMatch[1].trim();
-            if (!root[currentTable]) {
-                root[currentTable] = {};
-            }
-            continue;
-        }
-
-        const kvMatch = line.match(/^([^=]+)=\s*(.+)$/);
-        if (kvMatch) {
-            const key = kvMatch[1].trim();
-            const val = kvMatch[2].trim();
-            if (currentTable) {
-                root[currentTable][key] = val;
-            } else {
-                root[key] = val;
-            }
-        }
-    }
-    return root;
-}
-
-function stringifyTOML(obj) {
-    let result = "";
-    
-    // Write global keys
-    for (const key of Object.keys(obj)) {
-        if (typeof obj[key] !== "object") {
-            result += `${key} = ${obj[key]}\n`;
-        }
-    }
-    result += "\n";
-
-    // Write tables
-    for (const key of Object.keys(obj)) {
-        if (typeof obj[key] === "object") {
-            result += `[${key}]\n`;
-            for (const subKey of Object.keys(obj[key])) {
-                result += `${subKey} = ${obj[key][subKey]}\n`;
-            }
-            result += "\n";
-        }
-    }
-    return result;
-}
-
-try {
-    const repoContent = fs.readFileSync(repoConfigPath, "utf8");
-    const userContent = fs.readFileSync(userConfigPath, "utf8");
-
-    const repoObj = parseTOML(repoContent);
-    const userObj = parseTOML(userContent);
-
-    // Merge repo into user configuration
-    const mergedObj = { ...userObj };
-
-    for (const key of Object.keys(repoObj)) {
-        if (typeof repoObj[key] === "object") {
-            if (!mergedObj[key]) {
-                mergedObj[key] = { ...repoObj[key] };
-            } else {
-                // Merge keys inside table, preferring user s existing keys
-                mergedObj[key] = { ...repoObj[key], ...mergedObj[key] };
-            }
-        } else {
-            if (mergedObj[key] === undefined) {
-                mergedObj[key] = repoObj[key];
-            }
-        }
-    }
-
-    const mergedContent = stringifyTOML(mergedObj);
-    fs.writeFileSync(userConfigPath, mergedContent, "utf8");
-    console.log("Successfully merged Codex configuration into " + userConfigPath);
-} catch (err) {
-    console.error("Failed to merge Codex config:", err.message);
-    process.exit(1);
-}
-' "$source" "$target"
+        node "$REPO_DIR/scripts/merge-toml-config.js" "$source" "$target"
         return
     fi
 
@@ -266,7 +168,7 @@ configure_rtk() {
             echo ""
             read -r -p "RTK is not installed. Install it now? [Y/n] " answer
             case "$answer" in
-                n|N|no|NO|No)
+                n | N | no | NO | No)
                     warn "Skipping RTK install"
                     return
                     ;;
@@ -308,7 +210,7 @@ append_csv_trusted_projects() {
     local paths="$2"
     local path
 
-    IFS=',' read -r -a TRUST_PATHS <<< "$paths"
+    IFS=',' read -r -a TRUST_PATHS <<<"$paths"
     for path in "${TRUST_PATHS[@]}"; do
         path="${path#"${path%%[![:space:]]*}"}"
         path="${path%"${path##*[![:space:]]}"}"
@@ -361,7 +263,7 @@ add_trusted_project() {
         echo ""
         echo "[projects.\"$project_path\"]"
         echo 'trust_level = "trusted"'
-    } >> "$config"
+    } >>"$config"
 
     ok "Trusted project added: $project_path"
 }
@@ -431,143 +333,112 @@ count_dirs() {
 update_json_mcp_config() {
     local file="$1"
     if [ -f "$file" ]; then
-        node -e '
-const fs = require("fs");
-const file = process.argv[1];
-try {
-    let data = {};
-    const content = fs.readFileSync(file, "utf8").trim();
-    if (content) {
-        data = JSON.parse(content);
-    }
-    if (!data.mcpServers) {
-        data.mcpServers = {};
-    }
-    if (!data.mcpServers.playwright) {
-        data.mcpServers.playwright = {
-            command: "npx",
-            args: ["-y", "@playwright/mcp@latest", "--browser", "chromium", "--headless", "--ignore-https-errors", "--isolated"]
-        };
-        fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
-        console.log("Initialized playwright MCP in " + file);
-    } else {
-        const args = data.mcpServers.playwright.args || [];
-        if (!args.includes("--isolated")) {
-            args.push("--isolated");
-            data.mcpServers.playwright.args = args;
-            fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
-            console.log("Added --isolated to " + file);
-        }
-    }
-} catch (e) {
-    console.error("Error updating " + file + ":", e.message);
-}
-' "$file"
+        node "$REPO_DIR/scripts/update-mcp-config.js" "$file"
     fi
 }
 
 if [ "$INSTALL_CLAUDE" = "1" ]; then
-# --- Claude Code ---
-info "Setting up Claude Code..."
+    # --- Claude Code ---
+    info "Setting up Claude Code..."
 
-mkdir -p "$CLAUDE_DIR"/{agents,skills,rules/ecc,hooks}
+    mkdir -p "$CLAUDE_DIR"/{agents,skills,rules/ecc,hooks}
 
-# CLAUDE.md
-link_path "$REPO_DIR/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
-ok "CLAUDE.md"
+    # CLAUDE.md
+    link_path "$REPO_DIR/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+    ok "CLAUDE.md"
 
-# settings.json
-link_path "$REPO_DIR/claude/settings.json" "$CLAUDE_DIR/settings.json"
-ok "settings.json"
+    # settings.json
+    link_path "$REPO_DIR/claude/settings.json" "$CLAUDE_DIR/settings.json"
+    ok "settings.json"
 
-# RTK.md
-link_path "$REPO_DIR/claude/RTK.md" "$CLAUDE_DIR/RTK.md"
-ok "RTK.md"
+    # RTK.md
+    link_path "$REPO_DIR/claude/RTK.md" "$CLAUDE_DIR/RTK.md"
+    ok "RTK.md"
 
-# Agents (written directly by compiler)
-ok "Agents ($(count_files "$CLAUDE_DIR/agents" "*.md") files)"
+    # Agents (written directly by compiler)
+    ok "Agents ($(count_files "$CLAUDE_DIR/agents" "*.md") files)"
 
-# Skills
-for d in "$REPO_DIR"/skills/*/; do
-    name="$(basename "$d")"
-    link_path "$d" "$CLAUDE_DIR/skills/$name"
-done
-ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
-
-# Rules (ECC only)
-for f in "$REPO_DIR"/claude/rules/ecc/*.md; do
-    name="$(basename "$f")"
-    link_path "$f" "$CLAUDE_DIR/rules/ecc/$name"
-done
-ok "Rules ($(count_files "$REPO_DIR/claude/rules/ecc" "*.md") files)"
-
-# Hooks
-if [ -d "$REPO_DIR/claude/hooks" ]; then
-    hooks_linked=0
-    for f in "$REPO_DIR"/claude/hooks/*; do
-        if [ -f "$f" ]; then
-            name="$(basename "$f")"
-            link_path "$f" "$CLAUDE_DIR/hooks/$name"
-            hooks_linked=$((hooks_linked + 1))
-        fi
+    # Skills
+    for d in "$REPO_DIR"/skills/*/; do
+        name="$(basename "$d")"
+        link_path "$d" "$CLAUDE_DIR/skills/$name"
     done
-    if [ $hooks_linked -gt 0 ]; then
-        ok "Hooks ($hooks_linked files)"
+    ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
+
+    # Rules (ECC only)
+    for f in "$REPO_DIR"/claude/rules/ecc/*.md; do
+        name="$(basename "$f")"
+        link_path "$f" "$CLAUDE_DIR/rules/ecc/$name"
+    done
+    ok "Rules ($(count_files "$REPO_DIR/claude/rules/ecc" "*.md") files)"
+
+    # Hooks
+    if [ -d "$REPO_DIR/claude/hooks" ]; then
+        hooks_linked=0
+        for f in "$REPO_DIR"/claude/hooks/*; do
+            if [ -f "$f" ]; then
+                name="$(basename "$f")"
+                link_path "$f" "$CLAUDE_DIR/hooks/$name"
+                hooks_linked=$((hooks_linked + 1))
+            fi
+        done
+        if [ $hooks_linked -gt 0 ]; then
+            ok "Hooks ($hooks_linked files)"
+        fi
     fi
-fi
 fi
 
 if [ "$INSTALL_CODEX" = "1" ]; then
-# --- Codex CLI ---
-info "Setting up Codex CLI..."
+    # --- Codex CLI ---
+    info "Setting up Codex CLI..."
 
-mkdir -p "$CODEX_DIR"/{agents,skills}
+    mkdir -p "$CODEX_DIR"/{agents,skills}
 
-# AGENTS.md
-link_path "$REPO_DIR/codex/AGENTS.md" "$CODEX_DIR/AGENTS.md"
-ok "AGENTS.md"
+    # AGENTS.md
+    link_path "$REPO_DIR/codex/AGENTS.md" "$CODEX_DIR/AGENTS.md"
+    ok "AGENTS.md"
 
-# RTK.md
-link_path "$REPO_DIR/codex/RTK.md" "$CODEX_DIR/RTK.md"
-ok "RTK.md"
-configure_rtk
+    # RTK.md
+    link_path "$REPO_DIR/codex/RTK.md" "$CODEX_DIR/RTK.md"
+    ok "RTK.md"
+    configure_rtk
 
-# config.toml
-install_local_config "$REPO_DIR/codex/config.toml" "$CODEX_DIR/config.toml"
-ok "config.toml"
-configure_codex_trusted_projects "$CODEX_DIR/config.toml"
+    # config.toml
+    install_local_config "$REPO_DIR/codex/config.toml" "$CODEX_DIR/config.toml"
+    ok "config.toml"
+    configure_codex_trusted_projects "$CODEX_DIR/config.toml"
 
-# Agents (written directly by compiler)
-ok "Agents ($(count_files "$CODEX_DIR/agents" "*.toml") files)"
+    # Agents (written directly by compiler)
+    ok "Agents ($(count_files "$CODEX_DIR/agents" "*.toml") files)"
 
-# Skills
-for d in "$REPO_DIR"/skills/*/; do
-    name="$(basename "$d")"
-    link_path "$d" "$CODEX_DIR/skills/$name"
-done
-ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
+    # Skills
+    for d in "$REPO_DIR"/skills/*/; do
+        name="$(basename "$d")"
+        link_path "$d" "$CODEX_DIR/skills/$name"
+    done
+    ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
 fi
 
 if [ "$INSTALL_AGY" = "1" ]; then
-# --- Antigravity CLI (agy) ---
-info "Setting up Antigravity CLI (agy)..."
+    # --- Antigravity CLI (agy) ---
+    info "Setting up Antigravity CLI (agy)..."
 
-if [ -L "$HOME/.gemini/config/skills" ]; then
-    ok "Skills directory is already symlinked for agy"
-else
-    mkdir -p "$HOME/.gemini/config/skills"
-    for d in "$REPO_DIR"/skills/*/; do
-        name="$(basename "$d")"
-        link_path "$d" "$HOME/.gemini/config/skills/$name"
-    done
-    ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs) linked to agy config"
-fi
+    if [ -L "$HOME/.gemini/config/skills" ]; then
+        ok "Skills directory is already symlinked for agy"
+    else
+        mkdir -p "$HOME/.gemini/config/skills"
+        for d in "$REPO_DIR"/skills/*/; do
+            name="$(basename "$d")"
+            link_path "$d" "$HOME/.gemini/config/skills/$name"
+        done
+        ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs) linked to agy config"
+    fi
 
-if [ -L "$HOME/.gemini/config/agents" ]; then
-    rm -f "$HOME/.gemini/config/agents"
-fi
-mkdir -p "$HOME/.gemini/config/agents"
-ok "Agents ($(count_files "$HOME/.gemini/config/agents" "*.md") files) configured for agy"
+    if [ -L "$HOME/.gemini/config/agents" ]; then
+        rm -f "$HOME/.gemini/config/agents"
+    fi
+    mkdir -p "$HOME/.gemini/config/agents"
+    ok "Agents ($(count_files "$HOME/.gemini/config/agents" "*.md") files) configured for agy"
 fi
 
 # Update Playwright MCP configurations for all three CLIs (Claude, agy, Codex)
