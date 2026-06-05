@@ -1,4 +1,4 @@
-# ECC for Codex CLI
+# Global Antigravity CLI Instructions
 
 ## 1. Core Workflow
 - **Research-first development**: Always inspect existing code and architecture before proposing changes.
@@ -7,8 +7,8 @@
 - **Conventional Commits**: Format commit messages as `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
 
 ## 2. Token & Context Management
-- **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors). See `~/.codex/RTK.md` for reference.
-- **On-Demand Skills (Balanced)**: To preserve context and avoid token bloat, load and read specific skills under `~/.codex/skills/<skill-name>/SKILL.md` when the current task directly aligns with the skill's domain and description (e.g., loading `frontend-design` when working on UI/components). Avoid pre-loading unrelated skills at startup.
+- **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors).
+- **On-Demand Skills (Balanced)**: To preserve context and avoid token bloat, load and read specific skills under `~/.gemini/config/skills/<skill-name>/SKILL.md` when the current task directly aligns with the skill's domain and description (e.g., loading `frontend-design` when working on UI/components). Avoid pre-loading unrelated skills at startup.
 - **Strategic Compaction**: Proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 3. MCP & Tools Integration
@@ -22,7 +22,7 @@
 - **Premium Interfaces**: Use the `frontend-design` and `design-system` skills to build high-contrast, bento-grid, glassmorphic layouts with distinctive typography pairing and smooth hover transitions.
 
 ## 5. Specialized Agents
-Load and delegate complex tasks to specialized agents under `~/.codex/agents/` using the `/agent` command with these practical guidelines:
+Load and delegate complex tasks to specialized agents under `~/.gemini/config/agents/` using these practical guidelines:
 - **Practical Delegation**: Spawning child agents is recommended when the task aligns with their dedicated role (e.g., delegating complex database queries to `database-reviewer` or security reviews to `security-reviewer`), or when you need an isolated context/background run.
 - **Avoid Over-spawning**: Solve simple tasks within the main conversation first. Avoid spawning multiple subagents concurrently for minor tasks that can be easily resolved directly.
 

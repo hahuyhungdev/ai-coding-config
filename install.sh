@@ -337,6 +337,7 @@ update_json_mcp_config() {
     fi
 }
 
+
 if [ "$INSTALL_CLAUDE" = "1" ]; then
     # --- Claude Code ---
     info "Setting up Claude Code..."
@@ -439,6 +440,10 @@ if [ "$INSTALL_AGY" = "1" ]; then
     fi
     mkdir -p "$HOME/.gemini/config/agents"
     ok "Agents ($(count_files "$HOME/.gemini/config/agents" "*.md") files) configured for agy"
+
+    # ANTIGRAVITY.md
+    link_path "$REPO_DIR/gemini/ANTIGRAVITY.md" "$HOME/.gemini/config/ANTIGRAVITY.md"
+    ok "ANTIGRAVITY.md"
 fi
 
 # Update Playwright MCP configurations for all three CLIs (Claude, agy, Codex)

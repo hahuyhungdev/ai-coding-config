@@ -78,7 +78,13 @@ try {
             if (!mergedObj[key]) {
                 mergedObj[key] = { ...repoObj[key] };
             } else {
-                mergedObj[key] = { ...repoObj[key], ...mergedObj[key] };
+                if (key === "mcp_servers" || key.startsWith("mcp_servers.")) {
+                    // For mcp_servers, we always prefer repo's definition to fix broken/outdated command/args
+                    mergedObj[key] = { ...mergedObj[key], ...repoObj[key] };
+                } else {
+                    // Merge keys inside table, preferring user's existing keys
+                    mergedObj[key] = { ...repoObj[key], ...mergedObj[key] };
+                }
             }
         } else {
             if (mergedObj[key] === undefined) {

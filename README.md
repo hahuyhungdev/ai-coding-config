@@ -52,7 +52,7 @@ You can install configuration assets for all three CLIs at once, or target speci
 
 | Component | Claude Code | Codex CLI | Antigravity CLI (`agy`) |
 | :--- | :---: | :---: | :---: |
-| **Context File** | `CLAUDE.md` | `AGENTS.md` | — |
+| **Context File** | `CLAUDE.md` | `AGENTS.md` | `ANTIGRAVITY.md` |
 | **System Settings** | `settings.json` | `config.toml` | `mcp_config.json` |
 | **Custom Agents** | 15 MD agents | 15 TOML agents | 15 MD agents (synced) |
 | **Advanced Skills** | 25 skills | 25 skills | 25 skills (synced) |
