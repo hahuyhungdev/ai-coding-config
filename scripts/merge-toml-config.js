@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 
 const repoConfigPath = process.argv[2];
 const userConfigPath = process.argv[3];
@@ -6,6 +7,16 @@ const userConfigPath = process.argv[3];
 if (!repoConfigPath || !userConfigPath) {
     console.error("Usage: node merge-toml-config.js <source-config> <target-config>");
     process.exit(1);
+}
+
+// Read shared disabled list
+const sharedDisabledPath = path.join(__dirname, "..", "shared-disabled-mcp.json");
+let sharedDisabled = [];
+try {
+    const shared = JSON.parse(fs.readFileSync(sharedDisabledPath, "utf8"));
+    sharedDisabled = shared.disabledMcpServers || [];
+} catch (e) {
+    // No shared config, that's fine
 }
 
 function parseTOML(content) {
@@ -72,6 +83,20 @@ try {
     const userObj = parseTOML(userContent);
 
     const mergedObj = { ...userObj };
+
+    // Remove disabled mcp_servers from both repo and user configs
+    for (const name of sharedDisabled) {
+        const serverKey = `mcp_servers.${name}`;
+        delete repoObj[serverKey];
+        delete mergedObj[serverKey];
+    }
+
+    // Remove URL-based mcp_servers from repo (Codex only supports stdio)
+    for (const key of Object.keys(repoObj)) {
+        if (key.startsWith("mcp_servers.") && typeof repoObj[key] === "object" && repoObj[key].url) {
+            delete repoObj[key];
+        }
+    }
 
     for (const key of Object.keys(repoObj)) {
         if (typeof repoObj[key] === "object") {

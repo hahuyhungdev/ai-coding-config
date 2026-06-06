@@ -1,10 +1,21 @@
 const fs = require("fs");
+const path = require("path");
 
 const file = process.argv[2];
 
 if (!file) {
     console.error("Usage: node update-mcp-config.js <config-json-path>");
     process.exit(1);
+}
+
+// Read shared disabled list
+const sharedDisabledPath = path.join(__dirname, "..", "shared-disabled-mcp.json");
+let sharedDisabled = [];
+try {
+    const shared = JSON.parse(fs.readFileSync(sharedDisabledPath, "utf8"));
+    sharedDisabled = shared.disabledMcpServers || [];
+} catch (e) {
+    // No shared config, that's fine
 }
 
 try {
@@ -20,6 +31,18 @@ try {
         playwright: {
             command: "npx",
             args: ["-y", "@playwright/mcp@latest", "--browser", "msedge", "--headless", "--ignore-https-errors", "--isolated"]
+        },
+        context7: {
+            type: "sse",
+            url: "https://mcp.context7.com/mcp"
+        },
+        memory: {
+            command: "npx",
+            args: ["-y", "@modelcontextprotocol/server-memory"]
+        },
+        "sequential-thinking": {
+            command: "npx",
+            args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]
         },
         postgres: {
             command: "npx",
@@ -39,9 +62,16 @@ try {
         }
     };
 
+    const disabledObj = data.disabledMcpServers || {};
+    const disabled = new Set([...Object.keys(disabledObj), ...sharedDisabled]);
+
     let updated = false;
 
     for (const [name, config] of Object.entries(defaultServers)) {
+        // Skip servers that user has explicitly disabled
+        if (disabled.has(name)) {
+            continue;
+        }
         if (!data.mcpServers[name]) {
             data.mcpServers[name] = config;
             console.log("Initialized " + name + " MCP in " + file);

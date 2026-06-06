@@ -22,9 +22,6 @@ command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
 startup_timeout_sec = 30
 
-[mcp_servers.context7]
-url = "https://mcp.context7.com/mcp"
-
 [mcp_servers.playwright]
 command = "npx"
 args = ["-y", "@playwright/mcp@latest", "--headless", "--browser", "msedge", "--isolated"]
