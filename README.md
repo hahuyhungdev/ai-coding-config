@@ -61,11 +61,13 @@ You can install configuration assets for all three CLIs at once, or target speci
 
 ### 🛠️ Configured MCP Servers
 All CLIs are automatically integrated with the following model context protocol servers:
-*   `github`: Repository management, issues, and PR interactions.
-*   `context7`: Library documentation lookup.
 *   `playwright`: Browser automation (running in `--isolated` mode).
+*   `context7`: Library documentation lookup (Claude & Gemini only — Codex doesn't support HTTP transport).
 *   `memory`: Persistent knowledge graphs.
 *   `sequential-thinking`: Step-by-step reasoning support.
+*   `github`: Repository management, issues, and PR interactions (Codex only).
+
+Additional MCP servers (`postgres`, `sqlite`, `docker`, `aws`) are available but disabled by default. Use `mcp-toggle` to enable them when needed.
 
 ---
 
@@ -73,22 +75,28 @@ All CLIs are automatically integrated with the following model context protocol 
 
 ```
 ai-coding-config/
-├── agents/               # Source of Truth: 15 Custom Agents (.md with YAML frontmatter)
-├── skills/               # Source of Truth: 25 shared skill packages
-├── claude/               # Claude-specific configuration files
-│   ├── rules/ecc/        # 12 Engineer Agentic Coding (ECC) rules
-│   ├── hooks/            # Pre/Post tool hooks (tracked via .gitkeep)
-│   ├── CLAUDE.md         # Claude Code instructions
-│   ├── RTK.md            # Claude Code token optimization reference
-│   └── settings.json     # Claude settings & Playwright config
-├── codex/                # Codex-specific configuration files
-│   ├── AGENTS.md         # Codex instructions
-│   ├── RTK.md            # Codex token optimization reference
-│   └── config.toml       # Shared Codex config template
-├── scripts/              # Build & management scripts
-│   └── compile-agents.js # Compiler script that parses root agents to target folders
-├── install.sh            # Main installation Bash script
-├── install.bat           # Windows command wrapper
+├── agents/                  # Source of Truth: 15 Custom Agents (.md with YAML frontmatter)
+├── skills/                  # Source of Truth: 25 shared skill packages
+├── claude/                  # Claude-specific configuration files
+│   ├── rules/ecc/           # 12 Engineer Agentic Coding (ECC) rules
+│   ├── hooks/               # Pre/Post tool hooks (tracked via .gitkeep)
+│   ├── CLAUDE.md            # Claude Code instructions
+│   ├── RTK.md               # Claude Code token optimization reference
+│   └── settings.json        # Claude settings & Playwright config
+├── codex/                   # Codex-specific configuration files
+│   ├── AGENTS.md            # Codex instructions
+│   ├── RTK.md               # Codex token optimization reference
+│   └── config.toml          # Shared Codex config template
+├── gemini/                  # Antigravity-specific configuration files
+│   └── ANTIGRAVITY.md       # Antigravity instructions
+├── scripts/                 # Build & management scripts
+│   ├── compile-agents.js    # Compiler script that parses root agents to target folders
+│   ├── merge-toml-config.js # Merges Codex config.toml (skips disabled servers)
+│   ├── update-mcp-config.js # Updates JSON MCP configs (skips disabled servers)
+│   └── mcp-toggle.py        # Toggle MCP servers on/off across all CLIs
+├── shared-disabled-mcp.json # Source of truth for disabled MCP servers
+├── install.sh               # Main installation Bash script
+├── install.bat              # Windows command wrapper
 └── README.md
 ```
 
@@ -115,6 +123,29 @@ cd ~/ai-coding-config
 git pull
 ./install.sh
 ```
+
+---
+
+## 🔀 Managing MCP Servers
+
+Use `mcp-toggle` to enable/disable MCP servers across all three CLIs at once.
+
+```bash
+# List all servers
+./scripts/mcp-toggle.py list
+
+# Disable a server (keeps config, syncs all CLIs)
+./scripts/mcp-toggle.py disable aws
+
+# Enable a server
+./scripts/mcp-toggle.py enable postgres
+
+# Bulk operations
+./scripts/mcp-toggle.py disable-all
+./scripts/mcp-toggle.py enable-all
+```
+
+Disabled servers are tracked in `shared-disabled-mcp.json` and respected by `install.sh` — re-running the installer won't re-add them.
 
 ---
 
