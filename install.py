@@ -89,6 +89,46 @@ def run_node_script(script: str, *args: str) -> bool:
         return False
 
 
+def merge_json(source: Path, target: Path) -> bool:
+    """Deep-merge JSON: repo keys are base, target-only keys are preserved.
+
+    Returns True if merged/written, False if skipped.
+    """
+    if not source.exists():
+        warn(f"Source does not exist: {source}")
+        return False
+
+    import json
+
+    with open(source) as f:
+        repo = json.load(f)
+
+    if not target.exists():
+        with open(target, "w") as f:
+            json.dump(repo, f, indent=2)
+            f.write("\n")
+        return True
+
+    with open(target) as f:
+        existing = json.load(f)
+
+    def deep_merge(base: dict, override: dict) -> dict:
+        merged = dict(base)
+        for k, v in override.items():
+            if k in merged and isinstance(merged[k], dict) and isinstance(v, dict):
+                merged[k] = deep_merge(merged[k], v)
+            else:
+                merged[k] = v
+        return merged
+
+    merged = deep_merge(repo, existing)
+
+    with open(target, "w") as f:
+        json.dump(merged, f, indent=2)
+        f.write("\n")
+    return True
+
+
 def copy_config(source: Path, target: Path, force: bool = False) -> bool:
     """Copy config from repo to global with conflict detection.
 
@@ -245,8 +285,11 @@ def setup_claude(force: bool) -> None:
     copy_config(REPO_DIR / "claude" / "CLAUDE.md", CLAUDE_DIR / "CLAUDE.md", force)
     ok("CLAUDE.md")
 
-    # settings.json
-    copy_config(REPO_DIR / "claude" / "settings.json", CLAUDE_DIR / "settings.json", force)
+    # settings.json — merge by default, overwrite with --force
+    if force:
+        copy_config(REPO_DIR / "claude" / "settings.json", CLAUDE_DIR / "settings.json", force)
+    else:
+        merge_json(REPO_DIR / "claude" / "settings.json", CLAUDE_DIR / "settings.json")
     ok("settings.json")
 
     # RTK.md
@@ -349,7 +392,11 @@ def setup_agy(force: bool) -> None:
     # settings.json
     agy_cli_dir = GEMINI_DIR.parent / "antigravity-cli"
     agy_cli_dir.mkdir(parents=True, exist_ok=True)
-    copy_config(REPO_DIR / "gemini" / "settings.json", agy_cli_dir / "settings.json", force)
+    # settings.json — merge by default, overwrite with --force
+    if force:
+        copy_config(REPO_DIR / "gemini" / "settings.json", agy_cli_dir / "settings.json", force)
+    else:
+        merge_json(REPO_DIR / "gemini" / "settings.json", agy_cli_dir / "settings.json")
     ok("settings.json")
 
 
