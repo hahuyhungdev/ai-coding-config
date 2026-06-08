@@ -46,7 +46,14 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/` 
 
 @RTK.md
 
+## 6. Graphify — Knowledge Graph Navigation
 
+If `graphify-out/graph.json` exists in the project, **always use graphify before grepping or reading raw source files**:
 
+- **Codebase questions** → `graphify query "<question>"` (scoped subgraph, faster than file-by-file reading)
+- **Concept deep-dive** → `graphify explain "<concept>"`
+- **File relationships** → `graphify path "<A>" "<B>"`
+- **Architecture / overview / feature organization** → `graphify query "feature modules and their organization"` or read `graphify-out/GRAPH_REPORT.md`
+- **Modify/debug specific code** → then read the raw file directly
 
-## Custom Test Rules Added
+> ⚠️ Do NOT start with `find`, `grep`, `rg`, `ls`, or raw `Read` on `.ts`/`.tsx` files to understand architecture or feature organization. Check for `graphify-out/graph.json` first and use graphify commands.
