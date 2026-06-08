@@ -155,15 +155,21 @@ If the `graphify` CLI is installed, the installer automatically configures **Gra
 ### 🧪 Verification & Test Suite
 We provide a native Python test suite to verify the installers, syntax of templates/output files, and hook filtering behavior.
 
-To run the test suite:
+To run the unit tests:
 ```bash
 python3 -m unittest tests/test_config.py
+```
+
+To run the integration tests targeting a real repository (`cal.diy`):
+```bash
+python3 -m unittest tests/test_cal_diy_integration.py
 ```
 
 The test suite validates:
 - Syntactic correctness of configuration files (JSON and TOML).
 - Existence and structure of project-level hook configuration files.
 - Real subprocess dry-runs of the Python filtering commands in Claude's and Gemini's hooks against multiple test cases (source files, skill files, ignored directories).
+- End-to-end integration and behavior of the Python hooks directly inside the cloned `cal.diy` repository.
 
 ---
 
