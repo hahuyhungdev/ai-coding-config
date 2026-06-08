@@ -21,7 +21,10 @@
       "Bash(yarn *)",
       "Bash(python *)",
       "Bash(pytest *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(graphify *)",
+      "Bash(rtk graphify *)",
+      "Bash(/home/hahuy/.local/bin/graphify *)"
     ],
     "deny": [
       "Read(~/.ssh/**)",
