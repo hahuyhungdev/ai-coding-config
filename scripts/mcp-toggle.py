@@ -228,9 +228,9 @@ def enable_all():
     save_shared_disabled([])
     sync_claude([])
     sync_gemini([])
-    # For codex, re-run install.sh to get servers back
+    # For codex, re-run install.py to get servers back
     print(f"{GREEN}Enabled all {len(disabled_list)} server(s).{RESET}")
-    print(f"{DIM}Run install.sh --codex to restore Codex MCP servers.{RESET}")
+    print(f"{DIM}Run install.py --codex to restore Codex MCP servers.{RESET}")
 
 
 def disable_all():
@@ -252,6 +252,20 @@ def disable_all():
     print(f"{YELLOW}Disabled all {len(disabled_list)} server(s).{RESET}")
 
 
+def sync():
+    """Sync disabled state from shared-disabled-mcp.json to all configs."""
+    disabled_list = load_shared_disabled()
+    if not disabled_list:
+        print(f"{GREEN}No disabled servers in shared config.{RESET}")
+        return
+
+    print(f"{CYAN}Syncing {len(disabled_list)} disabled server(s)...{RESET}")
+    sync_claude(disabled_list)
+    sync_gemini(disabled_list)
+    sync_codex(disabled_list)
+    print(f"{GREEN}Sync complete. Restart CLIs to apply.{RESET}")
+
+
 def usage():
     print(f"""Usage: mcp-toggle <command> [server-name]
 
@@ -263,11 +277,13 @@ Commands:
   disable <name> Disable a server (keeps config)
   enable-all     Enable all disabled servers
   disable-all    Disable all servers
+  sync           Sync disabled state from shared-disabled-mcp.json
 
 Examples:
   mcp-toggle list
   mcp-toggle disable aws
-  mcp-toggle enable postgres""")
+  mcp-toggle enable postgres
+  mcp-toggle sync""")
     sys.exit(1)
 
 
@@ -292,5 +308,7 @@ if __name__ == "__main__":
         enable_all()
     elif cmd == "disable-all":
         disable_all()
+    elif cmd == "sync":
+        sync()
     else:
         usage()

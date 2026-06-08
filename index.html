@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Coding Config Dashboard</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Marked Markdown Parser (Fallback provided in JS if offline) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    
+    <style>
+        /* CSS Variables - Catppuccin Macchiato Palette */
+        :root {
+            --rosewater: #f4dbd6;
+            --flamingo: #f0c6c6;
+            --pink: #f5bde6;
+            --mauve: #c6a0f6;
+            --red: #ed8796;
+            --maroon: #ee99a0;
+            --peach: #f5a97f;
+            --yellow: #eed49f;
+            --green: #a6da95;
+            --teal: #8bd5ca;
+            --sky: #91d7e3;
+            --sapphire: #7dc4e4;
+            --blue: #8cadfa;
+            --lavender: #b7bdf8;
+            --text: #cad3f5;
+            --subtext1: #b8c0e0;
+            --subtext0: #a5adcb;
+            --overlay2: #939ab7;
+            --overlay1: #8087a2;
+            --overlay0: #6e738d;
+            --surface2: #5b6078;
+            --surface1: #494d64;
+            --surface0: #363a4f;
+            --base: #24273a;
+            --mantle: #1e2030;
+            --crust: #181926;
+            --glow: rgba(140, 173, 250, 0.15);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--base);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* App Container */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 340px;
+            background-color: var(--mantle);
+            border-right: 1px solid var(--surface0);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--surface0);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--blue), var(--mauve));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header p {
+            font-size: 11px;
+            color: var(--overlay2);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--surface1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--surface2);
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--overlay1);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Targets list */
+        .targets-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .target-card {
+            background-color: var(--surface0);
+            border: 1px solid var(--surface1);
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .target-card:hover {
+            border-color: var(--surface2);
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .target-card.modified {
+            border-color: var(--peach);
+            box-shadow: 0 0 10px rgba(245, 169, 127, 0.1);
+        }
+
+        .target-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .target-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .target-status {
+            font-size: 11px;
+            color: var(--overlay2);
+        }
+
+        /* Custom Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--surface2);
+            transition: .2s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text);
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--green);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(16px);
+            background-color: var(--crust);
+        }
+
+        /* MCP List styling */
+        .mcp-search-box {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .mcp-search-box input {
+            width: 100%;
+            background-color: var(--crust);
+            border: 1px solid var(--surface1);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px 12px 8px 34px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .mcp-search-box input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 8px rgba(140, 173, 250, 0.2);
+        }
+
+        .mcp-search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--overlay1);
+            width: 14px;
+            height: 14px;
+        }
+
+        .mcp-batch-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn-small {
+            background-color: var(--surface0);
+            border: 1px solid var(--surface1);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-small:hover {
+            background-color: var(--surface1);
+            border-color: var(--surface2);
+        }
+
+        .btn-small.on:hover {
+            color: var(--green);
+            border-color: var(--green);
+        }
+
+        .btn-small.off:hover {
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        .mcp-list-container {
+            max-height: 240px;
+            overflow-y: auto;
+            border: 1px solid var(--surface0);
+            border-radius: 8px;
+            background-color: var(--crust);
+        }
+
+        .mcp-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--surface0);
+            transition: var(--transition);
+        }
+
+        .mcp-row:last-child {
+            border-bottom: none;
+        }
+
+        .mcp-row:hover {
+            background-color: rgba(255, 255, 255, 0.01);
+        }
+
+        .mcp-row.modified {
+            border-left: 3px solid var(--peach);
+            background-color: rgba(245, 169, 127, 0.03);
+        }
+
+        .mcp-name {
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--subtext1);
+        }
+
+        /* Stats Panel */
+        .stats-card {
+            background-color: var(--surface0);
+            border: 1px solid var(--surface1);
+            border-radius: 10px;
+            padding: 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--overlay1);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        /* Staged Changes Box */
+        .staged-box {
+            background-color: var(--crust);
+            border: 1px dashed var(--surface1);
+            border-radius: 10px;
+            padding: 14px;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .staged-box.has-changes {
+            border-style: solid;
+            border-color: var(--peach);
+        }
+
+        .no-changes-msg {
+            color: var(--overlay0);
+            font-size: 12px;
+            text-align: center;
+            margin: auto;
+        }
+
+        .diff-item {
+            font-size: 12px;
+            line-height: 1.4;
+            padding: 4px 6px;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.02);
+            font-family: 'JetBrains Mono', monospace;
+            word-break: break-all;
+        }
+
+        .diff-add {
+            color: var(--green);
+            background-color: rgba(166, 218, 149, 0.05);
+        }
+
+        .diff-remove {
+            color: var(--red);
+            background-color: rgba(237, 135, 150, 0.05);
+        }
+
+        .diff-mod {
+            color: var(--peach);
+            background-color: rgba(245, 169, 127, 0.05);
+        }
+
+        /* Sidebar Buttons */
+        .sidebar-footer {
+            padding: 24px;
+            border-top: 1px solid var(--surface0);
+            background-color: var(--crust);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--green);
+            border: 1px solid var(--green);
+            color: var(--crust);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(166, 218, 149, 0.25);
+            background-color: #b3e3a3;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--red);
+            color: var(--red);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background-color: rgba(237, 135, 150, 0.05);
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Main Content Styling */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background-color: var(--base);
+        }
+
+        /* Tab Header */
+        .tab-header {
+            display: flex;
+            background-color: var(--mantle);
+            border-bottom: 1px solid var(--surface0);
+            padding: 0 32px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tab-list {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--overlay2);
+            padding: 20px 16px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            color: var(--blue);
+        }
+
+        .tab-btn.active::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 16px;
+            right: 16px;
+            height: 3px;
+            background-color: var(--blue);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .version-badge {
+            font-size: 11px;
+            color: var(--overlay1);
+            background-color: var(--surface0);
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--surface1);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Tab Content Panes */
+        .tab-panes {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .tab-pane {
+            display: none;
+            padding: 32px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Dashboard Tab Grid */
+        .dashboard-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            max-width: 1000px;
+        }
+
+        .status-cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .status-card {
+            background-color: var(--mantle);
+            border: 1px solid var(--surface0);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-card-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-card-icon {
+            background-color: var(--surface0);
+            border-radius: 10px;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--blue);
+        }
+
+        .status-card-details h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .status-card-details p {
+            font-size: 12px;
+            color: var(--overlay1);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .status-badge.ok {
+            background-color: rgba(166, 218, 149, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(166, 218, 149, 0.2);
+        }
+
+        .status-badge.missing {
+            background-color: rgba(237, 135, 150, 0.1);
+            color: var(--red);
+            border: 1px solid rgba(237, 135, 150, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            display: inline-block;
+        }
+
+        .status-badge.ok .status-dot {
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(166, 218, 149, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(166, 218, 149, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(166, 218, 149, 0); }
+        }
+
+        /* Process Logs Terminal styling */
+        .terminal-container {
+            background-color: var(--crust);
+            border: 1px solid var(--surface0);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .terminal-header {
+            background-color: var(--mantle);
+            border-bottom: 1px solid var(--surface0);
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .terminal-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--overlay2);
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-body {
+            height: 380px;
+            overflow-y: auto;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #d1d5db;
+            background-color: #12131e;
+        }
+
+        .terminal-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-bottom: 4px;
+        }
+
+        /* Settings Forms */
+        .settings-container {
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .settings-section {
+            background-color: var(--mantle);
+            border: 1px solid var(--surface0);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .settings-section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--blue);
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--surface0);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .form-row.align-start {
+            align-items: flex-start;
+        }
+
+        .form-row label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--subtext1);
+        }
+
+        .form-control-input {
+            width: 100%;
+            background-color: var(--crust);
+            border: 1px solid var(--surface1);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .form-control-input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px var(--glow);
+        }
+
+        .form-control-input.modified, .form-control-select.modified {
+            border-color: var(--peach);
+            box-shadow: 0 0 6px rgba(245, 169, 127, 0.15);
+        }
+
+        .form-control-select {
+            width: 100%;
+            background-color: var(--crust);
+            border: 1px solid var(--surface1);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .form-control-select:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px var(--glow);
+        }
+
+        /* Rules Boxes (Claude Settings) */
+        .rules-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 10px;
+        }
+
+        .rules-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .rules-column-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--overlay2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .rules-box {
+            background-color: var(--crust);
+            border: 1px solid var(--surface0);
+            border-radius: 8px;
+            padding: 12px;
+            height: 140px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--subtext0);
+            white-space: pre-line;
+        }
+
+        /* Monospace Instructions Textarea */
+        .instructions-editor-container {
+            height: calc(100vh - 180px);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--surface0);
+            border-radius: 12px;
+            background-color: var(--mantle);
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .editor-header {
+            background-color: var(--surface0);
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--surface1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .editor-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .editor-badge {
+            font-size: 11px;
+            background-color: var(--surface1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .instructions-textarea {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background-color: #12131e;
+            color: #d1d5db;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 20px;
+            resize: none;
+            outline: none;
+            tab-size: 4;
+        }
+
+        .instructions-textarea.modified {
+            background-color: #161726;
+            border-top: 2px solid var(--peach);
+        }
+
+        /* Agents & Skills Explorer Layout */
+        .explorer-container {
+            display: flex;
+            height: calc(100vh - 180px);
+            border: 1px solid var(--surface0);
+            border-radius: 12px;
+            background-color: var(--mantle);
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .explorer-sidebar {
+            width: 280px;
+            border-right: 1px solid var(--surface0);
+            background-color: var(--mantle);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .explorer-search {
+            padding: 14px;
+            border-bottom: 1px solid var(--surface0);
+        }
+
+        .explorer-search input {
+            width: 100%;
+            background-color: var(--crust);
+            border: 1px solid var(--surface1);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 6px 10px 6px 30px;
+            font-size: 12px;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .explorer-search i {
+            position: absolute;
+            left: 24px;
+            top: 24px;
+            color: var(--overlay1);
+            width: 12px;
+            height: 12px;
+        }
+
+        .explorer-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .explorer-item {
+            padding: 12px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.01);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            transition: var(--transition);
+        }
+
+        .explorer-item:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .explorer-item.active {
+            background-color: var(--surface0);
+            border-left: 3px solid var(--blue);
+            color: var(--blue);
+            font-weight: 600;
+        }
+
+        .explorer-item-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+
+        .explorer-detail-pane {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            background-color: var(--base);
+        }
+
+        .explorer-detail-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--surface0);
+            margin-bottom: 24px;
+        }
+
+        .explorer-detail-meta h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .meta-badges {
+            display: flex;
+            gap: 8px;
+        }
+
+        .meta-badge {
+            font-size: 11px;
+            font-weight: 600;
+            background-color: var(--surface0);
+            border: 1px solid var(--surface1);
+            color: var(--subtext1);
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .meta-description {
+            font-size: 14px;
+            color: var(--subtext0);
+            line-height: 1.5;
+        }
+
+        .explorer-detail-content {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text);
+        }
+
+        /* Markdown Styling inside detailed pane */
+        .explorer-detail-content h1, 
+        .explorer-detail-content h2, 
+        .explorer-detail-content h3 {
+            font-family: 'Outfit', sans-serif;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        .explorer-detail-content h1 { font-size: 20px; color: var(--blue); }
+        .explorer-detail-content h2 { font-size: 16px; color: var(--lavender); border-bottom: 1px solid var(--surface0); padding-bottom: 6px; }
+        .explorer-detail-content h3 { font-size: 14px; color: var(--subtext1); }
+        .explorer-detail-content ul, .explorer-detail-content ol {
+            padding-left: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .explorer-detail-content li {
+            margin-bottom: 2px;
+        }
+        .explorer-detail-content p {
+            margin-bottom: 16px;
+        }
+        .explorer-detail-content code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background-color: var(--surface0);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--peach);
+        }
+        .explorer-detail-content pre {
+            background-color: var(--crust);
+            border: 1px solid var(--surface0);
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+        .explorer-detail-content pre code {
+            background: none;
+            padding: 0;
+            border-radius: 0;
+            color: var(--text);
+        }
+
+        /* Modal Overlay (Glassmorphism) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(24, 25, 38, 0.7);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background-color: var(--mantle);
+            border: 2px solid var(--blue);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            border-radius: 14px;
+            width: 500px;
+            max-width: 90%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            opacity: 0;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-out;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--surface0);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .modal-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .modal-body {
+            padding: 24px;
+            color: var(--subtext1);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            padding: 16px 24px;
+            background-color: var(--crust);
+            border-top: 1px solid var(--surface0);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+        }
+
+        .modal-btn-cancel {
+            background-color: transparent;
+            border: 1px solid var(--surface2);
+            color: var(--subtext0);
+        }
+
+        .modal-btn-cancel:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+            color: var(--text);
+        }
+
+        .modal-btn-confirm {
+            background-color: var(--green);
+            color: var(--crust);
+        }
+
+        .modal-btn-confirm:hover {
+            background-color: #b3e3a3;
+        }
+
+        .modal-btn-warning {
+            background-color: var(--peach);
+            color: var(--crust);
+        }
+
+        .modal-btn-warning:hover {
+            background-color: #f7b795;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 2000;
+        }
+
+        .toast {
+            background-color: var(--mantle);
+            border: 1px solid var(--surface1);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transform: translateY(20px);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .toast.active {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-success {
+            border-left: 4px solid var(--green);
+        }
+
+        .toast-error {
+            border-left: 4px solid var(--red);
+        }
+
+        .toast-warning {
+            border-left: 4px solid var(--peach);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- LEFT SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i data-lucide="sliders"></i> Config Engine</h1>
+                <p>Global settings dashboard</p>
+            </div>
+            
+            <div class="sidebar-scroll">
+                <!-- Targets Section -->
+                <div>
+                    <div class="section-title"><i data-lucide="crosshair"></i> CLI Targets</div>
+                    <div class="targets-list" id="targets-list-container">
+                        <!-- Targets populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- MCP Servers Toggle List -->
+                <div>
+                    <div class="section-title"><i data-lucide="cpu"></i> MCP Servers</div>
+                    <div class="mcp-search-box">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="mcp-search" placeholder="Search MCP servers..." oninput="filterMcpServers()">
+                    </div>
+                    <div class="mcp-batch-actions">
+                        <button class="btn-small on" onclick="batchMcp(true)"><i data-lucide="check-circle-2"></i> All On</button>
+                        <button class="btn-small off" onclick="batchMcp(false)"><i data-lucide="x-circle"></i> All Off</button>
+                    </div>
+                    <div class="mcp-list-container" id="mcp-list-container">
+                        <!-- MCP list populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Stats card -->
+                <div>
+                    <div class="section-title"><i data-lucide="bar-chart-2"></i> Local Stats</div>
+                    <div class="stats-card">
+                        <div class="stat-item">
+                            <span class="stat-label">Agents</span>
+                            <span class="stat-value" id="stat-agents">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Skills</span>
+                            <span class="stat-value" id="stat-skills">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staged Changes Diff panel -->
+                <div>
+                    <div class="section-title"><i data-lucide="git-branch"></i> Staged Changes</div>
+                    <div class="staged-box" id="staged-changes-container">
+                        <div class="no-changes-msg">No pending changes.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apply & Discard bottom actions -->
+            <div class="sidebar-footer">
+                <button class="btn btn-primary" id="apply-btn" onclick="openApplyModal()" disabled>
+                    <i data-lucide="save"></i> Apply Changes
+                </button>
+                <button class="btn btn-secondary" id="discard-btn" onclick="openDiscardModal()" disabled>
+                    <i data-lucide="trash-2"></i> Discard Changes
+                </button>
+            </div>
+        </div>
+
+        <!-- RIGHT MAIN PANEL -->
+        <div class="main-content">
+            <!-- TAB BAR -->
+            <div class="tab-header">
+                <div class="tab-list">
+                    <button class="tab-btn active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+                    <button class="tab-btn" onclick="switchTab('claude')"><i data-lucide="message-square-code"></i> Claude Settings</button>
+                    <button class="tab-btn" onclick="switchTab('codex')"><i data-lucide="terminal"></i> Codex Settings</button>
+                    <button class="tab-btn" onclick="switchTab('gemini')"><i data-lucide="sparkles"></i> Antigravity Instructions</button>
+                    <button class="tab-btn" onclick="switchTab('explorer')"><i data-lucide="compass"></i> Agents & Skills</button>
+                </div>
+                <div class="version-badge">Version 2.5</div>
+            </div>
+
+            <!-- TAB PANES -->
+            <div class="tab-panes">
+                <!-- 1. DASHBOARD -->
+                <div class="tab-pane active" id="pane-dashboard">
+                    <div class="dashboard-grid">
+                        <!-- Systems configured cards -->
+                        <div class="status-cards-container" id="status-cards-container">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <!-- Real-time terminal log window -->
+                        <div class="terminal-container">
+                            <div class="terminal-header">
+                                <div class="terminal-title"><i data-lucide="terminal"></i> Process Output Log</div>
+                                <button class="btn-small" onclick="clearLogs()"><i data-lucide="trash"></i> Clear</button>
+                            </div>
+                            <div class="terminal-body" id="log-terminal">
+                                <div class="terminal-line" style="color: var(--overlay2)">Ready for operations. Apply changes to watch installation outputs.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. CLAUDE SETTINGS -->
+                <div class="tab-pane" id="pane-claude">
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <div class="settings-section-title"><i data-lucide="settings"></i> Environment Configuration</div>
+                            <div class="form-grid">
+                                <div class="form-row">
+                                    <label for="claude-max-thinking">Max Thinking Tokens:</label>
+                                    <input type="number" class="form-control-input" id="claude-max-thinking" placeholder="20000" oninput="onFieldChange('claude', 'max-thinking')">
+                                </div>
+                                <div class="form-row">
+                                    <label for="claude-max-output">Max Output Tokens:</label>
+                                    <input type="number" class="form-control-input" id="claude-max-output" placeholder="12000" oninput="onFieldChange('claude', 'max-output')">
+                                </div>
+                                <div class="form-row">
+                                    <label for="claude-autocompact">Autocompact % Override:</label>
+                                    <input type="number" class="form-control-input" id="claude-autocompact" placeholder="60" oninput="onFieldChange('claude', 'autocompact')">
+                                </div>
+                                <div class="form-row">
+                                    <label for="claude-no-flicker">No Flicker:</label>
+                                    <div style="display:flex; align-items:center;">
+                                        <label class="switch">
+                                            <input type="checkbox" id="claude-no-flicker" onchange="onFieldChange('claude', 'no-flicker')">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title"><i data-lucide="shield-check"></i> Permissions & Security</div>
+                            <div class="form-grid">
+                                <div class="form-row">
+                                    <label for="claude-default-mode">Default Permission Mode:</label>
+                                    <select class="form-control-select" id="claude-default-mode" onchange="onFieldChange('claude', 'default-mode')">
+                                        <option value="acceptEdits">Accept Edits (Default)</option>
+                                        <option value="ask">Ask</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="claude-skip-prompt">Skip Permission Prompt:</label>
+                                    <div style="display:flex; align-items:center;">
+                                        <label class="switch">
+                                            <input type="checkbox" id="claude-skip-prompt" onchange="onFieldChange('claude', 'skip-prompt')">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="rules-columns">
+                                    <div class="rules-column">
+                                        <div class="rules-column-title">Allowed Rules (Read-Only)</div>
+                                        <div class="rules-box" id="claude-allow-rules">None</div>
+                                    </div>
+                                    <div class="rules-column">
+                                        <div class="rules-column-title">Denied Rules (Read-Only)</div>
+                                        <div class="rules-box" id="claude-deny-rules">None</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. CODEX SETTINGS -->
+                <div class="tab-pane" id="pane-codex">
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <div class="settings-section-title"><i data-lucide="play"></i> Runtime Policy</div>
+                            <div class="form-grid">
+                                <div class="form-row">
+                                    <label for="codex-approval-policy">Approval Policy:</label>
+                                    <select class="form-control-select" id="codex-approval-policy" onchange="onFieldChange('codex', 'approval-policy')">
+                                        <option value="on-request">On Request</option>
+                                        <option value="always">Always</option>
+                                        <option value="never">Never</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-sandbox-mode">Sandbox Mode:</label>
+                                    <select class="form-control-select" id="codex-sandbox-mode" onchange="onFieldChange('codex', 'sandbox-mode')">
+                                        <option value="workspace-write">Workspace Write</option>
+                                        <option value="read-only">Read Only</option>
+                                        <option value="workspace-read">Workspace Read</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-web-search">Web Search:</label>
+                                    <select class="form-control-select" id="codex-web-search" onchange="onFieldChange('codex', 'web-search')">
+                                        <option value="live">Live</option>
+                                        <option value="cached">Cached</option>
+                                        <option value="disabled">Disabled</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-approvals-reviewer">Approvals Reviewer:</label>
+                                    <input type="text" class="form-control-input" id="codex-approvals-reviewer" placeholder="user" oninput="onFieldChange('codex', 'approvals-reviewer')">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title"><i data-lucide="cpu"></i> Model Settings</div>
+                            <div class="form-grid">
+                                <div class="form-row">
+                                    <label for="codex-model">Model Name:</label>
+                                    <input type="text" class="form-control-input" id="codex-model" placeholder="gpt-5.5" oninput="onFieldChange('codex', 'model')">
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-reasoning-effort">Model Reasoning Effort:</label>
+                                    <select class="form-control-select" id="codex-reasoning-effort" onchange="onFieldChange('codex', 'reasoning-effort')">
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="xhigh">Extra High</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-persistent-instructions">Persistent Instructions:</label>
+                                    <input type="text" class="form-control-input" id="codex-persistent-instructions" placeholder="Instructions..." oninput="onFieldChange('codex', 'persistent-instructions')">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title"><i data-lucide="toggle-left"></i> Features & Warnings</div>
+                            <div class="form-grid">
+                                <div class="form-row">
+                                    <label for="codex-memories">Enable Memories:</label>
+                                    <div style="display:flex; align-items:center;">
+                                        <label class="switch">
+                                            <input type="checkbox" id="codex-memories" onchange="onFieldChange('codex', 'memories')">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-multi-agent">Enable Multi-Agent:</label>
+                                    <div style="display:flex; align-items:center;">
+                                        <label class="switch">
+                                            <input type="checkbox" id="codex-multi-agent" onchange="onFieldChange('codex', 'multi-agent')">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-hide-warning">Hide Full Access Warning:</label>
+                                    <div style="display:flex; align-items:center;">
+                                        <label class="switch">
+                                            <input type="checkbox" id="codex-hide-warning" onchange="onFieldChange('codex', 'hide-warning')">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label for="codex-fast-opt-out">Fast Default Opt-Out:</label>
+                                    <div style="display:flex; align-items:center;">
+                                        <label class="switch">
+                                            <input type="checkbox" id="codex-fast-opt-out" onchange="onFieldChange('codex', 'fast-opt-out')">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. ANTIGRAVITY INSTRUCTIONS -->
+                <div class="tab-pane" id="pane-gemini">
+                    <div class="instructions-editor-container">
+                        <div class="editor-header">
+                            <div class="editor-title"><i data-lucide="file-text"></i> ANTIGRAVITY.md</div>
+                            <span class="editor-badge">Markdown Instruction Set</span>
+                        </div>
+                        <textarea class="instructions-textarea" id="gemini-editor" placeholder="# Antigravity Instructions&#10;Write instructions here..." oninput="onFieldChange('gemini', 'editor')"></textarea>
+                    </div>
+                </div>
+
+                <!-- 5. AGENTS & SKILLS EXPLORER -->
+                <div class="tab-pane" id="pane-explorer">
+                    <div class="explorer-container">
+                        <!-- Left pane list -->
+                        <div class="explorer-sidebar">
+                            <div class="explorer-search">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="explorer-search-input" placeholder="Search agents & skills..." oninput="filterExplorer()">
+                            </div>
+                            <div class="explorer-list" id="explorer-list-elements">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Right detailed view -->
+                        <div class="explorer-detail-pane" id="explorer-detail-pane">
+                            <div id="explorer-placeholder" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--overlay1);">
+                                <i data-lucide="compass" style="width:48px; height:48px; margin-bottom:12px;"></i>
+                                <p>Select an Agent or Skill from the sidebar to view details.</p>
+                            </div>
+                            <div id="explorer-detail-content-area" style="display:none;">
+                                <div class="explorer-detail-meta">
+                                    <h2 id="explorer-title-header">Agent/Skill Name</h2>
+                                    <div class="meta-badges" id="explorer-meta-badges">
+                                        <!-- badges -->
+                                    </div>
+                                    <div class="meta-description" id="explorer-meta-description">
+                                        Description goes here.
+                                    </div>
+                                </div>
+                                <div class="explorer-detail-content" id="explorer-md-rendered">
+                                    <!-- Markdown content -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OVERLAYS -->
+    <!-- Apply Changes Modal -->
+    <div class="modal-overlay" id="apply-modal">
+        <div class="modal">
+            <div class="modal-header" style="border-left: 4px solid var(--green)">
+                <i data-lucide="save" style="color:var(--green)"></i>
+                <h2>Apply Staged Changes?</h2>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 12px;">This will overwrite the template files and invoke the global installer configuration script to sync settings.</p>
+                <p>Choose <strong>Standard Apply</strong> for standard config mapping, or <strong>Force Overwrite</strong> to force override all local configs.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal('apply-modal')">Cancel</button>
+                <button class="modal-btn modal-btn-warning" onclick="executeApply(true)">Force Overwrite</button>
+                <button class="modal-btn modal-btn-confirm" onclick="executeApply(false)">Standard Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discard Changes Modal -->
+    <div class="modal-overlay" id="discard-modal">
+        <div class="modal" style="border-color: var(--red);">
+            <div class="modal-header" style="border-left: 4px solid var(--red)">
+                <i data-lucide="alert-triangle" style="color:var(--red)"></i>
+                <h2>Discard All Staged Changes?</h2>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to discard all staged configuration changes? All modified fields will revert to their original saved states immediately.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal('discard-modal')">Cancel</button>
+                <button class="modal-btn" style="background-color: var(--red); color: var(--crust);" onclick="executeDiscard()">Discard Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // State management variables
+        let initialConfig = null;
+        let tempConfig = null;
+        let eventSource = null;
+        let selectedExplorerItem = null;
+
+        // Constants mapping targets
+        const CLI_CONFIGS = {
+            "claude": { "name": "Claude Code", "icon": "message-square-code" },
+            "codex": { "name": "Codex CLI", "icon": "terminal" },
+            "agy": { "name": "Antigravity", "icon": "sparkles" }
+        };
+
+        // Window load
+        window.addEventListener('load', () => {
+            fetchConfig();
+        });
+
+        // Initialize lucide icons
+        function refreshIcons() {
+            lucide.createIcons();
+        }
+
+        // Switch Tabs
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('onclick').includes(tabId)) {
+                    btn.classList.add('active');
+                }
+            });
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            document.getElementById(`pane-${tabId}`).classList.add('active');
+            
+            // Layout reflow helper (e.g. editor focus)
+            if (tabId === 'gemini') {
+                document.getElementById('gemini-editor').focus();
+            }
+        }
+
+        // Fetch settings config from server
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (!response.ok) throw new Error("Failed to load configs");
+                const data = await response.json();
+                
+                initialConfig = data;
+                tempConfig = JSON.parse(JSON.stringify(data)); // Deep clone
+                
+                renderTargets();
+                renderMcpList();
+                renderStats();
+                populateSettingsForms();
+                renderDashboardStatus();
+                renderExplorerList();
+                
+                updateDiff();
+                updateHighlights();
+                
+                // Select first explorer item on load
+                if (initialConfig.agents.length > 0) {
+                    selectExplorer('agent', initialConfig.agents[0]);
+                } else if (initialConfig.skills.length > 0) {
+                    selectExplorer('skill', initialConfig.skills[0]);
+                }
+                
+                refreshIcons();
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+            }
+        }
+
+        // Render target cards in the sidebar
+        function renderTargets() {
+            const container = document.getElementById('targets-list-container');
+            container.innerHTML = '';
+            
+            for (const [cid, info] of Object.entries(CLI_CONFIGS)) {
+                const configured = tempConfig.targets[cid];
+                
+                const card = document.createElement('div');
+                card.className = `target-card ${tempConfig.targets[cid] !== initialConfig.targets[cid] ? 'modified' : ''}`;
+                card.id = `target-card-${cid}`;
+                card.onclick = () => toggleTarget(cid);
+                
+                card.innerHTML = `
+                    <div class="target-info">
+                        <i data-lucide="${info.icon}"></i>
+                        <div>
+                            <div class="target-title">${info.name}</div>
+                            <div class="target-status" id="target-status-sub-${cid}">
+                                ${configured ? 'Enabled in install' : 'Excluded from install'}
+                            </div>
+                        </div>
+                    </div>
+                    <label class="switch" onclick="event.stopPropagation()">
+                        <input type="checkbox" id="target-switch-${cid}" ${configured ? 'checked' : ''} onchange="toggleTarget('${cid}')">
+                        <span class="slider"></span>
+                    </label>
+                `;
+                container.appendChild(card);
+            }
+            refreshIcons();
+        }
+
+        function toggleTarget(cid) {
+            const checkbox = document.getElementById(`target-switch-${cid}`);
+            checkbox.checked = !checkbox.checked;
+            tempConfig.targets[cid] = checkbox.checked;
+            
+            const subText = document.getElementById(`target-status-sub-${cid}`);
+            subText.textContent = checkbox.checked ? 'Enabled in install' : 'Excluded from install';
+            
+            const card = document.getElementById(`target-card-${cid}`);
+            if (tempConfig.targets[cid] !== initialConfig.targets[cid]) {
+                card.classList.add('modified');
+            } else {
+                card.classList.remove('modified');
+            }
+            
+            updateHighlights();
+            updateDiff();
+        }
+
+        // Render MCP switches
+        function renderMcpList() {
+            const container = document.getElementById('mcp-list-container');
+            container.innerHTML = '';
+            
+            tempConfig.all_mcp.forEach(server => {
+                const isInitialDisabled = initialConfig.disabled_mcp.includes(server);
+                const isInitialEnabled = server in initialConfig.mcp_servers && !isInitialDisabled;
+                
+                const isTempDisabled = tempConfig.disabled_mcp.includes(server);
+                const isTempEnabled = server in tempConfig.mcp_servers && !isTempDisabled;
+                
+                const row = document.createElement('div');
+                row.className = `mcp-row ${isTempEnabled !== isInitialEnabled ? 'modified' : ''}`;
+                row.id = `mcp-row-${server}`;
+                row.dataset.server = server.toLowerCase();
+                
+                row.innerHTML = `
+                    <span class="mcp-name">${server}</span>
+                    <label class="switch">
+                        <input type="checkbox" id="mcp-switch-${server}" ${isTempEnabled ? 'checked' : ''} onchange="toggleMcp('${server}')">
+                        <span class="slider"></span>
+                    </label>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function toggleMcp(server) {
+            const checkbox = document.getElementById(`mcp-switch-${server}`);
+            const row = document.getElementById(`mcp-row-${server}`);
+            
+            if (checkbox.checked) {
+                // Remove from disabled list
+                tempConfig.disabled_mcp = tempConfig.disabled_mcp.filter(s => s !== server);
+                // Ensure it exists in servers mapping
+                if (!(server in tempConfig.mcp_servers)) {
+                    tempConfig.mcp_servers[server] = {}; // placeholder
+                }
+            } else {
+                // Add to disabled list
+                if (!tempConfig.disabled_mcp.includes(server)) {
+                    tempConfig.disabled_mcp.push(server);
+                }
+            }
+            
+            // Detect modified class
+            const isInitialDisabled = initialConfig.disabled_mcp.includes(server);
+            const isInitialEnabled = server in initialConfig.mcp_servers && !isInitialDisabled;
+            
+            const isTempDisabled = tempConfig.disabled_mcp.includes(server);
+            const isTempEnabled = server in tempConfig.mcp_servers && !isTempDisabled;
+            
+            if (isTempEnabled !== isInitialEnabled) {
+                row.classList.add('modified');
+            } else {
+                row.classList.remove('modified');
+            }
+            
+            updateHighlights();
+            updateDiff();
+        }
+
+        function filterMcpServers() {
+            const query = document.getElementById('mcp-search').value.toLowerCase();
+            document.querySelectorAll('.mcp-row').forEach(row => {
+                const serverName = row.dataset.server;
+                if (serverName.includes(query)) {
+                    row.style.display = 'flex';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function batchMcp(enableAll) {
+            tempConfig.all_mcp.forEach(server => {
+                const checkbox = document.getElementById(`mcp-switch-${server}`);
+                if (checkbox) {
+                    if (checkbox.checked !== enableAll) {
+                        checkbox.checked = enableAll;
+                        toggleMcp(server);
+                    }
+                }
+            });
+        }
+
+        // Render local stats
+        function renderStats() {
+            document.getElementById('stat-agents').textContent = tempConfig.agents.length;
+            document.getElementById('stat-skills').textContent = tempConfig.skills.length;
+        }
+
+        // Render Dashboard System Status Cards
+        function renderDashboardStatus() {
+            const container = document.getElementById('status-cards-container');
+            container.innerHTML = '';
+            
+            for (const [cid, info] of Object.entries(CLI_CONFIGS)) {
+                // Check initial target state to see if it is physically configured
+                const exists = initialConfig.targets[cid];
+                
+                const card = document.createElement('div');
+                card.className = 'status-card';
+                card.innerHTML = `
+                    <div class="status-card-info">
+                        <div class="status-card-icon">
+                            <i data-lucide="${info.icon}"></i>
+                        </div>
+                        <div class="status-card-details">
+                            <h3>${info.name} CLI</h3>
+                            <p>${exists ? 'Configured in user directory' : 'Not found on system'}</p>
+                        </div>
+                    </div>
+                    <div class="status-badge ${exists ? 'ok' : 'missing'}">
+                        <span class="status-dot"></span>
+                        <span>${exists ? 'Configured' : 'Not Found'}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+            refreshIcons();
+        }
+
+        // Populate forms with state
+        function populateSettingsForms() {
+            // Claude Form
+            const env = tempConfig.claude.env || {};
+            document.getElementById('claude-max-thinking').value = env.MAX_THINKING_TOKENS || 20000;
+            document.getElementById('claude-max-output').value = env.CLAUDE_CODE_MAX_OUTPUT_TOKENS || 12000;
+            document.getElementById('claude-autocompact').value = env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE || 60;
+            document.getElementById('claude-no-flicker').checked = env.CLAUDE_CODE_NO_FLICKER === "1";
+            
+            const perms = tempConfig.claude.permissions || {};
+            document.getElementById('claude-default-mode').value = perms.defaultMode || 'acceptEdits';
+            document.getElementById('claude-skip-prompt').checked = tempConfig.claude.skipDangerousModePermissionPrompt !== false;
+            
+            // Rules
+            document.getElementById('claude-allow-rules').textContent = (perms.allow || []).join('\n') || 'None';
+            document.getElementById('claude-deny-rules').textContent = (perms.deny || []).join('\n') || 'None';
+            
+            // Codex Form
+            document.getElementById('codex-approval-policy').value = tempConfig.codex.approval_policy || 'on-request';
+            document.getElementById('codex-sandbox-mode').value = tempConfig.codex.sandbox_mode || 'workspace-write';
+            document.getElementById('codex-web-search').value = tempConfig.codex.web_search || 'live';
+            document.getElementById('codex-approvals-reviewer').value = tempConfig.codex.approvals_reviewer || 'user';
+            document.getElementById('codex-model').value = tempConfig.codex.model || 'gpt-5.5';
+            document.getElementById('codex-reasoning-effort').value = tempConfig.codex.model_reasoning_effort || 'medium';
+            document.getElementById('codex-persistent-instructions').value = tempConfig.codex.persistent_instructions || '';
+            
+            const features = tempConfig.codex.features || {};
+            document.getElementById('codex-memories').checked = features.memories !== false;
+            document.getElementById('codex-multi-agent').checked = features.multi_agent !== false;
+            
+            const notice = tempConfig.codex.notice || {};
+            document.getElementById('codex-hide-warning').checked = notice.hide_full_access_warning !== false;
+            document.getElementById('codex-fast-opt-out').checked = notice.fast_default_opt_out !== false;
+            
+            // Gemini textarea
+            document.getElementById('gemini-editor').value = tempConfig.gemini_instructions || '';
+        }
+
+        // On field changes
+        function onFieldChange(service, field) {
+            if (service === 'claude') {
+                if (!tempConfig.claude.env) tempConfig.claude.env = {};
+                if (!tempConfig.claude.permissions) tempConfig.claude.permissions = {};
+                
+                if (field === 'max-thinking') {
+                    tempConfig.claude.env.MAX_THINKING_TOKENS = document.getElementById('claude-max-thinking').value;
+                } else if (field === 'max-output') {
+                    tempConfig.claude.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = document.getElementById('claude-max-output').value;
+                } else if (field === 'autocompact') {
+                    tempConfig.claude.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = document.getElementById('claude-autocompact').value;
+                } else if (field === 'no-flicker') {
+                    tempConfig.claude.env.CLAUDE_CODE_NO_FLICKER = document.getElementById('claude-no-flicker').checked ? "1" : "0";
+                } else if (field === 'default-mode') {
+                    tempConfig.claude.permissions.defaultMode = document.getElementById('claude-default-mode').value;
+                } else if (field === 'skip-prompt') {
+                    tempConfig.claude.skipDangerousModePermissionPrompt = document.getElementById('claude-skip-prompt').checked;
+                }
+            } else if (service === 'codex') {
+                if (!tempConfig.codex.features) tempConfig.codex.features = {};
+                if (!tempConfig.codex.notice) tempConfig.codex.notice = {};
+                
+                if (field === 'approval-policy') {
+                    tempConfig.codex.approval_policy = document.getElementById('codex-approval-policy').value;
+                } else if (field === 'sandbox-mode') {
+                    tempConfig.codex.sandbox_mode = document.getElementById('codex-sandbox-mode').value;
+                } else if (field === 'web-search') {
+                    tempConfig.codex.web_search = document.getElementById('codex-web-search').value;
+                } else if (field === 'approvals-reviewer') {
+                    tempConfig.codex.approvals_reviewer = document.getElementById('codex-approvals-reviewer').value;
+                } else if (field === 'model') {
+                    tempConfig.codex.model = document.getElementById('codex-model').value;
+                } else if (field === 'reasoning-effort') {
+                    tempConfig.codex.model_reasoning_effort = document.getElementById('codex-reasoning-effort').value;
+                } else if (field === 'persistent-instructions') {
+                    tempConfig.codex.persistent_instructions = document.getElementById('codex-persistent-instructions').value;
+                } else if (field === 'memories') {
+                    tempConfig.codex.features.memories = document.getElementById('codex-memories').checked;
+                } else if (field === 'multi-agent') {
+                    tempConfig.codex.features.multi_agent = document.getElementById('codex-multi-agent').checked;
+                } else if (field === 'hide-warning') {
+                    tempConfig.codex.notice.hide_full_access_warning = document.getElementById('codex-hide-warning').checked;
+                } else if (field === 'fast-opt-out') {
+                    tempConfig.codex.notice.fast_default_opt_out = document.getElementById('codex-fast-opt-out').checked;
+                }
+            } else if (service === 'gemini') {
+                if (field === 'editor') {
+                    tempConfig.gemini_instructions = document.getElementById('gemini-editor').value;
+                }
+            }
+            
+            updateHighlights();
+            updateDiff();
+        }
+
+        // Update CSS highlights of modified fields
+        function updateHighlights() {
+            // Helper checks
+            const envInit = initialConfig.claude.env || {};
+            const envTemp = tempConfig.claude.env || {};
+            const permsInit = initialConfig.claude.permissions || {};
+            const permsTemp = tempConfig.claude.permissions || {};
+            
+            toggleModifiedClass('claude-max-thinking', String(envInit.MAX_THINKING_TOKENS || 20000) !== String(envTemp.MAX_THINKING_TOKENS));
+            toggleModifiedClass('claude-max-output', String(envInit.CLAUDE_CODE_MAX_OUTPUT_TOKENS || 12000) !== String(envTemp.CLAUDE_CODE_MAX_OUTPUT_TOKENS));
+            toggleModifiedClass('claude-autocompact', String(envInit.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE || 60) !== String(envTemp.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE));
+            toggleModifiedClass('claude-no-flicker', envInit.CLAUDE_CODE_NO_FLICKER !== envTemp.CLAUDE_CODE_NO_FLICKER);
+            toggleModifiedClass('claude-default-mode', permsInit.defaultMode !== permsTemp.defaultMode);
+            toggleModifiedClass('claude-skip-prompt', initialConfig.claude.skipDangerousModePermissionPrompt !== tempConfig.claude.skipDangerousModePermissionPrompt);
+            
+            // Codex
+            toggleModifiedClass('codex-approval-policy', initialConfig.codex.approval_policy !== tempConfig.codex.approval_policy);
+            toggleModifiedClass('codex-sandbox-mode', initialConfig.codex.sandbox_mode !== tempConfig.codex.sandbox_mode);
+            toggleModifiedClass('codex-web-search', initialConfig.codex.web_search !== tempConfig.codex.web_search);
+            toggleModifiedClass('codex-approvals-reviewer', initialConfig.codex.approvals_reviewer !== tempConfig.codex.approvals_reviewer);
+            toggleModifiedClass('codex-model', initialConfig.codex.model !== tempConfig.codex.model);
+            toggleModifiedClass('codex-reasoning-effort', initialConfig.codex.model_reasoning_effort !== tempConfig.codex.model_reasoning_effort);
+            toggleModifiedClass('codex-persistent-instructions', initialConfig.codex.persistent_instructions !== tempConfig.codex.persistent_instructions);
+            
+            const featInit = initialConfig.codex.features || {};
+            const featTemp = tempConfig.codex.features || {};
+            toggleModifiedClass('codex-memories', featInit.memories !== featTemp.memories);
+            toggleModifiedClass('codex-multi-agent', featInit.multi_agent !== featTemp.multi_agent);
+            
+            const notInit = initialConfig.codex.notice || {};
+            const notTemp = tempConfig.codex.notice || {};
+            toggleModifiedClass('codex-hide-warning', notInit.hide_full_access_warning !== notTemp.hide_full_access_warning);
+            toggleModifiedClass('codex-fast-opt-out', notInit.fast_default_opt_out !== notTemp.fast_default_opt_out);
+            
+            // Gemini editor
+            toggleModifiedClass('gemini-editor', initialConfig.gemini_instructions !== tempConfig.gemini_instructions);
+        }
+
+        function toggleModifiedClass(elementId, isModified) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (isModified) {
+                el.classList.add('modified');
+                // If it is a toggle, we can highlight the parent element row
+                if (el.type === 'checkbox') {
+                    const row = el.closest('.form-row') || el.closest('.target-card');
+                    if (row) row.classList.add('modified');
+                }
+            } else {
+                el.classList.remove('modified');
+                if (el.type === 'checkbox') {
+                    const row = el.closest('.form-row') || el.closest('.target-card');
+                    if (row) row.classList.remove('modified');
+                }
+            }
+        }
+
+        // Compare states and build visual Diff changes
+        function updateDiff() {
+            const diffs = [];
+            
+            // 1. Targets
+            for (const [cid, info] of Object.entries(CLI_CONFIGS)) {
+                if (initialConfig.targets[cid] !== tempConfig.targets[cid]) {
+                    const statusText = tempConfig.targets[cid] ? 'Install' : 'Exclude';
+                    const diffClass = tempConfig.targets[cid] ? 'diff-add' : 'diff-remove';
+                    diffs.push(`<div class="diff-item ${diffClass}">Target ${info.name}: → ${statusText}</div>`);
+                }
+            }
+            
+            // 2. MCPs
+            tempConfig.all_mcp.forEach(server => {
+                const initDisabled = initialConfig.disabled_mcp.includes(server);
+                const initEnabled = server in initialConfig.mcp_servers && !initDisabled;
+                
+                const tempDisabled = tempConfig.disabled_mcp.includes(server);
+                const tempEnabled = server in tempConfig.mcp_servers && !tempDisabled;
+                
+                if (initEnabled !== tempEnabled) {
+                    const statusText = tempEnabled ? 'Enable' : 'Disable';
+                    const diffClass = tempEnabled ? 'diff-add' : 'diff-remove';
+                    diffs.push(`<div class="diff-item ${diffClass}">MCP ${server}: → ${statusText}</div>`);
+                }
+            });
+            
+            // 3. Claude Env & Settings
+            const envInit = initialConfig.claude.env || {};
+            const envTemp = tempConfig.claude.env || {};
+            for (const k of ["MAX_THINKING_TOKENS", "CLAUDE_CODE_MAX_OUTPUT_TOKENS", "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE", "CLAUDE_CODE_NO_FLICKER"]) {
+                if (envInit[k] !== envTemp[k]) {
+                    diffs.push(`<div class="diff-item diff-mod">Claude ${k}: ${envInit[k] || 'None'} → ${envTemp[k] || 'None'}</div>`);
+                }
+            }
+            
+            const permsInit = initialConfig.claude.permissions || {};
+            const permsTemp = tempConfig.claude.permissions || {};
+            if (permsInit.defaultMode !== permsTemp.defaultMode) {
+                diffs.push(`<div class="diff-item diff-mod">Claude Mode: ${permsInit.defaultMode || 'None'} → ${permsTemp.defaultMode || 'None'}</div>`);
+            }
+            
+            if (initialConfig.claude.skipDangerousModePermissionPrompt !== tempConfig.claude.skipDangerousModePermissionPrompt) {
+                diffs.push(`<div class="diff-item diff-mod">Claude Skip Prompt: ${initialConfig.claude.skipDangerousModePermissionPrompt} → ${tempConfig.claude.skipDangerousModePermissionPrompt}</div>`);
+            }
+            
+            // 4. Codex
+            for (const k of ["approval_policy", "sandbox_mode", "web_search", "approvals_reviewer", "model", "model_reasoning_effort", "persistent_instructions"]) {
+                if (initialConfig.codex[k] !== tempConfig.codex[k]) {
+                    diffs.push(`<div class="diff-item diff-mod">Codex ${k}: ${initialConfig.codex[k] || 'None'} → ${tempConfig.codex[k] || 'None'}</div>`);
+                }
+            }
+            
+            const featInit = initialConfig.codex.features || {};
+            const featTemp = tempConfig.codex.features || {};
+            for (const k of ["memories", "multi_agent"]) {
+                if (featInit[k] !== featTemp[k]) {
+                    diffs.push(`<div class="diff-item diff-mod">Codex Feature ${k}: ${featInit[k]} → ${featTemp[k]}</div>`);
+                }
+            }
+            
+            const notInit = initialConfig.codex.notice || {};
+            const notTemp = tempConfig.codex.notice || {};
+            for (const k of ["hide_full_access_warning", "fast_default_opt_out"]) {
+                if (notInit[k] !== notTemp[k]) {
+                    diffs.push(`<div class="diff-item diff-mod">Codex Notice ${k}: ${notInit[k]} → ${notTemp[k]}</div>`);
+                }
+            }
+            
+            // 5. Gemini Instructions
+            if (initialConfig.gemini_instructions !== tempConfig.gemini_instructions) {
+                diffs.push(`<div class="diff-item diff-mod">~ Antigravity Instructions: Modified</div>`);
+            }
+            
+            const container = document.getElementById('staged-changes-container');
+            const applyBtn = document.getElementById('apply-btn');
+            const discardBtn = document.getElementById('discard-btn');
+            
+            if (diffs.length > 0) {
+                container.innerHTML = diffs.join('');
+                container.classList.add('has-changes');
+                applyBtn.disabled = false;
+                discardBtn.disabled = false;
+            } else {
+                container.innerHTML = '<div class="no-changes-msg">No pending changes.</div>';
+                container.classList.remove('has-changes');
+                applyBtn.disabled = true;
+                discardBtn.disabled = true;
+            }
+        }
+
+        // Modal triggers
+        function openApplyModal() {
+            document.getElementById('apply-modal').classList.add('active');
+        }
+
+        function openDiscardModal() {
+            document.getElementById('discard-modal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Discard all staged changes
+        function executeDiscard() {
+            tempConfig = JSON.parse(JSON.stringify(initialConfig));
+            
+            renderTargets();
+            renderMcpList();
+            populateSettingsForms();
+            
+            updateHighlights();
+            updateDiff();
+            
+            closeModal('discard-modal');
+            showToast("All staged changes discarded!", "warning");
+        }
+
+        // Apply config changes to files and run install.py
+        async function executeApply(force) {
+            closeModal('apply-modal');
+            switchTab('dashboard');
+            
+            const terminal = document.getElementById('log-terminal');
+            terminal.innerHTML = '<div class="terminal-line" style="color: var(--blue)">🚀 Connecting to installation stream...</div>';
+            
+            try {
+                // First POST save-temp config to files
+                const saveRes = await fetch('/api/save-temp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        claude: tempConfig.claude,
+                        codex: tempConfig.codex,
+                        disabled_mcp: tempConfig.disabled_mcp,
+                        gemini_instructions: tempConfig.gemini_instructions
+                    })
+                });
+                
+                if (!saveRes.ok) {
+                    const errDetail = await saveRes.json();
+                    throw new Error(`Failed to save files: ${errDetail.detail || saveRes.statusText}`);
+                }
+                
+                terminal.innerHTML += '<div class="terminal-line" style="color: var(--green)">✓ Settings templates written. Running installation...</div>';
+                
+                // Now setup SSE logs stream
+                const claudeParam = tempConfig.targets.claude;
+                const codexParam = tempConfig.targets.codex;
+                const agyParam = tempConfig.targets.agy;
+                
+                if (eventSource) eventSource.close();
+                
+                const url = `/api/apply/stream?force=${force}&claude=${claudeParam}&codex=${codexParam}&agy=${agyParam}`;
+                eventSource = new EventSource(url);
+                
+                eventSource.onmessage = (event) => {
+                    const line = event.data;
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'terminal-line';
+                    lineDiv.innerHTML = ansiToHtml(line);
+                    terminal.appendChild(lineDiv);
+                    
+                    // Auto scroll
+                    terminal.scrollTop = terminal.scrollHeight;
+                    
+                    // Detect done states
+                    if (line.includes("SUCCESS:")) {
+                        eventSource.close();
+                        showToast("Configuration changes applied successfully!", "success");
+                        fetchConfig(); // Reload fully synced configurations
+                    } else if (line.includes("ERROR:")) {
+                        eventSource.close();
+                        showToast("Setup failed! Check logs.", "error");
+                    }
+                };
+                
+                eventSource.onerror = (err) => {
+                    console.error("SSE stream error", err);
+                    eventSource.close();
+                    const errDiv = document.createElement('div');
+                    errDiv.className = 'terminal-line';
+                    errDiv.style.color = 'var(--red)';
+                    errDiv.textContent = '✘ Connection to log stream lost. Process may still be running in background.';
+                    terminal.appendChild(errDiv);
+                };
+                
+            } catch (err) {
+                terminal.innerHTML += `<div class="terminal-line" style="color: var(--red)">✘ Error: ${err.message}</div>`;
+                showToast(err.message, 'error');
+            }
+        }
+
+        // Parse ANSI colors to HTML span styles
+        function ansiToHtml(text) {
+            const ansiMap = {
+                '0': '</span>',
+                '1': '<span style="font-weight: bold;">',
+                '31': '<span style="color: var(--red); font-weight: bold;">',
+                '32': '<span style="color: var(--green); font-weight: bold;">',
+                '33': '<span style="color: var(--peach); font-weight: bold;">',
+                '34': '<span style="color: var(--blue); font-weight: bold;">',
+                '35': '<span style="color: var(--mauve); font-weight: bold;">',
+                '36': '<span style="color: var(--sky); font-weight: bold;">',
+                '90': '<span style="color: var(--overlay1);">',
+                '91': '<span style="color: var(--red);">',
+                '92': '<span style="color: var(--green);">',
+                '93': '<span style="color: var(--peach);">',
+                '94': '<span style="color: var(--blue);">',
+            };
+            
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+                
+            const regex = /\x1B\[(\d+(?:;\d+)*)m/g;
+            let openSpans = 0;
+            
+            html = html.replace(regex, (match, codes) => {
+                let replacement = '';
+                const codeArray = codes.split(';');
+                for (const code of codeArray) {
+                    if (code === '0') {
+                        while (openSpans > 0) {
+                            replacement += '</span>';
+                            openSpans--;
+                        }
+                    } else if (ansiMap[code]) {
+                        replacement += ansiMap[code];
+                        if (ansiMap[code].startsWith('<span')) openSpans++;
+                    }
+                }
+                return replacement;
+            });
+            
+            while (openSpans > 0) {
+                html += '</span>';
+                openSpans--;
+            }
+            return html;
+        }
+
+        function clearLogs() {
+            document.getElementById('log-terminal').innerHTML = '<div class="terminal-line" style="color: var(--overlay2)">Logs cleared. Ready.</div>';
+        }
+
+        // Render Explorer Tab Items
+        function renderExplorerList() {
+            const container = document.getElementById('explorer-list-elements');
+            container.innerHTML = '';
+            
+            // Render Agents
+            tempConfig.agents.forEach(agent => {
+                const item = document.createElement('div');
+                item.className = 'explorer-item';
+                item.id = `exp-item-agent-${agent}`;
+                item.dataset.name = agent;
+                item.dataset.type = 'agent';
+                item.onclick = () => selectExplorer('agent', agent);
+                
+                item.innerHTML = `
+                    <div class="explorer-item-icon"><i data-lucide="bot" style="width:16px; color: var(--blue);"></i></div>
+                    <span>${agent}</span>
+                `;
+                container.appendChild(item);
+            });
+            
+            // Render Skills
+            tempConfig.skills.forEach(skill => {
+                const item = document.createElement('div');
+                item.className = 'explorer-item';
+                item.id = `exp-item-skill-${skill}`;
+                item.dataset.name = skill;
+                item.dataset.type = 'skill';
+                item.onclick = () => selectExplorer('skill', skill);
+                
+                item.innerHTML = `
+                    <div class="explorer-item-icon"><i data-lucide="wrench" style="width:16px; color: var(--mauve);"></i></div>
+                    <span>${skill}</span>
+                `;
+                container.appendChild(item);
+            });
+            
+            refreshIcons();
+        }
+
+        // Select item in Explorer and fetch its details
+        async function selectExplorer(type, name) {
+            // Remove active classes
+            document.querySelectorAll('.explorer-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const activeItem = document.getElementById(`exp-item-${type}-${name}`);
+            if (activeItem) activeItem.classList.add('active');
+            
+            selectedExplorerItem = { type, name };
+            
+            // Show details
+            document.getElementById('explorer-placeholder').style.display = 'none';
+            const detailArea = document.getElementById('explorer-detail-content-area');
+            detailArea.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/${type}/${name}`);
+                if (!response.ok) throw new Error(`Failed to load ${type} details`);
+                const data = await response.json();
+                
+                document.getElementById('explorer-title-header').textContent = data.name;
+                
+                // Set badges
+                const badges = document.getElementById('explorer-meta-badges');
+                badges.innerHTML = '';
+                
+                if (type === 'agent') {
+                    badges.innerHTML += `<span class="meta-badge" style="color:var(--blue); border-color:var(--blue)">🤖 Custom Agent</span>`;
+                    if (data.metadata.model) {
+                        badges.innerHTML += `<span class="meta-badge">Model: ${data.metadata.model}</span>`;
+                    }
+                } else {
+                    badges.innerHTML += `<span class="meta-badge" style="color:var(--mauve); border-color:var(--mauve)">🛠️ Custom Skill</span>`;
+                    if (data.metadata.origin) {
+                        badges.innerHTML += `<span class="meta-badge">Origin: ${data.metadata.origin}</span>`;
+                    }
+                }
+                
+                // Set description
+                const desc = data.metadata.description || 'No description provided.';
+                document.getElementById('explorer-meta-description').textContent = desc;
+                
+                // Parse and render Markdown
+                const mdContent = data.prompt;
+                const renderedContainer = document.getElementById('explorer-md-rendered');
+                
+                // Use marked.parse if loaded, otherwise fallback to simple text parsing
+                if (typeof marked !== 'undefined') {
+                    renderedContainer.innerHTML = marked.parse(mdContent);
+                } else {
+                    // Fallback basic renderer
+                    renderedContainer.innerHTML = `<pre><code>${mdContent}</code></pre>`;
+                }
+                
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+                detailArea.style.display = 'none';
+                document.getElementById('explorer-placeholder').style.display = 'flex';
+            }
+        }
+
+        // Filter explorer items list
+        function filterExplorer() {
+            const query = document.getElementById('explorer-search-input').value.toLowerCase();
+            document.querySelectorAll('.explorer-item').forEach(item => {
+                const name = item.dataset.name.toLowerCase();
+                if (name.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Show toast notifications
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            let iconName = 'check-circle-2';
+            if (type === 'error') iconName = 'x-circle';
+            if (type === 'warning') iconName = 'alert-triangle';
+            
+            toast.innerHTML = `
+                <i data-lucide="${iconName}"></i>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            refreshIcons();
+            
+            // Animate in
+            setTimeout(() => toast.classList.add('active'), 10);
+            
+            // Remove after 4 seconds
+            setTimeout(() => {
+                toast.classList.remove('active');
+                setTimeout(() => toast.remove(), 250);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

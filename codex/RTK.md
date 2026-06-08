@@ -4,7 +4,7 @@ RTK is a CLI proxy that reduces token usage by compacting shell output before it
 
 ## Installation
 
-`install.sh` checks for RTK, offers to install it when missing, and creates the default RTK config.
+`install.py` checks for RTK, offers to install it when missing, and creates the default RTK config.
 
 ```bash
 tmp="$(mktemp)"
@@ -25,7 +25,7 @@ rtk gain
 ## Non-Interactive Install
 
 ```bash
-RTK_INSTALL=1 ./install.sh
+RTK_INSTALL=1 ./install.py
 ```
 
 ## Usage

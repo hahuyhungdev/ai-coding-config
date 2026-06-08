@@ -47,3 +47,6 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/` 
 @RTK.md
 
 
+
+
+## Custom Test Rules Added

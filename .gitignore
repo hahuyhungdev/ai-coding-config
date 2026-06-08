@@ -40,5 +40,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# Project-specific (keep templates only)
 codex/config.local.toml
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -67,6 +67,16 @@ try {
 
     let updated = false;
 
+    // Remove servers that are now disabled
+    for (const name of disabled) {
+        if (data.mcpServers[name]) {
+            delete data.mcpServers[name];
+            console.log("Removed disabled server: " + name + " from " + file);
+            updated = true;
+        }
+    }
+
+    // Add or update default servers (skip disabled ones)
     for (const [name, config] of Object.entries(defaultServers)) {
         // Skip servers that user has explicitly disabled
         if (disabled.has(name)) {

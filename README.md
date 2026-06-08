@@ -1,15 +1,17 @@
-# 🚀 AI Coding Config
+# 🚀 AI Coding Config Engine
 
-A unified, centralized configuration hub for **Claude Code**, **Codex CLI**, and **Antigravity CLI (agy)**. Manage custom agents, skills, rules (ECC standards), MCP servers, and hooks in one repository and sync them seamlessly across your systems.
+A unified, centralized configuration hub and interactive control center for **Claude Code**, **Codex CLI**, and **Antigravity CLI (agy)**. Manage custom agents, reusable skills, rules (ECC standards), MCP servers, and environment settings in a single repository and synchronize them across your local system.
 
 ---
 
 ## ✨ Features
 
-*   **Multi-CLI Support**: Centralized configs for Claude Code, Codex CLI, and Antigravity CLI (`agy`).
-*   **Zero-Admin Windows Installation**: Uses Windows Directory Junctions (`mklink /j`) to install files natively without requiring Administrator privileges or Developer Mode.
-*   **Auto-Merge TOML Configurations**: Updates Codex's `config.toml` safely by merging new MCP servers and custom agents from the repo while leaving your personal trusted projects (`[projects]`) and settings completely intact.
-*   **Browser Lock Protection**: Configures Playwright MCP with `--isolated` automatically for all CLIs to avoid browser profile conflicts.
+- **Multi-CLI Support**: Centralized configs for Claude Code, Codex CLI, and Antigravity CLI (`agy`).
+- **Interactive Web Dashboard**: A modern, single-page React app to inspect, edit, stage, and apply configurations.
+- **On-Demand Instruction Modals**: View and edit `CLAUDE.md`, `AGENTS.md`, and `ANTIGRAVITY.md` instructions inside popup editors directly inline with system parameters.
+- **Copy-based Installation**: Copies configuration files (no symlinks) so local overrides do not affect the repository template.
+- **Auto-Merge TOML Configurations**: Updates Codex's `config.toml` safely by merging new agents/MCP servers while preserving your personal settings and trusted projects (`[projects]`).
+- **Browser Lock Protection**: Configures Playwright MCP with `--isolated` automatically for all CLIs to avoid browser profile conflicts.
 
 ---
 
@@ -21,7 +23,7 @@ Clone this repository and run the installer to link configuration files to their
 ```bash
 git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/ai-coding-config
 cd ~/ai-coding-config
-./install.sh
+./install.py
 ```
 
 ### 🪟 Windows (CMD / PowerShell)
@@ -34,40 +36,62 @@ install.bat
 
 ---
 
+## 🖥️ Interactive Web Dashboard
+
+Instead of command-line flags, you can run the built-in Interactive Web Dashboard to visually manage target CLIs, toggle MCP servers, edit instructions templates, and monitor installation logs.
+
+```bash
+./run-web.sh
+```
+
+Or run directly with Python:
+```bash
+python3 server.py --port 8000
+```
+
+### 🌟 Dashboard Highlights
+- **Interactive Configuration**: Toggle active CLI targets and individual MCP servers in real-time.
+- **Staged Changes Diff**: View visual git-style diffs of your modifications in the sidebar before writing to disk.
+- **System Settings Editors**: Edit parameters for Claude, Codex, and Gemini with inline inputs, selects, and toggles.
+- **Instructions Modal Editors**: Access and edit instruction files (`CLAUDE.md`, `AGENTS.md`, `ANTIGRAVITY.md`) on-demand inside popup modal dialogs, leaving configuration pages clean.
+- **Agents & Skills Explorer**: Browse through custom agents and skills with automatic markdown rendering and metadata extraction.
+- **Real-time Log Stream**: Apply changes and watch the installation process live in the browser's terminal console.
+
+---
+
 ## ⚙️ Installation Options
 
 You can install configuration assets for all three CLIs at once, or target specific tools selectively using command-line flags.
 
-| Flag | Action |
-|---|---|
-| `./install.sh --all` | Install configurations for **all** three CLIs (default if no flag is provided) |
-| `./install.sh --claude` | Configure **Claude Code** only (`~/.claude/` assets and `~/.claude.json`) |
-| `./install.sh --codex` | Configure **Codex CLI** only (`~/.codex/` assets and merging `config.toml`) |
-| `./install.sh --agy` | Configure **Antigravity CLI** only (`~/.gemini/config/` assets) |
-| `./install.sh -h` | Display the helper menu |
+| Flag                    | Action                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `./install.py --all`    | Install configurations for **all** three CLIs (default if no flag is provided) |
+| `./install.py --claude` | Configure **Claude Code** only (`~/.claude/` assets and `~/.claude.json`)      |
+| `./install.py --codex`  | Configure **Codex CLI** only (`~/.codex/` assets and merging `config.toml`)    |
+| `./install.py --agy`    | Configure **Antigravity CLI** only (`~/.gemini/config/` assets)                |
+| `./install.py --force`  | Force overwrite all destination files, bypassing interactive TTY warnings      |
+| `./install.py -h`       | Display the helper menu                                                        |
 
 ---
 
 ## 📂 What's Included
 
-| Component | Claude Code | Codex CLI | Antigravity CLI (`agy`) |
-| :--- | :---: | :---: | :---: |
-| **Context File** | `CLAUDE.md` | `AGENTS.md` | `ANTIGRAVITY.md` |
-| **System Settings** | `settings.json` | `config.toml` | `mcp_config.json` |
-| **Custom Agents** | 15 MD agents | 15 TOML agents | 15 MD agents (synced) |
-| **Advanced Skills** | 25 skills | 25 skills | 25 skills (synced) |
-| **Rules (ECC)** | 12 rules | — | — |
-| **Playwright Isolation** | Yes (`--isolated`) | Yes (`--isolated`) | Yes (`--isolated`) |
+| Component                |    Claude Code     |     Codex CLI      | Antigravity CLI (`agy`) |
+| :----------------------- | :----------------: | :----------------: | :---------------------: |
+| **Context File**         |    `CLAUDE.md`     |    `AGENTS.md`     |    `ANTIGRAVITY.md`     |
+| **System Settings**      |  `settings.json`   |   `config.toml`    |    `settings.json`      |
+| **Custom Agents**        |    15 MD agents    |   15 TOML agents   |  15 MD agents (synced)  |
+| **Advanced Skills**      |     25 skills      |     25 skills      |   25 skills (synced)    |
+| **Rules (ECC)**          |      12 rules      |         —          |            —            |
+| **Playwright Isolation** | Yes (`--isolated`) | Yes (`--isolated`) |   Yes (`--isolated`)    |
 
 ### 🛠️ Configured MCP Servers
-All CLIs are automatically integrated with the following model context protocol servers:
-*   `playwright`: Browser automation (running in `--isolated` mode).
-*   `context7`: Library documentation lookup (Claude & Gemini only — Codex doesn't support HTTP transport).
-*   `memory`: Persistent knowledge graphs.
-*   `sequential-thinking`: Step-by-step reasoning support.
-*   `github`: Repository management, issues, and PR interactions (Codex only).
-
-Additional MCP servers (`postgres`, `sqlite`, `docker`, `aws`) are available but disabled by default. Use `mcp-toggle` to enable them when needed.
+All CLIs are automatically integrated with the following Model Context Protocol (MCP) servers:
+- `playwright`: Browser automation (running in `--isolated` mode).
+- `context7`: Library documentation lookup (Claude & Gemini only).
+- `memory`: Persistent knowledge graphs.
+- `sequential-thinking`: Step-by-step reasoning support.
+- `github`: Repository management, issues, and PR interactions (Codex only).
 
 ---
 
@@ -79,7 +103,6 @@ ai-coding-config/
 ├── skills/                  # Source of Truth: 25 shared skill packages
 ├── claude/                  # Claude-specific configuration files
 │   ├── rules/ecc/           # 12 Engineer Agentic Coding (ECC) rules
-│   ├── hooks/               # Pre/Post tool hooks (tracked via .gitkeep)
 │   ├── CLAUDE.md            # Claude Code instructions
 │   ├── RTK.md               # Claude Code token optimization reference
 │   └── settings.json        # Claude settings & Playwright config
@@ -88,15 +111,17 @@ ai-coding-config/
 │   ├── RTK.md               # Codex token optimization reference
 │   └── config.toml          # Shared Codex config template
 ├── gemini/                  # Antigravity-specific configuration files
-│   └── ANTIGRAVITY.md       # Antigravity instructions
+│   ├── ANTIGRAVITY.md       # Antigravity instructions
+│   └── settings.json        # Antigravity settings template
 ├── scripts/                 # Build & management scripts
 │   ├── compile-agents.js    # Compiler script that parses root agents to target folders
-│   ├── merge-toml-config.js # Merges Codex config.toml (skips disabled servers)
-│   ├── update-mcp-config.js # Updates JSON MCP configs (skips disabled servers)
+│   ├── merge-toml-config.js # Merges Codex config.toml
+│   ├── update-mcp-config.js # Updates JSON MCP configs
 │   └── mcp-toggle.py        # Toggle MCP servers on/off across all CLIs
 ├── shared-disabled-mcp.json # Source of truth for disabled MCP servers
-├── install.sh               # Main installation Bash script
-├── install.bat              # Windows command wrapper
+├── install.py               # Main installation Python script
+├── run-web.sh               # Starts the Interactive Web Dashboard
+├── server.py                # Python web backend (FastAPI/SSE)
 └── README.md
 ```
 
@@ -104,13 +129,18 @@ ai-coding-config/
 
 ## 🛠️ How it Works under the Hood
 
-### 🔗 Windows Junctions
-Windows symbolic links usually require special Developer Mode permissions. The installer avoids this by using **Directory Junctions** (`mklink /j`) for folders and copying files as a fallback, enabling any standard command prompt or terminal user to install successfully.
+### 🔗 Copy-based Installation
+The installer copies config files from the repo to global locations (`~/.claude`, `~/.codex`, `~/.gemini`). This ensures global edits don't affect the repository.
+
+### ⚡ Conflict Detection
+When config files differ between the repository templates and the global destination files:
+- **Standard Apply**: In interactive mode, shows a diff and prompts you to Overwrite, Keep, or Skip. In non-interactive mode (e.g. running from the web server), it automatically skips conflicting files with a warning to protect custom local modifications.
+- **Force Overwrite**: Passes `--force` to overwrite all global files completely without warnings or checks.
 
 ### 🔀 Smart TOML Merging
-When updating Codex CLI settings, your `~/.codex/config.toml` file is parsed and merged via Node.js:
-*   Any newly introduced custom agents or MCP server definitions in this repo are cleanly injected.
-*   Your local settings and machine-specific trusted projects (`[projects]`) are fully preserved.
+When updating Codex CLI settings, your `~/.codex/config.toml` file is parsed and merged:
+- Any newly introduced custom agents or MCP server definitions in this repo are cleanly injected.
+- Your local machine-specific settings and trusted projects (`[projects]`) are fully preserved.
 
 ---
 
@@ -121,36 +151,13 @@ To fetch the latest agents, skills, and rules from this repo and sync them to yo
 ```bash
 cd ~/ai-coding-config
 git pull
-./install.sh
+./install.py
 ```
-
----
-
-## 🔀 Managing MCP Servers
-
-Use `mcp-toggle` to enable/disable MCP servers across all three CLIs at once.
-
-```bash
-# List all servers
-./scripts/mcp-toggle.py list
-
-# Disable a server (keeps config, syncs all CLIs)
-./scripts/mcp-toggle.py disable aws
-
-# Enable a server
-./scripts/mcp-toggle.py enable postgres
-
-# Bulk operations
-./scripts/mcp-toggle.py disable-all
-./scripts/mcp-toggle.py enable-all
-```
-
-Disabled servers are tracked in `shared-disabled-mcp.json` and respected by `install.sh` — re-running the installer won't re-add them.
 
 ---
 
 ## 📋 Requirements
 
-*   **Node.js**: v18+ (needed for Playwright MCP server execution and TOML merging)
-*   **Claude Code**: [Install Guide](https://docs.anthropic.com/en/docs/claude-code)
-*   **Codex CLI**: [Install Guide](https://developers.openai.com/codex)
+- **Node.js**: v18+ (needed for Playwright MCP server execution and TOML merging)
+- **Claude Code**: [Install Guide](https://docs.anthropic.com/en/docs/claude-code)
+- **Codex CLI**: [Install Guide](https://developers.openai.com/codex)

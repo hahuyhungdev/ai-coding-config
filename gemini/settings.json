@@ -1,0 +1,12 @@
+{
+  "enableTelemetry": false,
+  "model": "Gemini 3.5 Flash (High)",
+  "toolPermission": "always-proceed",
+  "trustedWorkspaces": [
+    "/home/huyhung",
+    "/mnt/c/projects/my-translator",
+    "/home/huyhung/projects/personals/roadmap-english-ai",
+    "/home/huyhung/projects/personals/aws-bedrock-agentic-rag",
+    "/home/huyhung/projects/personals/nest-saas"
+  ]
+}

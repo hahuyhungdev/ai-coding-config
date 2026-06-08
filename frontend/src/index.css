@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-rosewater: #f4dbd6;
+  --color-flamingo: #f0c6c6;
+  --color-pink: #f5bde6;
+  --color-mauve: #c6a0f6;
+  --color-red: #ed8796;
+  --color-maroon: #ee99a0;
+  --color-peach: #f5a97f;
+  --color-yellow: #eed49f;
+  --color-green: #a6da95;
+  --color-teal: #8bd5ca;
+  --color-sky: #91d7e3;
+  --color-sapphire: #7dc4e4;
+  --color-blue: #8cadfa;
+  --color-lavender: #b7bdf8;
+  
+  --color-text: #cad3f5;
+  --color-subtext1: #b8c0e0;
+  --color-subtext0: #a5adcb;
+  --color-overlay2: #939ab7;
+  --color-overlay1: #8087a2;
+  --color-overlay0: #6e738d;
+  
+  --color-surface2: #5b6078;
+  --color-surface1: #494d64;
+  --color-surface0: #363a4f;
+  --color-base: #24273a;
+  --color-mantle: #1e2030;
+  --color-crust: #181926;
+  
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  background-color: #24273a; /* base */
+  color: #cad3f5; /* text */
+  margin: 0;
+  font-family: var(--font-sans);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Custom transitions and scrollbar */
+.transition-all-custom {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #494d64; /* surface1 */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5b6078; /* surface2 */
+}
+
+@keyframes pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(166, 218, 149, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(166, 218, 149, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(166, 218, 149, 0); }
+}
+
+.pulse-green-animation {
+  animation: pulse-green 2s infinite;
+}
+
+/* Form input highlights */
+.input-modified {
+  border-color: #f5a97f !important; /* peach */
+  box-shadow: 0 0 6px rgba(245, 169, 127, 0.15);
+}
+
+.card-modified {
+  border-color: #f5a97f !important;
+  box-shadow: 0 0 10px rgba(245, 169, 127, 0.1);
+}
+
+.mcp-row-modified {
+  border-left: 3px solid #f5a97f !important;
+  background-color: rgba(245, 169, 127, 0.03);
+}

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # AI Coding Config Installer
-# Links shared Claude/Codex assets from this repo to their expected locations.
-# Codex config.toml is copied, not linked, so each machine can keep local trusted projects.
+# Copies shared Claude/Codex/Gemini assets from this repo to their expected locations.
+# Detects conflicts and lets user decide: overwrite, keep, or skip.
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
@@ -17,6 +17,7 @@ warn() { echo -e "\033[0;33m[WARN]\033[0m $1"; }
 INSTALL_CLAUDE=0
 INSTALL_CODEX=0
 INSTALL_AGY=0
+FORCE=0
 
 # Parse arguments
 if [ $# -eq 0 ]; then
@@ -44,6 +45,10 @@ else
                 INSTALL_AGY=1
                 shift
                 ;;
+            --force)
+                FORCE=1
+                shift
+                ;;
             -h | --help)
                 echo "Usage: ./install.sh [options]"
                 echo "Options:"
@@ -51,6 +56,7 @@ else
                 echo "  --codex     Only install/configure Codex CLI"
                 echo "  --agy       Only install/configure Antigravity CLI (agy)"
                 echo "  --all       Install/configure all three (default)"
+                echo "  --force     Overwrite all without asking"
                 echo "  -h, --help  Show this help message"
                 exit 0
                 ;;
@@ -81,41 +87,80 @@ is_windows() {
     esac
 }
 
-link_path() {
+copy_config() {
     local source="$1"
     local target="$2"
-    local backup
+    local choice
 
     if [ ! -e "$source" ] && [ ! -L "$source" ]; then
         warn "Source does not exist: $source"
         return 1
     fi
 
-    if [ -e "$target" ] || [ -L "$target" ]; then
-        if [ -L "$target" ] || (is_windows && [ -d "$target" ]); then
-            rm -rf "$target"
-        else
-            backup="$target.bak.$(date +%Y%m%d%H%M%S)"
-            warn "$(basename "$target") exists - moving to $(basename "$backup")"
-            mv "$target" "$backup"
+    # Remove old symlink (from previous installs)
+    if [ -L "$target" ]; then
+        rm -f "$target"
+    fi
+
+    # Target doesn't exist → copy directly
+    if [ ! -e "$target" ]; then
+        cp -R "$source" "$target"
+        return 0
+    fi
+
+    # Target exists → check for differences
+    if [ -d "$source" ] && [ -d "$target" ]; then
+        # Directory: compare recursively
+        if diff -rq "$source" "$target" >/dev/null 2>&1; then
+            return 0  # Same, skip
+        fi
+    elif [ -f "$source" ] && [ -f "$target" ]; then
+        # File: compare content
+        if cmp -s "$source" "$target"; then
+            return 0  # Same, skip
         fi
     fi
 
-    if is_windows; then
-        local win_source
-        local win_target
-        win_source=$(cygpath -w "$source")
-        win_target=$(cygpath -w "$target")
-        local is_dir=""
-        if [ -d "$source" ]; then
-            is_dir="/j"
+    # Conflict detected
+    echo ""
+    warn "Conflict detected: $(basename "$target")"
+    echo "  Repo:   $source"
+    echo "  Global: $target"
+
+    if [ "$FORCE" = "1" ]; then
+        cp -R "$source" "$target"
+        ok "Overwritten (force): $(basename "$target")"
+        return 0
+    fi
+
+    if [ -t 0 ]; then
+        # Interactive: show diff and ask
+        if [ -f "$source" ] && [ -f "$target" ]; then
+            echo ""
+            diff --color=auto "$source" "$target" | head -30 || true
+        elif [ -d "$source" ] && [ -d "$target" ]; then
+            echo ""
+            diff -rq "$source" "$target" | head -20
         fi
-        if ! MSYS_NO_PATHCONV=1 cmd.exe /c mklink $is_dir "$win_target" "$win_source" >/dev/null 2>&1; then
-            warn "Failed to create symlink, copying instead: $target"
-            cp -R "$source" "$target"
-        fi
+        echo ""
+        echo "  [o] Overwrite  [k] Keep current  [s] Skip"
+        read -r -p "  Choice: " choice
+        case "$choice" in
+            o|O)
+                cp -R "$source" "$target"
+                ok "Overwritten: $(basename "$target")"
+                ;;
+            k|K)
+                ok "Kept current: $(basename "$target")"
+                ;;
+            *)
+                ok "Skipped: $(basename "$target")"
+                ;;
+        esac
     else
-        ln -s "$source" "$target"
+        # Non-interactive: skip with warning
+        warn "Skipping conflict (non-interactive): $(basename "$target")"
+        warn "Use --force to overwrite all"
     fi
 }
 
@@ -123,14 +168,18 @@ install_local_config() {
     local source="$1"
     local target="$2"
 
+    # Remove old symlink (from previous installs)
     if [ -L "$target" ]; then
-        warn "$(basename "$target") is linked - replacing with a local config copy"
+        warn "$(basename "$target") is symlinked - replacing with copy"
         rm "$target"
         cp "$source" "$target"
         return
     fi
 
     if [ -f "$target" ]; then
+        if cmp -s "$source" "$target"; then
+            return 0  # Same, skip
+        fi
         info "Merging $source configurations into $target..."
         node "$REPO_DIR/scripts/merge-toml-config.js" "$source" "$target"
         return
@@ -345,15 +394,15 @@ if [ "$INSTALL_CLAUDE" = "1" ]; then
     mkdir -p "$CLAUDE_DIR"/{agents,skills,rules/ecc,hooks}
 
     # CLAUDE.md
-    link_path "$REPO_DIR/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+    copy_config "$REPO_DIR/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
     ok "CLAUDE.md"
 
     # settings.json
-    link_path "$REPO_DIR/claude/settings.json" "$CLAUDE_DIR/settings.json"
+    copy_config "$REPO_DIR/claude/settings.json" "$CLAUDE_DIR/settings.json"
     ok "settings.json"
 
     # RTK.md
-    link_path "$REPO_DIR/claude/RTK.md" "$CLAUDE_DIR/RTK.md"
+    copy_config "$REPO_DIR/claude/RTK.md" "$CLAUDE_DIR/RTK.md"
     ok "RTK.md"
 
     # Agents (written directly by compiler)
@@ -362,14 +411,14 @@ if [ "$INSTALL_CLAUDE" = "1" ]; then
     # Skills
     for d in "$REPO_DIR"/skills/*/; do
         name="$(basename "$d")"
-        link_path "$d" "$CLAUDE_DIR/skills/$name"
+        copy_config "$d" "$CLAUDE_DIR/skills/$name"
     done
     ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
 
     # Rules (ECC only)
     for f in "$REPO_DIR"/claude/rules/ecc/*.md; do
         name="$(basename "$f")"
-        link_path "$f" "$CLAUDE_DIR/rules/ecc/$name"
+        copy_config "$f" "$CLAUDE_DIR/rules/ecc/$name"
     done
     ok "Rules ($(count_files "$REPO_DIR/claude/rules/ecc" "*.md") files)"
 
@@ -379,7 +428,7 @@ if [ "$INSTALL_CLAUDE" = "1" ]; then
         for f in "$REPO_DIR"/claude/hooks/*; do
             if [ -f "$f" ]; then
                 name="$(basename "$f")"
-                link_path "$f" "$CLAUDE_DIR/hooks/$name"
+                copy_config "$f" "$CLAUDE_DIR/hooks/$name"
                 hooks_linked=$((hooks_linked + 1))
             fi
         done
@@ -396,11 +445,11 @@ if [ "$INSTALL_CODEX" = "1" ]; then
     mkdir -p "$CODEX_DIR"/{agents,skills}
 
     # AGENTS.md
-    link_path "$REPO_DIR/codex/AGENTS.md" "$CODEX_DIR/AGENTS.md"
+    copy_config "$REPO_DIR/codex/AGENTS.md" "$CODEX_DIR/AGENTS.md"
     ok "AGENTS.md"
 
     # RTK.md
-    link_path "$REPO_DIR/codex/RTK.md" "$CODEX_DIR/RTK.md"
+    copy_config "$REPO_DIR/codex/RTK.md" "$CODEX_DIR/RTK.md"
     ok "RTK.md"
     configure_rtk
 
@@ -415,7 +464,7 @@ if [ "$INSTALL_CODEX" = "1" ]; then
     # Skills
     for d in "$REPO_DIR"/skills/*/; do
         name="$(basename "$d")"
-        link_path "$d" "$CODEX_DIR/skills/$name"
+        copy_config "$d" "$CODEX_DIR/skills/$name"
     done
     ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs)"
 fi
@@ -430,7 +479,7 @@ if [ "$INSTALL_AGY" = "1" ]; then
         mkdir -p "$HOME/.gemini/config/skills"
         for d in "$REPO_DIR"/skills/*/; do
             name="$(basename "$d")"
-            link_path "$d" "$HOME/.gemini/config/skills/$name"
+            copy_config "$d" "$HOME/.gemini/config/skills/$name"
         done
         ok "Skills ($(count_dirs "$REPO_DIR/skills") dirs) linked to agy config"
     fi
@@ -442,9 +491,15 @@ if [ "$INSTALL_AGY" = "1" ]; then
     ok "Agents ($(count_files "$HOME/.gemini/config/agents" "*.md") files) configured for agy"
 
     # ANTIGRAVITY.md
-    link_path "$REPO_DIR/gemini/ANTIGRAVITY.md" "$HOME/.gemini/config/ANTIGRAVITY.md"
+    copy_config "$REPO_DIR/gemini/ANTIGRAVITY.md" "$HOME/.gemini/config/ANTIGRAVITY.md"
     ok "ANTIGRAVITY.md"
+
+    # settings.json
+    mkdir -p "$HOME/.gemini/antigravity-cli"
+    copy_config "$REPO_DIR/gemini/settings.json" "$HOME/.gemini/antigravity-cli/settings.json"
+    ok "settings.json"
 fi
+
 
 # Update Playwright MCP configurations for all three CLIs (Claude, agy, Codex)
 if [ "$INSTALL_CLAUDE" = "1" ] || [ "$INSTALL_AGY" = "1" ]; then
@@ -456,6 +511,12 @@ if [ "$INSTALL_CLAUDE" = "1" ] || [ "$INSTALL_AGY" = "1" ]; then
     if [ "$INSTALL_AGY" = "1" ]; then
         update_json_mcp_config "$HOME/.gemini/config/mcp_config.json"
     fi
+fi
+
+# Sync disabled MCP servers from shared-disabled-mcp.json
+if [ -f "$REPO_DIR/shared-disabled-mcp.json" ] && [ -f "$REPO_DIR/scripts/mcp-toggle.py" ]; then
+    info "Syncing MCP server states..."
+    python3 "$REPO_DIR/scripts/mcp-toggle.py" sync 2>/dev/null || true
 fi
 
 echo ""
