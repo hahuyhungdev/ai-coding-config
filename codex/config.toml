@@ -142,7 +142,7 @@ config_file = "agents/architect.toml"
 
 # Project trust levels
 # Shared config intentionally has no [projects] entries.
-# install.sh writes machine-specific trusted roots to ~/.codex/config.toml.
+# install.py writes machine-specific trusted roots to ~/.codex/config.toml.
 # Re-run with CODEX_RECONFIGURE_TRUST=1 to update them interactively.
 
 # UI/UX settings

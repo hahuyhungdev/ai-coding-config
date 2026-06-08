@@ -4,6 +4,7 @@
   "toolPermission": "always-proceed",
   "trustedWorkspaces": [
     "/home/huyhung",
+    "/home/huyhung/projects/personals/ai-coding-config",
     "/mnt/c/projects/my-translator",
     "/home/huyhung/projects/personals/roadmap-english-ai",
     "/home/huyhung/projects/personals/aws-bedrock-agentic-rag",

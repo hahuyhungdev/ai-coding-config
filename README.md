@@ -144,6 +144,29 @@ When updating Codex CLI settings, your `~/.codex/config.toml` file is parsed and
 
 ---
 
+## 🔍 Graphify Integration & Testing
+
+If the `graphify` CLI is installed, the installer automatically configures **Graphify Git hooks** and registers optimized **project-level hooks** in your workspace root (`.claude/`, `.gemini/`, and `.codex/`):
+
+### 🛡️ Hook Optimization under the Hood
+- **Claude & Gemini (Antigravity):** Registers project-level hooks (`PreToolUse` for Claude and `BeforeTool` for Gemini) that execute a highly optimized Python one-liner on `stdin`. The script filters file/directory tool inputs, checks for programming language extensions, filters out config/metadata directories (e.g. `skills/`, `.claude/`, `.gemini/`, `.codex/`, `.git/`, `node_modules/`), and dynamically injects the Graphify instructions only when reading source files. This prevents context pollution and saves tokens on metadata reads.
+- **Codex:** Registers a portable `graphify hook-check` hook.
+
+### 🧪 Verification & Test Suite
+We provide a native Python test suite to verify the installers, syntax of templates/output files, and hook filtering behavior.
+
+To run the test suite:
+```bash
+python3 -m unittest tests/test_config.py
+```
+
+The test suite validates:
+- Syntactic correctness of configuration files (JSON and TOML).
+- Existence and structure of project-level hook configuration files.
+- Real subprocess dry-runs of the Python filtering commands in Claude's and Gemini's hooks against multiple test cases (source files, skill files, ignored directories).
+
+---
+
 ## 🔄 How to Update
 
 To fetch the latest agents, skills, and rules from this repo and sync them to your local CLIs, run:

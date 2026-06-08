@@ -432,6 +432,91 @@ Examples:
     # Sync disabled MCP servers
     sync_mcp_disabled()
 
+    # Install Graphify git hooks if graphify is available
+    if shutil.which("graphify"):
+        info("Installing Graphify git hooks...")
+        try:
+            subprocess.run(["graphify", "hook", "install"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            ok("Graphify git hooks")
+        except subprocess.CalledProcessError:
+            warn("Failed to install Graphify git hooks")
+
+        info("Configuring Graphify project-level hooks...")
+        try:
+            # 1. Claude hook
+            claude_settings_dir = REPO_DIR / ".claude"
+            claude_settings_dir.mkdir(exist_ok=True)
+            claude_settings = {
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "matcher": "Bash",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "CMD=$(python3 -c \"import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',d).get('command',''))\" 2>/dev/null || true); case \"$CMD\" in *grep*|*rg\\ *|*ripgrep*|*find\\ *|*fd\\ *|*ack\\ *|*ag\\ *)   [ -f graphify-out/graph.json ] &&   echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"graphify: knowledge graph at graphify-out/. For focused questions, run `graphify query \\\"<question>\\\"` (scoped subgraph, usually much smaller than GRAPH_REPORT.md) instead of grepping raw files. Read GRAPH_REPORT.md only for broad architecture context.\"}}'   || true ;; esac"
+                                }
+                            ]
+                        },
+                        {
+                            "matcher": "Read|Glob",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "HIT=$(python3 -c \"import json,sys;d=json.load(sys.stdin);t=d.get('tool_input',d);s=(str(t.get('file_path') or '')+' '+str(t.get('pattern') or '')+' '+str(t.get('path') or '')).lower().replace(chr(92),'/');words=s.split();exts=('.py','.js','.ts','.tsx','.jsx','.go','.rs','.java','.rb','.c','.h','.cpp','.hpp','.cc','.cc','.cs','.kt','.swift','.php','.scala','.lua','.sh','.md','.rst','.txt','.mdx');is_src=not any(x in s for x in ('graphify-out/','skills/','.claude/','.gemini/','.codex/','.git/','node_modules/')) and any(any(w.endswith(e) for e in exts) for w in words) if s else False;sys.stdout.write('1' if is_src else '')\" 2>/dev/null || true); if [ \"$HIT\" = 1 ] && [ -f graphify-out/graph.json ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"graphify: knowledge graph at graphify-out/. For codebase questions, run `graphify query \\\"<question>\\\"` (scoped subgraph, usually much smaller than reading files one by one), `graphify explain \\\"<concept>\\\"`, or `graphify path \\\"<A>\\\" \\\"<B>\\\"`, instead of reading source files to answer. Read raw files to modify or debug specific code, or when the graph lacks the detail.\"}}'; fi || true"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+            (claude_settings_dir / "settings.json").write_text(json.dumps(claude_settings, indent=2), encoding="utf-8")
+            ok("Claude project-level hook configured")
+
+            # 2. Gemini hook
+            gemini_settings_dir = REPO_DIR / ".gemini"
+            gemini_settings_dir.mkdir(exist_ok=True)
+            gemini_settings = {
+                "hooks": {
+                    "BeforeTool": [
+                        {
+                            "matcher": "read_file|list_directory",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "python3 -c 'import sys,pathlib,json;d={\"decision\":\"allow\"};t=json.loads(sys.stdin.read());t=t.get(\"tool_input\",t);s=(str(t.get(\"path\") or \"\")+\" \"+str(t.get(\"file_path\") or \"\")+\" \"+str(t.get(\"pattern\") or \"\")).lower().replace(chr(92),\"/\");words=s.split();exts=(\".py\",\".js\",\".ts\",\".tsx\",\".jsx\",\".go\",\".rs\",\".java\",\".rb\",\".c\",\".h\",\".cpp\",\".hpp\",\".cc\",\".cs\",\".kt\",\".swift\",\".php\",\".scala\",\".lua\",\".sh\",\".md\",\".rst\",\".txt\",\".mdx\");is_src=not any(x in s for x in (\"graphify-out/\",\"skills/\",\".claude/\",\".gemini/\",\".codex/\",\".git/\",\"node_modules/\")) and any(any(w.endswith(e) for e in exts) for w in words) if s else False;b=chr(96);is_src and pathlib.Path(\"graphify-out/graph.json\").exists() and d.update({\"additionalContext\":\"graphify: knowledge graph at graphify-out/. For codebase questions, run \"+b+\"graphify query \\\"<question>\\\"\"+b+\" (scoped subgraph, usually much smaller than reading files one by one), \"+b+\"graphify explain \\\"<concept>\\\"\"+b+\", or \"+b+\"graphify path \\\"<A>\\\" \\\"<B>\\\"\"+b+\", instead of reading source files to answer. Read raw files to modify or debug specific code, or when the graph lacks the detail.\"});sys.stdout.write(json.dumps(d))'"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+            (gemini_settings_dir / "settings.json").write_text(json.dumps(gemini_settings, indent=2), encoding="utf-8")
+            ok("Gemini project-level hook configured")
+
+            # 3. Codex hook
+            codex_settings_dir = REPO_DIR / ".codex"
+            codex_settings_dir.mkdir(exist_ok=True)
+            codex_settings = {
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "matcher": "Bash",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "graphify hook-check"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+            (codex_settings_dir / "hooks.json").write_text(json.dumps(codex_settings, indent=2), encoding="utf-8")
+            ok("Codex project-level hook configured")
+        except Exception as e:
+            warn(f"Failed to configure project-level hooks: {e}")
+
     print()
     print("Done! Restart Claude Code / Codex CLI / agy to pick up changes.")
     print()

@@ -21,6 +21,7 @@ node_modules/
 # Runtime
 .claude/
 .codex/
+.gemini/
 daemon/
 daemon.*
 jobs/
@@ -46,3 +47,6 @@ codex/config.local.toml
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Graphify
+graphify-out/
