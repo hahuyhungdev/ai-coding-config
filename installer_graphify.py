@@ -155,12 +155,22 @@ elif exists and TOOL=="Bash":
   safe="".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
   state=pathlib.Path(tempfile.gettempdir())/("ai-coding-config-graphify-"+safe+".count")
   with state.open("a+") as handle:
-   fcntl.flock(handle,fcntl.LOCK_EX);handle.seek(0)
+   try:
+    import fcntl;fcntl.flock(handle,fcntl.LOCK_EX)
+   except ImportError:
+    try:import msvcrt;msvcrt.locking(handle.fileno(),1,1)
+    except ImportError:pass
+   handle.seek(0)
    try: count=int(handle.read().strip() or "0")
    except ValueError: count=0
    over_quota=count>=3
-   if not over_quota: handle.seek(0);handle.truncate();handle.write(str(count+1));handle.flush()
-   fcntl.flock(handle,fcntl.LOCK_UN)
+   if not over_quota:
+    handle.seek(0);handle.truncate();handle.write(str(count+1));handle.flush()
+   try:
+    import fcntl;fcntl.flock(handle,fcntl.LOCK_UN)
+   except ImportError:
+    try:import msvcrt;msvcrt.locking(handle.fileno(),0,1)
+    except ImportError:pass
  if over_quota: decision="deny";context="BLOCKED by graphify hook: Maximum 3 Graphify discovery calls reached for this session. Synthesize the answer from available context."
  elif any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists:

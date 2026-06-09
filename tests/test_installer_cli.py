@@ -29,32 +29,52 @@ if [ "$1" = "update" ]; then
 fi
 exit 0
 """,
+            r"""@echo off
+if "%1" == "update" (
+  mkdir graphify-out 2>nul
+  echo {} > graphify-out\graph.json
+)
+exit /b 0
+"""
         )
         for executable in ("claude", "codex", "agy", "node"):
-            self._write_executable(executable, "#!/bin/sh\nexit 0\n")
+            self._write_executable(executable, "#!/bin/sh\nexit 0\n", "@echo off\nexit /b 0\n")
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _write_executable(self, name, content):
-        path = self.bin / name
-        path.write_text(content)
-        path.chmod(0o755)
+    def _write_executable(self, name, bash_content, bat_content=None):
+        if sys.platform == "win32":
+            path = self.bin / f"{name}.bat"
+            path.write_text(bat_content or "@echo off\nexit /b 0\n")
+        else:
+            path = self.bin / name
+            path.write_text(bash_content)
+            path.chmod(0o755)
 
     def _run(self, *args, include_graphify=True):
         env = os.environ.copy()
         env["HOME"] = str(self.home)
         env["PATH"] = str(self.bin)
-        if not include_graphify and (self.bin / "graphify").exists():
-            (self.bin / "graphify").rename(self.bin / "graphify.disabled")
-        return subprocess.run(
-            [sys.executable, str(REPO_DIR / "install.py"), *args, "--project", str(self.project)],
-            cwd=self.project,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        
+        ext = ".bat" if sys.platform == "win32" else ""
+        graphify_bin = self.bin / f"graphify{ext}"
+        disabled_bin = self.bin / f"graphify.disabled{ext}"
+        
+        if not include_graphify and graphify_bin.exists():
+            graphify_bin.rename(disabled_bin)
+        try:
+            return subprocess.run(
+                [sys.executable, str(REPO_DIR / "install.py"), *args, "--project", str(self.project)],
+                cwd=self.project,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        finally:
+            if not include_graphify and disabled_bin.exists():
+                disabled_bin.rename(graphify_bin)
 
     def test_all_force_is_idempotent(self):
         first = self._run("--all", "--force")
@@ -100,7 +120,9 @@ exit 0
         self.assertFalse((self.project / ".codex").exists())
 
     def test_missing_graphify_falls_back_without_project_hooks(self):
-        (self.bin / "graphify").unlink()
+        import sys
+        ext = ".bat" if sys.platform == "win32" else ""
+        (self.bin / f"graphify{ext}").unlink()
         result = self._run("--all", "--force", include_graphify=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((self.project / "graphify-out").exists())

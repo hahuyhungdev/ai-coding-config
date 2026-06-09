@@ -10,7 +10,6 @@ Improvements:
 5. Better false positive detection
 """
 
-import fcntl
 import json
 import os
 import pathlib
@@ -18,6 +17,32 @@ import shlex
 import sys
 import tempfile
 from typing import Optional, Tuple
+
+# Cross-platform file locking
+try:
+    import fcntl
+    def lock_file(f):
+        fcntl.flock(f, fcntl.LOCK_EX)
+    def unlock_file(f):
+        fcntl.flock(f, fcntl.LOCK_UN)
+except ImportError:
+    try:
+        import msvcrt
+        def lock_file(f):
+            try:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+            except Exception:
+                pass
+        def unlock_file(f):
+            try:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+            except Exception:
+                pass
+    except ImportError:
+        def lock_file(f): pass
+        def unlock_file(f): pass
 
 # Configuration
 BLOCKED_TOOLS = {'ack', 'ag', 'fd', 'find', 'grep', 'rg', 'ripgrep'}
@@ -92,7 +117,7 @@ def check_quota(session: str) -> Tuple[bool, int]:
 
     try:
         with state_file.open("a+") as handle:
-            fcntl.flock(handle, fcntl.LOCK_EX)
+            lock_file(handle)
             handle.seek(0)
             try:
                 count = int(handle.read().strip() or "0")
@@ -106,7 +131,7 @@ def check_quota(session: str) -> Tuple[bool, int]:
                 handle.write(str(count + 1))
                 handle.flush()
 
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            unlock_file(handle)
             return over_quota, count
     except Exception as e:
         log_debug(f"Quota check error: {e}")
