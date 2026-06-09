@@ -67,7 +67,7 @@ def setup_claude(force: bool) -> None:
                     preserved_data["model"] = existing_data["model"]
                 if "env" in existing_data:
                     preserved_env = {}
-                    for k in ["ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL", "CLAUDE_CODE_OAUTH_TOKEN"]:
+                    for k in ["ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_AUTH_TOKEN"]:
                         if k in existing_data["env"]:
                             preserved_env[k] = existing_data["env"][k]
                     if preserved_env:
@@ -191,10 +191,45 @@ def setup_agy(force: bool) -> None:
     # settings.json
     agy_cli_dir = GEMINI_DIR.parent / "antigravity-cli"
     agy_cli_dir.mkdir(parents=True, exist_ok=True)
+    target_settings = agy_cli_dir / "settings.json"
+
+    preserved_data = {}
+    if target_settings.exists():
+        try:
+            with open(target_settings, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+                if "model" in existing_data:
+                    preserved_data["model"] = existing_data["model"]
+                if "env" in existing_data:
+                    preserved_env = {}
+                    for k in ["GEMINI_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"]:
+                        if k in existing_data["env"]:
+                            preserved_env[k] = existing_data["env"][k]
+                    if preserved_env:
+                        preserved_data["env"] = preserved_env
+        except Exception:
+            pass
+
     if force:
-        copy_config(REPO_DIR / "gemini" / "settings.json", agy_cli_dir / "settings.json", force)
+        copy_config(REPO_DIR / "gemini" / "settings.json", target_settings, force)
     else:
-        merge_json(REPO_DIR / "gemini" / "settings.json", agy_cli_dir / "settings.json")
+        merge_json(REPO_DIR / "gemini" / "settings.json", target_settings)
+
+    if preserved_data:
+        try:
+            with open(target_settings, "r", encoding="utf-8") as f:
+                current_data = json.load(f)
+            if "model" in preserved_data:
+                current_data["model"] = preserved_data["model"]
+            if "env" in preserved_data:
+                if "env" not in current_data:
+                    current_data["env"] = {}
+                current_data["env"].update(preserved_data["env"])
+            with open(target_settings, "w", encoding="utf-8") as f:
+                json.dump(current_data, f, indent=2)
+                f.write("\n")
+        except Exception:
+            pass
     ok("settings.json")
 
 
