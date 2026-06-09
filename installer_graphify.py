@@ -116,7 +116,9 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
         }
     if tool_name.lower() == "bash":
         command = str(tool_input.get("command", ""))
-        if is_graphify_probe_command(command) or is_broad_discovery_command(command):
+        if is_graphify_probe_command(command):
+            return {"decision": "allow"}
+        if is_broad_discovery_command(command):
             return {
                 "decision": "deny",
                 "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
@@ -165,7 +167,7 @@ elif exists and TOOL=="Bash":
    if not over_quota: handle.seek(0);handle.truncate();handle.write(str(count+1));handle.flush()
    fcntl.flock(handle,fcntl.LOCK_UN)
  if over_quota: decision="deny";context="BLOCKED by graphify hook: Maximum 3 Graphify discovery calls reached for this session. Synthesize the answer from available context."
- elif probe or any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
+ elif any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists:
  values=[t.get("file_path"),t.get("path"),t.get("pattern")]
  for value in values:

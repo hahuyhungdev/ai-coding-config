@@ -51,7 +51,7 @@ class TestGraphifyCommandClassification(unittest.TestCase):
         self.assertEqual(result["decision"], "deny")
         self.assertIn("BLOCKED", result["additionalContext"])
 
-    def test_graphify_availability_probes_are_denied(self):
+    def test_graphify_availability_probes_are_allowed(self):
         for command in (
             "test -f graphify-out/graph.json",
             "ls /repo/graphify-out/graph.json",
@@ -62,7 +62,7 @@ class TestGraphifyCommandClassification(unittest.TestCase):
                 result = install.classify_graphify_tool_use(
                     "Bash", {"command": command}, graph_exists=True
                 )
-                self.assertEqual(result["decision"], "deny")
+                self.assertEqual(result["decision"], "allow")
 
     def test_normal_test_ls_and_which_commands_are_allowed(self):
         for command in ("test -f package.json", "ls config", "which node"):
