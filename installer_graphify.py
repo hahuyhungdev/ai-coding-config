@@ -200,17 +200,11 @@ sys.stdout.write(json.dumps(out))
 
 def _python_hook_command(tool_name: str, claude: bool) -> str:
     script = _hook_classifier_script(tool_name, claude)
-    if sys.platform == "win32":
-        # Windows: cmd.exe doesn't understand # comments or shlex.quote single quotes.
-        # Encode script as base64 and use REM for the marker comment.
-        import base64
-        encoded = base64.b64encode(script.encode("utf-8")).decode("ascii")
-        py = sys.executable or "python"
-        return (
-            f"REM {MANAGED_GRAPHIFY_MARKER}\n"
-            f'{py} -c "import base64,sys;exec(base64.b64decode(\'{encoded}\').decode())"'
-        )
-    return f"# {MANAGED_GRAPHIFY_MARKER}\npython3 -c {shlex.quote(script)}"
+    # Claude Code uses bash on all platforms (including Windows via Git Bash).
+    # Use # comment and shlex.quote (bash-compatible). On Windows, python3
+    # may not exist in PATH — use "python" instead.
+    py = "python3" if sys.platform != "win32" else "python"
+    return f"# {MANAGED_GRAPHIFY_MARKER}\n{py} -c {shlex.quote(script)}"
 
 
 def managed_claude_hooks() -> list[dict]:
