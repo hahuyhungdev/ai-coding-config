@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -55,7 +56,21 @@ exit /b 0
     def _run(self, *args, include_graphify=True):
         env = os.environ.copy()
         env["HOME"] = str(self.home)
-        env["PATH"] = str(self.bin)
+        # Windows uses USERPROFILE for Path.home(), not HOME
+        if sys.platform == "win32":
+            env["USERPROFILE"] = str(self.home)
+        # Build PATH: test bin first, then system dirs (excluding dirs with real graphify if not wanted)
+        sep = os.pathsep
+        system_path = os.environ.get("PATH", "")
+        if not include_graphify:
+            # Filter out system dirs that contain a real graphify binary
+            real_graphify = shutil.which("graphify")
+            if real_graphify:
+                graphify_dir = str(Path(real_graphify).parent)
+                system_path = sep.join(
+                    d for d in system_path.split(sep) if Path(d) != Path(graphify_dir)
+                )
+        env["PATH"] = str(self.bin) + sep + system_path
         
         ext = ".bat" if sys.platform == "win32" else ""
         graphify_bin = self.bin / f"graphify{ext}"

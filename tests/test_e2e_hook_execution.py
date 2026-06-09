@@ -8,7 +8,9 @@ and trigger graph updates as expected in a git repository.
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -34,7 +36,17 @@ class TestE2EGitHooks(unittest.TestCase):
         self._run_git(["commit", "-m", "Initial commit"])
 
     def tearDown(self):
-        self.temp_dir.cleanup()
+        # On Windows, git hook background processes may hold file locks.
+        # Retry cleanup with a short delay to let processes finish.
+        for attempt in range(3):
+            try:
+                self.temp_dir.cleanup()
+                return
+            except PermissionError:
+                if sys.platform == "win32" and attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    raise
 
     def _run_git(self, args: list[str]) -> str:
         res = subprocess.run(

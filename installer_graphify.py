@@ -1,8 +1,11 @@
 """Graphify hook policy and project-level config merging."""
 
 import json
+import os
 import shlex
 import shutil
+import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -130,7 +133,7 @@ def _hook_classifier_script(tool_name: str, claude: bool) -> str:
         f"I={tuple(sorted(IGNORED_SOURCE_PARTS))!r};"
         f"G={GRAPHIFY_GUIDANCE!r};"
     )
-    logic = r'''import fcntl,json,pathlib,shlex,sys,tempfile
+    logic = r'''import json,pathlib,shlex,sys,tempfile
 data=json.load(sys.stdin); t=data.get("tool_input",data); decision="allow"; context=None;session=str(data.get("session_id") or "")
 exists=pathlib.Path("graphify-out/graph.json").exists()
 if exists and TOOL=="Grep":
@@ -157,9 +160,9 @@ elif exists and TOOL=="Bash":
   with state.open("a+") as handle:
    try:
     import fcntl;fcntl.flock(handle,fcntl.LOCK_EX)
-   except ImportError:
+   except (ImportError,AttributeError,PermissionError,OSError):
     try:import msvcrt;msvcrt.locking(handle.fileno(),1,1)
-    except ImportError:pass
+    except (ImportError,PermissionError,OSError):pass
    handle.seek(0)
    try: count=int(handle.read().strip() or "0")
    except ValueError: count=0
@@ -168,9 +171,9 @@ elif exists and TOOL=="Bash":
     handle.seek(0);handle.truncate();handle.write(str(count+1));handle.flush()
    try:
     import fcntl;fcntl.flock(handle,fcntl.LOCK_UN)
-   except ImportError:
+   except (ImportError,AttributeError,PermissionError,OSError):
     try:import msvcrt;msvcrt.locking(handle.fileno(),0,1)
-    except ImportError:pass
+    except (ImportError,PermissionError,OSError):pass
  if over_quota: decision="deny";context="BLOCKED by graphify hook: Maximum 3 Graphify discovery calls reached for this session. Synthesize the answer from available context."
  elif any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists:
@@ -196,7 +199,18 @@ sys.stdout.write(json.dumps(out))
 
 
 def _python_hook_command(tool_name: str, claude: bool) -> str:
-    return f"# {MANAGED_GRAPHIFY_MARKER}\npython3 -c {shlex.quote(_hook_classifier_script(tool_name, claude))}"
+    script = _hook_classifier_script(tool_name, claude)
+    if sys.platform == "win32":
+        # Windows: cmd.exe doesn't understand # comments or shlex.quote single quotes.
+        # Encode script as base64 and use REM for the marker comment.
+        import base64
+        encoded = base64.b64encode(script.encode("utf-8")).decode("ascii")
+        py = sys.executable or "python"
+        return (
+            f"REM {MANAGED_GRAPHIFY_MARKER}\n"
+            f'{py} -c "import base64,sys;exec(base64.b64decode(\'{encoded}\').decode())"'
+        )
+    return f"# {MANAGED_GRAPHIFY_MARKER}\npython3 -c {shlex.quote(script)}"
 
 
 def managed_claude_hooks() -> list[dict]:

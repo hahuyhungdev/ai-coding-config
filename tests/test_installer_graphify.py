@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -147,17 +148,34 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertIn("hard stop", second)
 
     def test_claude_hook_denies_fourth_graphify_call_in_same_session(self):
+        import base64
         command = install.managed_claude_hooks()[0]["hooks"][0]["command"]
         payload = {
             "session_id": f"quota-test-{uuid.uuid4()}",
             "tool_input": {"command": "rtk graphify query 'architecture'"},
         }
+
+        # On Windows, cmd.exe can't parse shlex.quote single quotes.
+        # Extract the base64-encoded script and run directly.
+        if sys.platform == "win32" and "base64" in command:
+            m_start = command.find("b64decode('") + len("b64decode('")
+            m_end = command.find("')", m_start)
+            script = base64.b64decode(command[m_start:m_end]).decode("utf-8")
+            run_kwargs = dict(
+                args=[sys.executable, "-c", script],
+                cwd=self.project,
+            )
+        else:
+            run_kwargs = dict(
+                args=command,
+                shell=True,
+                cwd=self.project,
+            )
+
         outputs = []
         for _ in range(4):
             result = subprocess.run(
-                command,
-                shell=True,
-                cwd=self.project,
+                **run_kwargs,
                 input=json.dumps(payload),
                 capture_output=True,
                 text=True,
