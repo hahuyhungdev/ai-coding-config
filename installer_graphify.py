@@ -1,0 +1,218 @@
+"""Graphify hook policy and project-level config merging."""
+
+import json
+import shlex
+import shutil
+from datetime import datetime
+from pathlib import Path
+
+
+MANAGED_GRAPHIFY_MARKER = "ai-coding-config:graphify-managed"
+BROAD_DISCOVERY_COMMANDS = {"grep", "rg", "ripgrep", "find", "fd", "ack", "ag"}
+SOURCE_EXTENSIONS = {
+    ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb",
+    ".c", ".h", ".cpp", ".hpp", ".cc", ".cs", ".kt", ".swift", ".php",
+    ".scala", ".lua", ".sh", ".md", ".rst", ".txt", ".mdx",
+}
+IGNORED_SOURCE_PARTS = {
+    "graphify-out", "skills", ".claude", ".gemini", ".codex", ".git", "node_modules",
+}
+GRAPHIFY_GUIDANCE = (
+    "This project has a knowledge graph at graphify-out/. For architecture or broad "
+    "codebase discovery, start with `rtk graphify query \"<question>\"`. Use at most 2 "
+    "follow-up query/path/explain calls when the first result is insufficient. Read "
+    "GRAPH_REPORT.md only when scoped Graphify results are insufficient or the user asks "
+    "for a broad report. Targeted raw reads are allowed for specific edits and debugging."
+)
+GRAPHIFY_INSTRUCTIONS = f"""## graphify
+
+{GRAPHIFY_GUIDANCE}
+
+Rules:
+- For an architecture question, begin with one broad `rtk graphify query "<question>"`.
+- Use at most 2 follow-up `graphify query`, `graphify path`, or `graphify explain` calls.
+- Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
+- After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
+- After modifying code, run `graphify update .`.
+"""
+
+
+def _command_words(command: str) -> list[str]:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return []
+
+    executables = []
+    expect_command = True
+    wrappers = {"rtk", "sudo", "command", "builtin", "env", "nohup"}
+    for token in tokens:
+        if token in {"|", "||", "&&", ";", "(", ")", "&"}:
+            expect_command = True
+            continue
+        if not expect_command or "=" in token and not token.startswith(("/", "./")):
+            continue
+        executable = Path(token).name
+        if executable in wrappers:
+            continue
+        executables.append(executable)
+        expect_command = False
+    return executables
+
+
+def is_broad_discovery_command(command: str) -> bool:
+    return any(word in BROAD_DISCOVERY_COMMANDS for word in _command_words(command))
+
+
+def is_source_tool_input(tool_input: dict) -> bool:
+    for raw_path in (
+        tool_input.get("file_path"), tool_input.get("path"), tool_input.get("pattern")
+    ):
+        if not raw_path:
+            continue
+        normalized = str(raw_path).lower().replace("\\", "/")
+        if set(Path(normalized).parts) & IGNORED_SOURCE_PARTS:
+            continue
+        if Path(normalized).suffix in SOURCE_EXTENSIONS:
+            return True
+    return False
+
+
+def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: bool) -> dict:
+    result = {"decision": "allow"}
+    if not graph_exists:
+        return result
+    if tool_name.lower() == "bash" and is_broad_discovery_command(
+        str(tool_input.get("command", ""))
+    ):
+        return {
+            "decision": "deny",
+            "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
+        }
+    if tool_name.lower() in {"read", "glob", "read_file", "list_directory"} and is_source_tool_input(tool_input):
+        result["additionalContext"] = GRAPHIFY_GUIDANCE
+    return result
+
+
+def _hook_classifier_script(tool_name: str, claude: bool) -> str:
+    constants = (
+        f"B={tuple(sorted(BROAD_DISCOVERY_COMMANDS))!r};"
+        f"E={tuple(sorted(SOURCE_EXTENSIONS))!r};"
+        f"I={tuple(sorted(IGNORED_SOURCE_PARTS))!r};"
+        f"G={GRAPHIFY_GUIDANCE!r};"
+    )
+    logic = r'''import json,pathlib,shlex,sys
+data=json.load(sys.stdin); t=data.get("tool_input",data); decision="allow"; context=None
+exists=pathlib.Path("graphify-out/graph.json").exists()
+if exists and TOOL=="Bash":
+ try:
+  lx=shlex.shlex(str(t.get("command", "")),posix=True,punctuation_chars="|&;()");lx.whitespace_split=True;tokens=list(lx)
+ except ValueError: tokens=[]
+ ex=[];expect=True
+ for token in tokens:
+  if token in {"|","||","&&",";","(",")","&"}: expect=True;continue
+  if not expect or ("=" in token and not token.startswith(("/","./"))): continue
+  word=pathlib.Path(token).name
+  if word in {"rtk","sudo","command","builtin","env","nohup"}: continue
+  ex.append(word);expect=False
+ if any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
+elif exists:
+ values=[t.get("file_path"),t.get("path"),t.get("pattern")]
+ for value in values:
+  if not value: continue
+  p=str(value).lower().replace(chr(92),"/");parts=set(pathlib.Path(p).parts)
+  if not parts.intersection(I) and pathlib.Path(p).suffix in E: context=G;break
+'''
+    if claude:
+        output = r'''out={}
+if context:
+ out={"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":context}}
+ if decision=="deny": out["hookSpecificOutput"].update({"permissionDecision":"deny","permissionDecisionReason":context})
+sys.stdout.write(json.dumps(out) if out else "")
+'''
+    else:
+        output = r'''out={"decision":decision}
+if context: out["additionalContext"]=context
+sys.stdout.write(json.dumps(out))
+'''
+    return constants + f"TOOL={tool_name!r};" + logic + output
+
+
+def _python_hook_command(tool_name: str, claude: bool) -> str:
+    return f"# {MANAGED_GRAPHIFY_MARKER}\npython3 -c {shlex.quote(_hook_classifier_script(tool_name, claude))}"
+
+
+def managed_claude_hooks() -> list[dict]:
+    return [
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": _python_hook_command("Bash", True)}]},
+        {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": _python_hook_command("Read", True)}]},
+    ]
+
+
+def managed_gemini_hooks() -> list[dict]:
+    return [
+        {"matcher": "run_shell_command", "hooks": [{"type": "command", "command": _python_hook_command("Bash", False)}]},
+        {"matcher": "read_file|list_directory", "hooks": [{"type": "command", "command": _python_hook_command("Read", False)}]},
+    ]
+
+
+def managed_codex_hooks() -> list[dict]:
+    return [{
+        "matcher": "Bash",
+        "hooks": [{"type": "command", "command": f"# {MANAGED_GRAPHIFY_MARKER}\ngraphify hook-check"}],
+    }]
+
+
+def is_managed_graphify_hook(hook: dict) -> bool:
+    return any(
+        MANAGED_GRAPHIFY_MARKER in str(item.get("command", ""))
+        for item in hook.get("hooks", [])
+        if isinstance(item, dict)
+    )
+
+
+def _backup_path(path: Path) -> Path:
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    backup = path.with_name(f"{path.name}.backup-{stamp}")
+    shutil.move(str(path), str(backup))
+    return backup
+
+
+def _load_json_for_merge(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        _backup_path(path)
+        return {}
+
+
+def _merge_managed_hooks(path: Path, event: str, managed_hooks: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    settings = _load_json_for_merge(path)
+    hooks = settings.setdefault("hooks", {})
+    existing = hooks.get(event, [])
+    if not isinstance(existing, list):
+        existing = []
+    hooks[event] = [h for h in existing if not is_managed_graphify_hook(h)] + managed_hooks
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+
+
+def configure_claude_project(project_dir: Path) -> None:
+    _merge_managed_hooks(project_dir / ".claude" / "settings.json", "PreToolUse", managed_claude_hooks())
+
+
+def configure_gemini_project(project_dir: Path) -> None:
+    _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "BeforeTool", managed_gemini_hooks())
+
+
+def configure_codex_project(project_dir: Path) -> None:
+    codex_dir = project_dir / ".codex"
+    if codex_dir.exists() and not codex_dir.is_dir():
+        _backup_path(codex_dir)
+    codex_dir.mkdir(parents=True, exist_ok=True)
+    _merge_managed_hooks(codex_dir / "hooks.json", "PreToolUse", managed_codex_hooks())
