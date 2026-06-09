@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -145,6 +146,31 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertIn("FIRST tool call", second)
         self.assertIn("3 Graphify calls total", second)
         self.assertIn("hard stop", second)
+
+    def test_claude_hook_denies_fourth_graphify_call_in_same_session(self):
+        command = install.managed_claude_hooks()[0]["hooks"][0]["command"]
+        payload = {
+            "session_id": "quota-test-session",
+            "tool_input": {"command": "rtk graphify query 'architecture'"},
+        }
+        outputs = []
+        for _ in range(4):
+            result = subprocess.run(
+                command,
+                shell=True,
+                cwd=self.project,
+                input=json.dumps(payload),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            outputs.append(result.stdout.strip())
+
+        self.assertEqual(outputs[:3], ["", "", ""])
+        self.assertEqual(
+            json.loads(outputs[3])["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
 
     def test_gemini_merge_preserves_settings_and_is_idempotent(self):
         settings_path = self.project / ".gemini" / "settings.json"
