@@ -83,12 +83,7 @@ def is_graphify_probe_command(command: str) -> bool:
     probes_graph_file = "graphify-out/graph.json" in normalized and any(
         word in {"test", "[", "ls", "stat"} for word in words
     )
-    probes_executable = (
-        len(words) >= 2 and words[0] == "which" and words[1] == "graphify"
-    ) or (
-        len(words) >= 3 and words[0] == "command" and words[1] == "-v" and words[2] == "graphify"
-    )
-    return probes_graph_file or probes_executable
+    return probes_graph_file
 
 
 def is_source_tool_input(tool_input: dict) -> bool:
@@ -153,7 +148,7 @@ elif exists and TOOL=="Bash":
   if word in {"rtk","sudo","command","builtin","env","nohup"}: continue
   ex.append(word);expect=False
  words=[pathlib.Path(token).name.lower() for token in tokens]
- probe=("graphify-out/graph.json" in low and any(word in {"test","[","ls","stat"} for word in words)) or (len(words)>=2 and words[0]=="which" and words[1]=="graphify") or (len(words)>=3 and words[0]=="command" and words[1]=="-v" and words[2]=="graphify")
+ probe=("graphify-out/graph.json" in low and any(word in {"test","[","ls","stat"} for word in words))
  graph_call="graphify" in ex and any(("graphify "+sub) in low for sub in ("query","path","explain"))
  over_quota=False
  if graph_call and session:

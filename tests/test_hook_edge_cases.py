@@ -208,11 +208,11 @@ class TestProbeCommandDetection(unittest.TestCase):
 
     def test_which_graphify(self):
         """Test which graphify detection."""
-        self.assertTrue(is_probe_command("which graphify"))
+        self.assertFalse(is_probe_command("which graphify"))
 
     def test_command_v_graphify(self):
         """Test command -v graphify detection."""
-        self.assertTrue(is_probe_command("command -v graphify"))
+        self.assertFalse(is_probe_command("command -v graphify"))
 
     def test_test_graphify_json(self):
         """Test test graphify-out/graph.json detection."""
@@ -309,7 +309,7 @@ class TestProcessHook(unittest.TestCase):
         """Test bash with probe command."""
         data = {
             "tool_name": "Bash",
-            "tool_input": {"command": "which graphify"},
+            "tool_input": {"command": "ls graphify-out/graph.json"},
             "session_id": "test"
         }
         result = process_hook(data)

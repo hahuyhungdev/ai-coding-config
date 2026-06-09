@@ -1,0 +1,44 @@
+{
+  "timestamp": 1780990556.7088614,
+  "results": [
+    {
+      "project": "/home/huyhung/projects/personals/nx-monorepo-workspace",
+      "file_count": 67010,
+      "graph_size_kb": 646.0693359375,
+      "load_time_ms": 2.482954399602022,
+      "memory_mb": -0.0078125
+    },
+    {
+      "project": "/home/huyhung/projects/personals/ai-coding-config",
+      "file_count": 11081,
+      "graph_size_kb": 1871.978515625,
+      "load_time_ms": 7.2150891999626765,
+      "memory_mb": -0.04296875
+    },
+    {
+      "project": "/home/huyhung/projects/personals/roadmap-english-ai",
+      "file_count": 55392,
+      "graph_size_kb": 3787.044921875,
+      "load_time_ms": 12.779593000232126,
+      "memory_mb": -0.0859375
+    },
+    {
+      "project": "/home/huyhung/projects/personals/cal.diy",
+      "file_count": 8450,
+      "graph_size_kb": 38031.1357421875,
+      "load_time_ms": 147.0563177997974,
+      "memory_mb": 64.1796875
+    }
+  ],
+  "analysis": {
+    "total_projects": 4,
+    "avg_file_count": 35483.25,
+    "avg_load_time_ms": 42.383488599898556,
+    "avg_memory_mb": 16.0107421875,
+    "max_file_count": 67010,
+    "max_load_time_ms": 147.0563177997974,
+    "max_memory_mb": 64.1796875,
+    "min_load_time_ms": 2.482954399602022,
+    "min_memory_mb": -0.0859375
+  }
+}

@@ -122,9 +122,7 @@ def is_probe_command(command: str) -> bool:
     low = command.lower()
     words = low.split()
     return (
-        ('graphify-out/graph.json' in low and any(word in {'test', '[', 'ls', 'stat'} for word in words)) or
-        (len(words) >= 2 and words[0] == 'which' and words[1] == 'graphify') or
-        (len(words) >= 3 and words[0] == 'command' and words[1] == '-v' and words[2] == 'graphify')
+        ('graphify-out/graph.json' in low and any(word in {'test', '[', 'ls', 'stat'} for word in words))
     )
 
 def extract_command_words(command: str) -> list:
