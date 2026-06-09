@@ -49,6 +49,27 @@ class TestGraphifyCommandClassification(unittest.TestCase):
         self.assertEqual(result["decision"], "deny")
         self.assertIn("BLOCKED", result["additionalContext"])
 
+    def test_graphify_availability_probes_are_denied(self):
+        for command in (
+            "test -f graphify-out/graph.json",
+            "ls /repo/graphify-out/graph.json",
+            "which graphify",
+            "command -v graphify",
+        ):
+            with self.subTest(command=command):
+                result = install.classify_graphify_tool_use(
+                    "Bash", {"command": command}, graph_exists=True
+                )
+                self.assertEqual(result["decision"], "deny")
+
+    def test_normal_test_ls_and_which_commands_are_allowed(self):
+        for command in ("test -f package.json", "ls config", "which node"):
+            with self.subTest(command=command):
+                result = install.classify_graphify_tool_use(
+                    "Bash", {"command": command}, graph_exists=True
+                )
+                self.assertEqual(result, {"decision": "allow"})
+
     def test_config_read_and_missing_graph_are_ignored(self):
         self.assertEqual(
             install.classify_graphify_tool_use(
@@ -118,6 +139,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertEqual(second.count("ai-coding-config:graphify-start"), 1)
         self.assertIn("FIRST tool call", second)
         self.assertIn("3 Graphify calls total", second)
+        self.assertIn("hard stop", second)
 
     def test_gemini_merge_preserves_settings_and_is_idempotent(self):
         settings_path = self.project / ".gemini" / "settings.json"
