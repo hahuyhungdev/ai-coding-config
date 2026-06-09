@@ -202,8 +202,14 @@ def managed_codex_hooks() -> list[dict]:
 
 
 def is_managed_graphify_hook(hook: dict) -> bool:
+    legacy_signatures = (
+        "BLOCKED by graphify hook:",
+        "graphify: knowledge graph at graphify-out/",
+        "graphify hook-check",
+    )
     return any(
         MANAGED_GRAPHIFY_MARKER in str(item.get("command", ""))
+        or any(signature in str(item.get("command", "")) for signature in legacy_signatures)
         for item in hook.get("hooks", [])
         if isinstance(item, dict)
     )
