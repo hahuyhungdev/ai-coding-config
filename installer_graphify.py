@@ -19,8 +19,9 @@ IGNORED_SOURCE_PARTS = {
 }
 GRAPHIFY_GUIDANCE = (
     "This project has a knowledge graph at graphify-out/. For architecture or broad "
-    "codebase discovery, start with `rtk graphify query \"<question>\"`. Use at most 2 "
-    "follow-up query/path/explain calls when the first result is insufficient. Read "
+    "codebase discovery, the FIRST tool call must be `rtk graphify query \"<question>\"`; "
+    "do not run ls/which/test or read source first. Use at most 3 Graphify calls total: "
+    "the initial query plus at most 2 follow-up query/path/explain calls. Read "
     "GRAPH_REPORT.md only when scoped Graphify results are insufficient or the user asks "
     "for a broad report. Targeted raw reads are allowed for specific edits and debugging."
 )
@@ -29,12 +30,15 @@ GRAPHIFY_INSTRUCTIONS = f"""## graphify
 {GRAPHIFY_GUIDANCE}
 
 Rules:
-- For an architecture question, begin with one broad `rtk graphify query "<question>"`.
-- Use at most 2 follow-up `graphify query`, `graphify path`, or `graphify explain` calls.
+- For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
+- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, or `explain` calls.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 - After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
 - After modifying code, run `graphify update .`.
 """
+INSTRUCTION_START = "<!-- ai-coding-config:graphify-start -->"
+INSTRUCTION_END = "<!-- ai-coding-config:graphify-end -->"
+PROJECT_GRAPHIFY_BLOCK = f"{INSTRUCTION_START}\n{GRAPHIFY_INSTRUCTIONS.rstrip()}\n{INSTRUCTION_END}"
 
 
 def _command_words(command: str) -> list[str]:
@@ -202,12 +206,27 @@ def _merge_managed_hooks(path: Path, event: str, managed_hooks: list[dict]) -> N
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
 
 
+def _merge_project_instructions(path: Path) -> None:
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    if INSTRUCTION_START in existing and INSTRUCTION_END in existing:
+        before, remainder = existing.split(INSTRUCTION_START, 1)
+        _, after = remainder.split(INSTRUCTION_END, 1)
+        merged = before.rstrip() + "\n\n" + PROJECT_GRAPHIFY_BLOCK + after
+    else:
+        merged = existing.rstrip() + ("\n\n" if existing.strip() else "") + PROJECT_GRAPHIFY_BLOCK + "\n"
+    path.write_text(merged, encoding="utf-8")
+
+
 def configure_claude_project(project_dir: Path) -> None:
     _merge_managed_hooks(project_dir / ".claude" / "settings.json", "PreToolUse", managed_claude_hooks())
+    if (project_dir / "graphify-out" / "graph.json").exists():
+        _merge_project_instructions(project_dir / "CLAUDE.md")
 
 
 def configure_gemini_project(project_dir: Path) -> None:
     _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "BeforeTool", managed_gemini_hooks())
+    if (project_dir / "graphify-out" / "graph.json").exists():
+        _merge_project_instructions(project_dir / "ANTIGRAVITY.md")
 
 
 def configure_codex_project(project_dir: Path) -> None:
@@ -216,3 +235,5 @@ def configure_codex_project(project_dir: Path) -> None:
         _backup_path(codex_dir)
     codex_dir.mkdir(parents=True, exist_ok=True)
     _merge_managed_hooks(codex_dir / "hooks.json", "PreToolUse", managed_codex_hooks())
+    if (project_dir / "graphify-out" / "graph.json").exists():
+        _merge_project_instructions(project_dir / "AGENTS.md")

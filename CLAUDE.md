@@ -51,14 +51,16 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/` 
 
 ## Custom Test Rules Added
 
+<!-- ai-coding-config:graphify-start -->
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
 Rules:
-- For architecture questions, start with one broad `rtk graphify query "<question>"` when graphify-out/graph.json exists.
-- Use at most 2 follow-up `graphify query`, `graphify path`, or `graphify explain` calls when the first result is insufficient.
+- For architecture questions, the FIRST tool call must be one broad `rtk graphify query "<question>"` when graphify-out/graph.json exists. Do not check with `ls`, `which`, or `test` first.
+- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, or `explain` calls.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only when scoped queries are insufficient or the user requests a broad report.
 - After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+<!-- ai-coding-config:graphify-end -->
