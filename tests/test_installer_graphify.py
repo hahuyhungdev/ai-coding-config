@@ -100,7 +100,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertEqual(data["hooks"]["PostToolUse"][0]["matcher"], "Edit")
         self.assertEqual(
             sum(install.is_managed_graphify_hook(h) for h in data["hooks"]["PreToolUse"]),
-            2,
+            3,
         )
         self.assertTrue(any(h.get("matcher") == "Write" for h in data["hooks"]["PreToolUse"]))
 

@@ -88,6 +88,11 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
     result = {"decision": "allow"}
     if not graph_exists:
         return result
+    if tool_name.lower() == "grep":
+        return {
+            "decision": "deny",
+            "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
+        }
     if tool_name.lower() == "bash" and is_broad_discovery_command(
         str(tool_input.get("command", ""))
     ):
@@ -110,7 +115,9 @@ def _hook_classifier_script(tool_name: str, claude: bool) -> str:
     logic = r'''import json,pathlib,shlex,sys
 data=json.load(sys.stdin); t=data.get("tool_input",data); decision="allow"; context=None
 exists=pathlib.Path("graphify-out/graph.json").exists()
-if exists and TOOL=="Bash":
+if exists and TOOL=="Grep":
+ decision="deny";context="BLOCKED by graphify hook: "+G
+elif exists and TOOL=="Bash":
  try:
   lx=shlex.shlex(str(t.get("command", "")),posix=True,punctuation_chars="|&;()");lx.whitespace_split=True;tokens=list(lx)
  except ValueError: tokens=[]
@@ -151,6 +158,7 @@ def _python_hook_command(tool_name: str, claude: bool) -> str:
 def managed_claude_hooks() -> list[dict]:
     return [
         {"matcher": "Bash", "hooks": [{"type": "command", "command": _python_hook_command("Bash", True)}]},
+        {"matcher": "Grep", "hooks": [{"type": "command", "command": _python_hook_command("Grep", True)}]},
         {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": _python_hook_command("Read", True)}]},
     ]
 
