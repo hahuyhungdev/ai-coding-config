@@ -2,6 +2,7 @@ import json
 import subprocess
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from unittest import mock
 
@@ -150,7 +151,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
     def test_claude_hook_denies_fourth_graphify_call_in_same_session(self):
         command = install.managed_claude_hooks()[0]["hooks"][0]["command"]
         payload = {
-            "session_id": "quota-test-session",
+            "session_id": f"quota-test-{uuid.uuid4()}",
             "tool_input": {"command": "rtk graphify query 'architecture'"},
         }
         outputs = []
