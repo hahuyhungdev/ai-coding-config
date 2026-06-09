@@ -76,6 +76,24 @@ To get the highest quality codebase map with the best speed-to-cost ratio, follo
    ```
    This updates the graph instantly (1-2 seconds) using local AST and regex parsing for modified/new/deleted files without blocking your terminal or burning API limits.
 
+3. **Periodic AI Refresh (Weekly / End of Sprint):**
+   To prevent "semantic degradation" (since daily commits only update structural nodes), refresh the semantic edges periodically:
+   *   **Linux/WSL (Cron):** Add to `crontab -e`:
+       ```bash
+       0 22 * * 5 cd ~/projects/ai-coding-config && graphify extract . --mode deep --backend claude-cli --no-cluster
+       ```
+   *   **Windows (Command Prompt):** Register a Task Scheduler command:
+       ```cmd
+       schtasks /create /tn "Graphify AI Refresh" /tr "cmd.exe /c cd C:\projects\ai-coding-config && graphify extract . --mode deep --backend claude-cli --no-cluster" /sc weekly /d FRI /st 22:00
+       ```
+   *   *Optimization Tip:* Adding `--no-cluster` skips community grouping, making the rebuild much faster and lighter on tokens.
+
+4. **Quality Auditing (Graph Health Check):**
+   Measure the token savings and graph quality at any time:
+   ```bash
+   graphify benchmark graphify-out/graph.json
+   ```
+
 ---
 
 ## 🖥️ Interactive Web Dashboard
