@@ -205,9 +205,8 @@ def setup_cli_wrapper(repo_dir: Path) -> None:
     bin_dir = Path.home() / ".local" / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper_path = bin_dir / "ai-config"
-
-    script_content = f"""#!/usr/bin/env bash
+    bash_path = bin_dir / "ai-config"
+    bash_content = f"""#!/usr/bin/env bash
 # Wrapper command for AI Coding Config Engine
 
 REPO_DIR="{repo_dir.resolve()}"
@@ -220,9 +219,36 @@ else
 fi
 """
 
+    bat_path = bin_dir / "ai-config.bat"
+    bat_content = f"""@echo off
+REM Windows wrapper for AI Coding Config Engine
+
+set REPO_DIR={repo_dir.resolve()}
+
+where python >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+    where python3 >nul 2>nul
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] python is not found in your PATH.
+        exit /b 1
+    ) else (
+        set PYTHON_BIN=python3
+    )
+) else (
+    set PYTHON_BIN=python
+)
+
+if "%1"=="init" (
+    %PYTHON_BIN% "%REPO_DIR%\\install.py" --all --project "%CD%" --force
+) else (
+    %PYTHON_BIN% "%REPO_DIR%\\install.py" %*
+)
+"""
+
     try:
-        wrapper_path.write_text(script_content, encoding="utf-8")
-        wrapper_path.chmod(0o755)
-        ok("ai-config wrapper command installed to ~/.local/bin")
+        bash_path.write_text(bash_content, encoding="utf-8")
+        bash_path.chmod(0o755)
+        bat_path.write_text(bat_content, encoding="utf-8")
+        ok("ai-config (bash & bat) wrapper commands installed to ~/.local/bin")
     except Exception as exc:
         warn(f"Failed to install ai-config wrapper command: {exc}")

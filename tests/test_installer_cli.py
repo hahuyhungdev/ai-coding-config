@@ -109,12 +109,19 @@ exit 0
     def test_installs_global_cli_wrapper(self):
         result = self._run("--all", "--force")
         self.assertEqual(result.returncode, 0, result.stderr)
-        wrapper_path = self.home / ".local" / "bin" / "ai-config"
-        self.assertTrue(wrapper_path.is_file())
-        self.assertIn("install.py", wrapper_path.read_text())
-        self.assertIn("init", wrapper_path.read_text())
-        # Check permissions (executable)
-        self.assertTrue(os.access(wrapper_path, os.X_OK))
+        
+        # 1. Unix wrapper
+        bash_path = self.home / ".local" / "bin" / "ai-config"
+        self.assertTrue(bash_path.is_file())
+        self.assertIn("install.py", bash_path.read_text())
+        self.assertIn("init", bash_path.read_text())
+        self.assertTrue(os.access(bash_path, os.X_OK))
+
+        # 2. Windows wrapper
+        bat_path = self.home / ".local" / "bin" / "ai-config.bat"
+        self.assertTrue(bat_path.is_file())
+        self.assertIn("install.py", bat_path.read_text())
+        self.assertIn("init", bat_path.read_text())
 
 
 if __name__ == "__main__":
