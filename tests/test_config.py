@@ -92,11 +92,12 @@ class TestAiCodingConfig(unittest.TestCase):
             stdout, stderr = p.communicate(input=json.dumps({"tool_input": tool_input}))
             return json.loads(stdout)
 
-        # Case 1: Source code file -> Should match and return additionalContext
+        # Case 1: Source code file -> Should match and return deny with graphify instructions
         res = run_hook_py({"path": "install.py"})
-        self.assertEqual(res.get("decision"), "allow")
+        self.assertEqual(res.get("decision"), "deny")
         self.assertIn("additionalContext", res)
-        self.assertIn("graphify", res["additionalContext"])
+        self.assertIn("BLOCKED by graphify hook", res["additionalContext"])
+        self.assertIn("graphify query", res["additionalContext"])
 
         # Case 2: Config/skill file -> Should NOT match additionalContext
         res = run_hook_py({"path": "skills/frontend-design/SKILL.md"})
@@ -108,10 +109,11 @@ class TestAiCodingConfig(unittest.TestCase):
         self.assertEqual(res.get("decision"), "allow")
         self.assertNotIn("additionalContext", res)
 
-        # Case 4: Another source file -> Should match and return additionalContext
+        # Case 4: Another source file -> Should match and return deny with graphify instructions
         res = run_hook_py({"path": "src/main.go"})
-        self.assertEqual(res.get("decision"), "allow")
+        self.assertEqual(res.get("decision"), "deny")
         self.assertIn("additionalContext", res)
+        self.assertIn("BLOCKED by graphify hook", res["additionalContext"])
 
     def test_claude_pre_tool_hook_filtering(self):
         """Test the path-filtering logic in the Claude PreToolUse hook."""

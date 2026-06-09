@@ -53,12 +53,13 @@ class TestCalDiyIntegration(unittest.TestCase):
         )
         stdout, stderr = p.communicate(input=json.dumps({"tool_input": tool_input}))
         
-        # It should print additionalContext warning to use graphify
+        # It should print permissionDecision: deny with graphify instructions
         output_data = json.loads(stdout.strip())
         self.assertIn("hookSpecificOutput", output_data)
-        self.assertIn("additionalContext", output_data["hookSpecificOutput"])
-        self.assertIn("graphify", output_data["hookSpecificOutput"]["additionalContext"])
-        self.assertIn("graphify query", output_data["hookSpecificOutput"]["additionalContext"])
+        self.assertEqual(output_data["hookSpecificOutput"].get("permissionDecision"), "deny")
+        self.assertIn("permissionDecisionReason", output_data["hookSpecificOutput"])
+        self.assertIn("BLOCKED by graphify hook", output_data["hookSpecificOutput"]["permissionDecisionReason"])
+        self.assertIn("graphify query", output_data["hookSpecificOutput"]["permissionDecisionReason"])
 
     def test_claude_bash_hook_non_grep(self):
         """Verify the Claude Bash hook does not intercept non-grep commands."""
@@ -117,11 +118,13 @@ class TestCalDiyIntegration(unittest.TestCase):
         )
         stdout, stderr = p.communicate(input=json.dumps({"tool_input": tool_input}))
         
-        # It should suggest using graphify query/explain/path
+        # It should block with permissionDecision: deny and suggest using graphify
         output_data = json.loads(stdout.strip())
         self.assertIn("hookSpecificOutput", output_data)
-        self.assertIn("additionalContext", output_data["hookSpecificOutput"])
-        self.assertIn("graphify explain", output_data["hookSpecificOutput"]["additionalContext"])
+        self.assertEqual(output_data["hookSpecificOutput"].get("permissionDecision"), "deny")
+        self.assertIn("permissionDecisionReason", output_data["hookSpecificOutput"])
+        self.assertIn("BLOCKED by graphify hook", output_data["hookSpecificOutput"]["permissionDecisionReason"])
+        self.assertIn("graphify explain", output_data["hookSpecificOutput"]["permissionDecisionReason"])
 
     def test_claude_read_hook_ignored(self):
         """Verify the Claude Read|Glob hook ignores non-source or excluded files in cal.diy."""
@@ -176,8 +179,9 @@ class TestCalDiyIntegration(unittest.TestCase):
         stdout, stderr = p.communicate(input=json.dumps({"tool_input": tool_input}))
         
         output_data = json.loads(stdout.strip())
-        self.assertEqual(output_data.get("decision"), "allow")
+        self.assertEqual(output_data.get("decision"), "deny")
         self.assertIn("additionalContext", output_data)
+        self.assertIn("BLOCKED by graphify hook", output_data["additionalContext"])
         self.assertIn("graphify explain", output_data["additionalContext"])
 
     def test_gemini_before_tool_hook_ignored(self):
