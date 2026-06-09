@@ -44,19 +44,19 @@ Load and delegate complex tasks to specialized agents under `~/.codex/agents/` u
 | code-explorer | Codebase analysis | Trace execution paths |
 | architect | System design | Architecture decisions |
 
+When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
+
 <!-- ai-coding-config:graphify-start -->
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
+This project has a knowledge graph at graphify-out/. For architecture or broad codebase discovery, the FIRST tool call must be `rtk graphify query "<question>"`; do not run ls/which/test or read source first. Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up query/path/explain calls. Read GRAPH_REPORT.md only when scoped Graphify results are insufficient or the user asks for a broad report. Targeted raw reads are allowed for specific edits and debugging.
 
 Rules:
-- For architecture questions, the FIRST tool call must be one broad `rtk graphify query "<question>"` when graphify-out/graph.json exists. Do not check with `ls`, `which`, or `test` first.
+- For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
 - Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, or `explain` calls.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only when scoped queries are insufficient or the user requests a broad report.
+- Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
+- If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
+- Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 - After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- After modifying code, run `graphify update .`.
 <!-- ai-coding-config:graphify-end -->
