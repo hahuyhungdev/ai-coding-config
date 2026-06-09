@@ -108,6 +108,28 @@ Examples:
     target_project_dir = Path(args.project).resolve() if args.project else REPO_DIR
 
     # Install Graphify git hooks if graphify is available
+    if not shutil.which("graphify"):
+        # If running in a non-interactive environment (like force mode or CI), skip asking
+        if args.force:
+            info("Graphify is not installed. Force mode enabled, attempting auto-installation...")
+            should_install = True
+        else:
+            print("\n[WARN] Graphify is not installed on your system.")
+            print("Graphify is highly recommended to save up to 99.8% of your API tokens by querying subgraphs.")
+            try:
+                choice = input("Would you like to install it now via pip? (y/N): ").strip().lower()
+                should_install = choice == 'y'
+            except (KeyboardInterrupt, EOFError):
+                should_install = False
+
+        if should_install:
+            info("Installing graphifyy package via pip...")
+            try:
+                subprocess.run([sys.executable, "-m", "pip", "install", "graphifyy"], check=True)
+                ok("Graphify installed successfully!")
+            except Exception as e:
+                warn(f"Failed to install Graphify: {e}. Skipping Graphify setup.")
+
     if shutil.which("graphify"):
         info(f"Initializing Graphify knowledge graph in {target_project_dir}...")
         try:
