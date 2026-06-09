@@ -42,6 +42,13 @@ class TestGraphifyCommandClassification(unittest.TestCase):
         self.assertIn("additionalContext", result)
         self.assertNotIn("BLOCKED", result["additionalContext"])
 
+    def test_builtin_grep_is_denied_when_graph_exists(self):
+        result = install.classify_graphify_tool_use(
+            "Grep", {"pattern": "Router", "path": "src"}, graph_exists=True
+        )
+        self.assertEqual(result["decision"], "deny")
+        self.assertIn("BLOCKED", result["additionalContext"])
+
     def test_config_read_and_missing_graph_are_ignored(self):
         self.assertEqual(
             install.classify_graphify_tool_use(
