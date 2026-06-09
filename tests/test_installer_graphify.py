@@ -103,6 +103,8 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             "hooks": {
                 "PreToolUse": [
                     {"matcher": "Write", "hooks": [{"type": "command", "command": "custom-hook"}]},
+                    {"matcher": "Bash", "hooks": [{"type": "command", "command": "echo 'BLOCKED by graphify hook: Use graphify query'"}]},
+                    {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": "echo 'graphify: knowledge graph at graphify-out/'"}]},
                     install.managed_claude_hooks()[0],
                     install.managed_claude_hooks()[0],
                 ],
@@ -124,6 +126,9 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             3,
         )
         self.assertTrue(any(h.get("matcher") == "Write" for h in data["hooks"]["PreToolUse"]))
+        commands = json.dumps(data["hooks"]["PreToolUse"])
+        self.assertNotIn("BLOCKED by graphify hook: Use graphify query", commands)
+        self.assertNotIn("graphify: knowledge graph at graphify-out/", commands)
 
     def test_project_instructions_are_merged_and_idempotent(self):
         instruction_path = self.project / "CLAUDE.md"
