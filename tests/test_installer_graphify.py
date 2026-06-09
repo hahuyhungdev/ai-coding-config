@@ -114,7 +114,11 @@ class TestGraphifySettingsMerge(unittest.TestCase):
 
         self.assertEqual(first, settings_path.read_text())
         self.assertEqual(data["theme"], "dark")
-        self.assertEqual(len(data["hooks"]["BeforeTool"]), 2)
+        self.assertEqual(len(data["hooks"]["BeforeTool"]), 3)
+        self.assertEqual(
+            sum(install.is_managed_graphify_hook(h) for h in data["hooks"]["BeforeTool"]),
+            2,
+        )
 
     def test_invalid_json_is_backed_up(self):
         settings_path = self.project / ".claude" / "settings.json"

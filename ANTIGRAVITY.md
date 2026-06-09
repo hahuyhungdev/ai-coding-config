@@ -50,7 +50,9 @@ Load and delegate complex tasks to specialized agents under `~/.gemini/config/ag
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
 Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- For architecture questions, start with one broad `rtk graphify query "<question>"` when graphify-out/graph.json exists.
+- Use at most 2 follow-up `graphify query`, `graphify path`, or `graphify explain` calls when the first result is insufficient.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- Read graphify-out/GRAPH_REPORT.md only when scoped queries are insufficient or the user requests a broad report.
+- After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

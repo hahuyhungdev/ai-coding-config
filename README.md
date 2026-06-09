@@ -14,12 +14,12 @@ git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/projects/ai-coding-
 cd ~/projects/ai-coding-config
 ./install.py
 ```
-*This exposes the global `ai-config` CLI wrapper in your terminal!*
+Run `./install.py` again whenever you want to refresh the shared configuration.
 
 ### 🎯 Initialize a New Project in 1-Second
 Navigate to any new project directory and run:
 ```bash
-ai-config init
+~/projects/ai-coding-config/install.py --all --project "$PWD"
 ```
 *   **Auto-Scan & Select:** It automatically scans your system for installed AI assistants (`claude`, `agy`, `codex`) and prompts you which ones to configure.
 *   **Zero-Token Rebuilds:** It initializes the Graphify graph (`graphify-out/graph.json`) and sets up Git commit/checkout hooks so it updates itself automatically in the background.
@@ -110,7 +110,7 @@ python3 -m unittest tests/test_cal_diy_integration.py
 To fetch the latest agents, skills, and rules from this repo and sync them to your local CLIs, run:
 
 ```bash
-git pull && ai-config
+git pull && ./install.py
 ```
 
 ---
