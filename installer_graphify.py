@@ -133,8 +133,8 @@ def _hook_classifier_script(tool_name: str, claude: bool) -> str:
         f"I={tuple(sorted(IGNORED_SOURCE_PARTS))!r};"
         f"G={GRAPHIFY_GUIDANCE!r};"
     )
-    logic = r'''import json,pathlib,shlex,sys
-data=json.load(sys.stdin); t=data.get("tool_input",data); decision="allow"; context=None
+    logic = r'''import fcntl,json,pathlib,shlex,sys,tempfile
+data=json.load(sys.stdin); t=data.get("tool_input",data); decision="allow"; context=None;session=str(data.get("session_id") or "")
 exists=pathlib.Path("graphify-out/graph.json").exists()
 if exists and TOOL=="Grep":
  decision="deny";context="BLOCKED by graphify hook: "+G
@@ -152,7 +152,20 @@ elif exists and TOOL=="Bash":
   ex.append(word);expect=False
  words=[pathlib.Path(token).name.lower() for token in tokens]
  probe=("graphify-out/graph.json" in low and any(word in {"test","[","ls","stat"} for word in words)) or (len(words)>=2 and words[0]=="which" and words[1]=="graphify") or (len(words)>=3 and words[0]=="command" and words[1]=="-v" and words[2]=="graphify")
- if probe or any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
+ graph_call="graphify" in ex and any(("graphify "+sub) in low for sub in ("query","path","explain"))
+ over_quota=False
+ if graph_call and session:
+  safe="".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
+  state=pathlib.Path(tempfile.gettempdir())/("ai-coding-config-graphify-"+safe+".count")
+  with state.open("a+") as handle:
+   fcntl.flock(handle,fcntl.LOCK_EX);handle.seek(0)
+   try: count=int(handle.read().strip() or "0")
+   except ValueError: count=0
+   over_quota=count>=3
+   if not over_quota: handle.seek(0);handle.truncate();handle.write(str(count+1));handle.flush()
+   fcntl.flock(handle,fcntl.LOCK_UN)
+ if over_quota: decision="deny";context="BLOCKED by graphify hook: Maximum 3 Graphify discovery calls reached for this session. Synthesize the answer from available context."
+ elif probe or any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists:
  values=[t.get("file_path"),t.get("path"),t.get("pattern")]
  for value in values:
