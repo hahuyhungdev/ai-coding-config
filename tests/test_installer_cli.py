@@ -106,6 +106,16 @@ exit 0
         self.assertFalse((self.project / "graphify-out").exists())
         self.assertFalse((self.project / ".claude").exists())
 
+    def test_installs_global_cli_wrapper(self):
+        result = self._run("--all", "--force")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        wrapper_path = self.home / ".local" / "bin" / "ai-config"
+        self.assertTrue(wrapper_path.is_file())
+        self.assertIn("install.py", wrapper_path.read_text())
+        self.assertIn("init", wrapper_path.read_text())
+        # Check permissions (executable)
+        self.assertTrue(os.access(wrapper_path, os.X_OK))
+
 
 if __name__ == "__main__":
     unittest.main()

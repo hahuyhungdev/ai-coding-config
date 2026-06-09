@@ -32,6 +32,7 @@ from installer import (
     setup_claude,
     setup_codex,
     setup_agy,
+    setup_cli_wrapper,
     update_mcp_configs,
     sync_mcp_disabled,
     compile_agents,
@@ -82,6 +83,9 @@ Examples:
 
     if install_agy:
         setup_agy(args.force)
+
+    # Automatically install/update the global command wrapper
+    setup_cli_wrapper(REPO_DIR)
 
     # Update MCP configs
     update_mcp_configs(install_claude, install_agy)

@@ -196,3 +196,33 @@ def setup_agy(force: bool) -> None:
     else:
         merge_json(REPO_DIR / "gemini" / "settings.json", agy_cli_dir / "settings.json")
     ok("settings.json")
+
+
+def setup_cli_wrapper(repo_dir: Path) -> None:
+    """Create a global cli wrapper named ai-config in ~/.local/bin/."""
+    info("Setting up global command wrapper (ai-config)...")
+
+    bin_dir = Path.home() / ".local" / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+
+    wrapper_path = bin_dir / "ai-config"
+
+    script_content = f"""#!/usr/bin/env bash
+# Wrapper command for AI Coding Config Engine
+
+REPO_DIR="{repo_dir.resolve()}"
+
+if [ "$1" = "init" ]; then
+    python3 "$REPO_DIR/install.py" --all --project "$PWD" --force
+else
+    # Forward other arguments directly to install.py
+    python3 "$REPO_DIR/install.py" "$@"
+fi
+"""
+
+    try:
+        wrapper_path.write_text(script_content, encoding="utf-8")
+        wrapper_path.chmod(0o755)
+        ok("ai-config wrapper command installed to ~/.local/bin")
+    except Exception as exc:
+        warn(f"Failed to install ai-config wrapper command: {exc}")
