@@ -33,6 +33,8 @@ from installer import (
     setup_codex,
     setup_agy,
     setup_cli_wrapper,
+    uninstall_global,
+    uninstall_project,
     update_mcp_configs,
     sync_mcp_disabled,
     compile_agents,
@@ -60,8 +62,17 @@ Examples:
     parser.add_argument("--none", action="store_true", help="Do not install/configure any CLI targets (sync only)")
     parser.add_argument("--force", action="store_true", help="Overwrite all without asking")
     parser.add_argument("--project", type=str, help="Target project directory to configure project-level hooks (defaults to current repo)")
+    parser.add_argument("--uninstall", action="store_true", help="Uninstall all global and/or project-level configurations and hooks")
 
     args = parser.parse_args()
+
+    if args.uninstall:
+        if args.project:
+            target_project_dir = Path(args.project).resolve()
+            uninstall_project(target_project_dir)
+        else:
+            uninstall_global()
+        return
 
     # Default: install all if no specific flag and not --none
     if not (args.claude or args.codex or args.agy or args.none):
