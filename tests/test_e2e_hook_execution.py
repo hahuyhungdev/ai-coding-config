@@ -36,14 +36,14 @@ class TestE2EGitHooks(unittest.TestCase):
         self._run_git(["commit", "-m", "Initial commit"])
 
     def tearDown(self):
-        # On Windows, git hook background processes may hold file locks.
+        # Git hook background processes may hold file locks or be writing to temp dir.
         # Retry cleanup with a short delay to let processes finish.
-        for attempt in range(3):
+        for attempt in range(5):
             try:
                 self.temp_dir.cleanup()
                 return
-            except PermissionError:
-                if sys.platform == "win32" and attempt < 2:
+            except (PermissionError, OSError):
+                if attempt < 4:
                     time.sleep(0.5)
                 else:
                     raise
