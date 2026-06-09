@@ -97,6 +97,21 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         )
         self.assertTrue(any(h.get("matcher") == "Write" for h in data["hooks"]["PreToolUse"]))
 
+    def test_project_instructions_are_merged_and_idempotent(self):
+        instruction_path = self.project / "CLAUDE.md"
+        instruction_path.write_text("# Existing project rules\n\nKeep this text.\n")
+
+        install.configure_claude_project(self.project)
+        first = instruction_path.read_text()
+        install.configure_claude_project(self.project)
+        second = instruction_path.read_text()
+
+        self.assertEqual(first, second)
+        self.assertIn("Keep this text.", second)
+        self.assertEqual(second.count("ai-coding-config:graphify-start"), 1)
+        self.assertIn("FIRST tool call", second)
+        self.assertIn("3 Graphify calls total", second)
+
     def test_gemini_merge_preserves_settings_and_is_idempotent(self):
         settings_path = self.project / ".gemini" / "settings.json"
         settings_path.parent.mkdir()
