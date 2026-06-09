@@ -21,7 +21,8 @@ GRAPHIFY_GUIDANCE = (
     "This project has a knowledge graph at graphify-out/. For architecture or broad "
     "codebase discovery, the FIRST tool call must be `rtk graphify query \"<question>\"`; "
     "do not run ls/which/test or read source first. Use at most 3 Graphify calls total: "
-    "the initial query plus at most 2 follow-up query/path/explain calls. Read "
+    "the initial query plus at most 2 follow-up query/path/explain calls, then hard stop "
+    "all Graphify calls and synthesize the answer. Read "
     "GRAPH_REPORT.md only when scoped Graphify results are insufficient or the user asks "
     "for a broad report. Targeted raw reads are allowed for specific edits and debugging."
 )
@@ -31,7 +32,7 @@ GRAPHIFY_INSTRUCTIONS = f"""## graphify
 
 Rules:
 - For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
-- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, or `explain` calls.
+- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, or `explain` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
@@ -72,6 +73,24 @@ def is_broad_discovery_command(command: str) -> bool:
     return any(word in BROAD_DISCOVERY_COMMANDS for word in _command_words(command))
 
 
+def is_graphify_probe_command(command: str) -> bool:
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return False
+    words = [Path(token).name.lower() for token in tokens]
+    normalized = command.lower().replace("\\", "/")
+    probes_graph_file = "graphify-out/graph.json" in normalized and any(
+        word in {"test", "[", "ls", "stat"} for word in words
+    )
+    probes_executable = (
+        len(words) >= 2 and words[0] == "which" and words[1] == "graphify"
+    ) or (
+        len(words) >= 3 and words[0] == "command" and words[1] == "-v" and words[2] == "graphify"
+    )
+    return probes_graph_file or probes_executable
+
+
 def is_source_tool_input(tool_input: dict) -> bool:
     for raw_path in (
         tool_input.get("file_path"), tool_input.get("path"), tool_input.get("pattern")
@@ -95,13 +114,13 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
             "decision": "deny",
             "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
         }
-    if tool_name.lower() == "bash" and is_broad_discovery_command(
-        str(tool_input.get("command", ""))
-    ):
-        return {
-            "decision": "deny",
-            "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
-        }
+    if tool_name.lower() == "bash":
+        command = str(tool_input.get("command", ""))
+        if is_graphify_probe_command(command) or is_broad_discovery_command(command):
+            return {
+                "decision": "deny",
+                "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
+            }
     if tool_name.lower() in {"read", "glob", "read_file", "list_directory"} and is_source_tool_input(tool_input):
         result["additionalContext"] = GRAPHIFY_GUIDANCE
     return result
@@ -120,8 +139,9 @@ exists=pathlib.Path("graphify-out/graph.json").exists()
 if exists and TOOL=="Grep":
  decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists and TOOL=="Bash":
+ raw=str(t.get("command", ""));low=raw.lower().replace(chr(92),"/")
  try:
-  lx=shlex.shlex(str(t.get("command", "")),posix=True,punctuation_chars="|&;()");lx.whitespace_split=True;tokens=list(lx)
+  lx=shlex.shlex(raw,posix=True,punctuation_chars="|&;()");lx.whitespace_split=True;tokens=list(lx)
  except ValueError: tokens=[]
  ex=[];expect=True
  for token in tokens:
@@ -130,7 +150,9 @@ elif exists and TOOL=="Bash":
   word=pathlib.Path(token).name
   if word in {"rtk","sudo","command","builtin","env","nohup"}: continue
   ex.append(word);expect=False
- if any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
+ words=[pathlib.Path(token).name.lower() for token in tokens]
+ probe=("graphify-out/graph.json" in low and any(word in {"test","[","ls","stat"} for word in words)) or (len(words)>=2 and words[0]=="which" and words[1]=="graphify") or (len(words)>=3 and words[0]=="command" and words[1]=="-v" and words[2]=="graphify")
+ if probe or any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists:
  values=[t.get("file_path"),t.get("path"),t.get("pattern")]
  for value in values:
