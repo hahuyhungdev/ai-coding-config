@@ -165,6 +165,71 @@ class TestAiCodingConfig(unittest.TestCase):
         res = run_hook_py({"path": "graphify-out/graph.json"})
         self.assertEqual(res, "")
 
+    def test_claude_bash_hook_filtering(self):
+        """Test the command-filtering logic in the Claude PreToolUse Bash hook."""
+        claude_proj = REPO_DIR / ".claude" / "settings.json"
+        with open(claude_proj, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+
+        bash_hook = None
+        for h in settings["hooks"]["PreToolUse"]:
+            if h["matcher"] == "Bash":
+                bash_hook = h["hooks"][0]["command"]
+                break
+
+        self.assertIsNotNone(bash_hook)
+
+        # Test block commands
+        blocked_commands = [
+            "grep -rn 'Booking' apps/web/",
+            "cat apps/web/proxy.ts",
+            "head -n 10 apps/web/proxy.ts",
+            "tail apps/web/proxy.ts",
+            "wc -l apps/web/proxy.ts",
+            "rg 'Booking'",
+            "find . -name '*.ts'"
+        ]
+
+        for cmd in blocked_commands:
+            tool_input = {"command": cmd}
+            p = subprocess.Popen(
+                bash_hook,
+                shell=True,
+                cwd=str(REPO_DIR),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = p.communicate(input=json.dumps({"tool_input": tool_input}))
+            
+            output_data = json.loads(stdout.strip())
+            self.assertIn("hookSpecificOutput", output_data)
+            self.assertEqual(output_data["hookSpecificOutput"].get("permissionDecision"), "deny")
+            self.assertIn("BLOCKED by graphify hook", output_data["hookSpecificOutput"]["permissionDecisionReason"])
+
+        # Test allowed commands
+        allowed_commands = [
+            "yarn build",
+            "echo 'hello'",
+            "python3 install.py",
+            "rtk graphify query 'project structure' | head -200",
+            "graphify query 'main modules' | grep app"
+        ]
+        for cmd in allowed_commands:
+            tool_input = {"command": cmd}
+            p = subprocess.Popen(
+                bash_hook,
+                shell=True,
+                cwd=str(REPO_DIR),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = p.communicate(input=json.dumps({"tool_input": tool_input}))
+            self.assertEqual(stdout.strip(), "")
+
     def test_codex_hook_exits_successfully(self):
         """Test that Codex graphify hook check runs successfully."""
         p = subprocess.run(
@@ -173,6 +238,7 @@ class TestAiCodingConfig(unittest.TestCase):
             text=True
         )
         self.assertEqual(p.returncode, 0)
+
 
 
 if __name__ == "__main__":

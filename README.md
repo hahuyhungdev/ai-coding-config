@@ -17,14 +17,24 @@ A unified, centralized configuration hub and interactive control center for **Cl
 
 ## ⚡ Quick Start
 
-Clone this repository and run the installer to link configuration files to their active CLI locations.
+Clone this repository and run the installer once to link configuration files to their active CLI locations:
 
 ### 🐧 Linux & macOS (Git Bash/WSL)
 ```bash
-git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/ai-coding-config
-cd ~/ai-coding-config
+git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/projects/ai-coding-config
+cd ~/projects/ai-coding-config
 ./install.py
 ```
+
+This automatically exposes the global `ai-config` CLI wrapper in your terminal!
+
+### 🎯 Managing Projects with `ai-config`
+To configure hooks and initialize a graph for any new project, just navigate to the project directory and run:
+```bash
+ai-config init
+```
+*   **Auto-Scan & Select:** It automatically scans your system for installed AI assistants (`claude`, `agy`, `codex`) and prompts you which ones to configure.
+*   **Zero-Token Rebuilds:** It initializes the Graphify graph (`graphify-out/graph.json`) and sets up Git commit/checkout hooks so it updates itself automatically in the background.
 
 ### 🪟 Windows (CMD / PowerShell)
 Run the wrapper batch script (requires Git Bash to be installed in your PATH):
@@ -174,6 +184,19 @@ The test suite validates:
 ---
 
 ## 📊 Graphify Token Savings Strategy
+
+### ⚡ RTK + Graphify: THE ULTIMATE TOKEN WEAPON ⚡
+
+**Tired of burning $5 of API credits just to ask "How does this project work?"**
+
+When you ask an AI assistant to explain a large codebase, it runs naive `grep` commands, dumps 20 files, and burns **400,000+ tokens** in a single session. That's not coding—that's burning cash.
+
+By combining `rtk` (the ultra-compact token-saver proxy) with `graphify` (semantic graph query), we redirect raw grep requests to highly optimized scoped subgraphs.
+*   **Without RTK Graphify:** 400,000 tokens (API bankruptcy)
+*   **With RTK Graphify:** 1,400 tokens (Coffee price API savings)
+*   **SAVINGS: 99.8%** of your context window and wallet!
+
+---
 
 ### The Problem
 

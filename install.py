@@ -285,11 +285,45 @@ def setup_claude(force: bool) -> None:
     copy_config(REPO_DIR / "claude" / "CLAUDE.md", CLAUDE_DIR / "CLAUDE.md", force)
     ok("CLAUDE.md")
 
-    # settings.json — merge by default, overwrite with --force
+    # settings.json — merge by default, overwrite with --force, but preserve Mimo/custom API keys & models
+    target_settings = CLAUDE_DIR / "settings.json"
+    preserved_data = {}
+    if target_settings.exists():
+        try:
+            with open(target_settings, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+                if "model" in existing_data:
+                    preserved_data["model"] = existing_data["model"]
+                if "env" in existing_data:
+                    preserved_env = {}
+                    for k in ["ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL", "CLAUDE_CODE_OAUTH_TOKEN"]:
+                        if k in existing_data["env"]:
+                            preserved_env[k] = existing_data["env"][k]
+                    if preserved_env:
+                        preserved_data["env"] = preserved_env
+        except Exception:
+            pass
+
     if force:
-        copy_config(REPO_DIR / "claude" / "settings.json", CLAUDE_DIR / "settings.json", force)
+        copy_config(REPO_DIR / "claude" / "settings.json", target_settings, force)
     else:
-        merge_json(REPO_DIR / "claude" / "settings.json", CLAUDE_DIR / "settings.json")
+        merge_json(REPO_DIR / "claude" / "settings.json", target_settings)
+
+    if preserved_data:
+        try:
+            with open(target_settings, "r", encoding="utf-8") as f:
+                current_data = json.load(f)
+            if "model" in preserved_data:
+                current_data["model"] = preserved_data["model"]
+            if "env" in preserved_data:
+                if "env" not in current_data:
+                    current_data["env"] = {}
+                current_data["env"].update(preserved_data["env"])
+            with open(target_settings, "w", encoding="utf-8") as f:
+                json.dump(current_data, f, indent=2)
+                f.write("\n")
+        except Exception:
+            pass
     ok("settings.json")
 
     # RTK.md
@@ -449,6 +483,7 @@ Examples:
     parser.add_argument("--all", action="store_true", help="Install/configure all three (default)")
     parser.add_argument("--none", action="store_true", help="Do not install/configure any CLI targets (sync only)")
     parser.add_argument("--force", action="store_true", help="Overwrite all without asking")
+    parser.add_argument("--project", type=str, help="Target project directory to configure project-level hooks (defaults to current repo)")
 
     args = parser.parse_args()
 
@@ -479,90 +514,148 @@ Examples:
     # Sync disabled MCP servers
     sync_mcp_disabled()
 
+    # Target project directory for hooks
+    target_project_dir = Path(args.project).resolve() if args.project else REPO_DIR
+
     # Install Graphify git hooks if graphify is available
     if shutil.which("graphify"):
-        info("Installing Graphify git hooks...")
+        info(f"Initializing Graphify knowledge graph in {target_project_dir}...")
         try:
-            subprocess.run(["graphify", "hook", "install"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["graphify", "update", "."], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(target_project_dir))
+            ok("Graphify graph initialized")
+        except subprocess.CalledProcessError:
+            warn("Failed to initialize Graphify graph")
+
+        info(f"Installing Graphify git hooks in {target_project_dir}...")
+        try:
+            subprocess.run(["graphify", "hook", "install"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(target_project_dir))
             ok("Graphify git hooks")
         except subprocess.CalledProcessError:
             warn("Failed to install Graphify git hooks")
 
-        info("Configuring Graphify project-level hooks...")
+        # Scan available assistants
+        avail_assistants = []
+        if shutil.which("claude"):
+            avail_assistants.append("claude")
+        if shutil.which("agy"):
+            avail_assistants.append("gemini")
+        if shutil.which("codex"):
+            avail_assistants.append("codex")
+
+        if not avail_assistants:
+            warn("No AI assistants (claude, agy, codex) detected on $PATH. Skipping project-level hooks.")
+            return
+
+        to_configure = list(avail_assistants)  # default: configure all available
+
+        # If interactive and not --force, ask the user
+        if sys.stdin.isatty() and not args.force:
+            print("\n" + "="*60)
+            print("Select which AI assistants to configure for this project:")
+            for i, assistant in enumerate(avail_assistants, 1):
+                name = {
+                    "claude": "Claude Code (claude)",
+                    "gemini": "Gemini / Antigravity (agy)",
+                    "codex": "Codex CLI (codex)"
+                }.get(assistant, assistant)
+                print(f"  [{i}] {name}")
+            print("  [A] All of the above (default)")
+            print("="*60)
+            
+            try:
+                choice = input("Enter choices (e.g. '1,3' or 'A', default: A): ").strip()
+                if choice and choice.upper() != "A":
+                    chosen_indices = [c.strip() for c in choice.split(",")]
+                    chosen_assistants = []
+                    for idx in chosen_indices:
+                        if idx.isdigit():
+                            val = int(idx) - 1
+                            if 0 <= val < len(avail_assistants):
+                                chosen_assistants.append(avail_assistants[val])
+                    if chosen_assistants:
+                        to_configure = chosen_assistants
+            except (KeyboardInterrupt, EOFError):
+                print("\nUsing default (All).")
+
+        info(f"Configuring Graphify project-level hooks for: {', '.join(to_configure)} in {target_project_dir}...")
         try:
             # 1. Claude hook
-            claude_settings_dir = REPO_DIR / ".claude"
-            claude_settings_dir.mkdir(exist_ok=True)
-            claude_settings = {
-                "hooks": {
-                    "PreToolUse": [
-                        {
-                            "matcher": "Bash",
-                            "hooks": [
-                                {
-                                    "type": "command",
-                                    "command": "CMD=$(python3 -c \"import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',d).get('command',''))\" 2>/dev/null || true); case \"$CMD\" in *grep*|*rg\\ *|*ripgrep*|*find\\ *|*fd\\ *|*ack\\ *|*ag\\ *)   [ -f graphify-out/graph.json ] &&   echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by graphify hook: Use graphify query \\\\\"<question>\\\\\" instead of grep/find for codebase exploration. Only use grep for non-codebase tasks (logs, configs, etc).\"}}'   || true ;; esac"
-                                }
-                            ]
-                        },
-                        {
-                            "matcher": "Read|Glob",
-                            "hooks": [
-                                {
-                                    "type": "command",
-                                    "command": "HIT=$(python3 -c \"import json,sys;d=json.load(sys.stdin);t=d.get('tool_input',d);s=(str(t.get('file_path') or '')+' '+str(t.get('pattern') or '')+' '+str(t.get('path') or '')).lower().replace(chr(92),'/');words=s.split();exts=('.py','.js','.ts','.tsx','.jsx','.go','.rs','.java','.rb','.c','.h','.cpp','.hpp','.cc','.cc','.cs','.kt','.swift','.php','.scala','.lua','.sh','.md','.rst','.txt','.mdx');is_src=not any(x in s for x in ('graphify-out/','skills/','.claude/','.gemini/','.codex/','.git/','node_modules/')) and any(any(w.endswith(e) for e in exts) for w in words) if s else False;sys.stdout.write('1' if is_src else '')\" 2>/dev/null || true); if [ \"$HIT\" = 1 ] && [ -f graphify-out/graph.json ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by graphify hook: This project has a knowledge graph at graphify-out/. Use graphify query \\\\\"<question>\\\\\" for codebase questions, graphify explain \\\\\"<concept>\\\\\" for deep-dives, or graphify path \\\\\"<A>\\\\\" \\\\\"<B>\\\\\" for file relationships. Only read raw files when modifying or debugging specific code.\"}}'; fi || true"
-                                }
-                            ]
-                        }
-                    ]
+            if "claude" in to_configure:
+                claude_settings_dir = target_project_dir / ".claude"
+                claude_settings_dir.mkdir(exist_ok=True)
+                claude_settings = {
+                    "hooks": {
+                        "PreToolUse": [
+                            {
+                                "matcher": "Bash",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "CMD=$(python3 -c \"import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',d).get('command',''))\" 2>/dev/null || true); case \"$CMD\" in *graphify*) true ;; *grep*|*rg\\ *|*ripgrep*|*find\\ *|*fd\\ *|*ack\\ *|*ag\\ *|*head\\ *|*cat\\ *|*tail\\ *|*less\\ *|*more\\ *|*bat\\ *|*wc\\ *)   [ -f graphify-out/graph.json ] &&   echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by graphify hook: Use graphify query <question> instead of grep/find/cat/head for codebase exploration. Only use these commands for non-codebase tasks (logs, configs, etc).\"}}'   || true ;; esac"
+                                    }
+                                ]
+                            },
+                            {
+                                "matcher": "Read|Glob",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "HIT=$(python3 -c \"import json,sys;d=json.load(sys.stdin);t=d.get('tool_input',d);s=(str(t.get('file_path') or '')+' '+str(t.get('pattern') or '')+' '+str(t.get('path') or '')).lower().replace(chr(92),'/');words=s.split();exts=('.py','.js','.ts','.tsx','.jsx','.go','.rs','.java','.rb','.c','.h','.cpp','.hpp','.cc','.cs','.kt','.swift','.php','.scala','.lua','.sh','.md','.rst','.txt','.mdx');is_src=not any(x in s for x in ('graphify-out/','skills/','.claude/','.gemini/','.codex/','.git/','node_modules/')) and any(any(w.endswith(e) for e in exts) for w in words) if s else False;sys.stdout.write('1' if is_src else '')\" 2>/dev/null || true); if [ \"$HIT\" = 1 ] && [ -f graphify-out/graph.json ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by graphify hook: This project has a knowledge graph at graphify-out/. Use graphify query <question> for codebase questions, graphify explain <concept> for deep-dives, or graphify path <A> <B> for file relationships. Only read raw files when modifying or debugging specific code.\"}}'; fi || true"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 }
-            }
-            (claude_settings_dir / "settings.json").write_text(json.dumps(claude_settings, indent=2), encoding="utf-8")
-            ok("Claude project-level hook configured")
+                (claude_settings_dir / "settings.json").write_text(json.dumps(claude_settings, indent=2), encoding="utf-8")
+                ok("Claude project-level hook configured")
 
             # 2. Gemini hook
-            gemini_settings_dir = REPO_DIR / ".gemini"
-            gemini_settings_dir.mkdir(exist_ok=True)
-            gemini_settings = {
-                "hooks": {
-                    "BeforeTool": [
-                        {
-                            "matcher": "read_file|list_directory",
-                            "hooks": [
-                                {
-                                    "type": "command",
-                                    "command": "python3 -c 'import sys,pathlib,json;d={\"decision\":\"allow\"};t=json.loads(sys.stdin.read());t=t.get(\"tool_input\",t);s=(str(t.get(\"path\") or \"\")+\" \"+str(t.get(\"file_path\") or \"\")+\" \"+str(t.get(\"pattern\") or \"\")).lower().replace(chr(92),\"/\");words=s.split();exts=(\".py\",\".js\",\".ts\",\".tsx\",\".jsx\",\".go\",\".rs\",\".java\",\".rb\",\".c\",\".h\",\".cpp\",\".hpp\",\".cc\",\".cs\",\".kt\",\".swift\",\".php\",\".scala\",\".lua\",\".sh\",\".md\",\".rst\",\".txt\",\".mdx\");is_src=not any(x in s for x in (\"graphify-out/\",\"skills/\",\".claude/\",\".gemini/\",\".codex/\",\".git/\",\"node_modules/\")) and any(any(w.endswith(e) for e in exts) for w in words) if s else False;b=chr(96);is_src and pathlib.Path(\"graphify-out/graph.json\").exists() and d.update({\"decision\":\"deny\",\"additionalContext\":\"BLOCKED by graphify hook: This project has a knowledge graph at graphify-out/. Use \"+b+\"graphify query \\\"<question>\\\"\"+b+\" for codebase questions, \"+b+\"graphify explain \\\"<concept>\\\"\"+b+\" for deep-dives, or \"+b+\"graphify path \\\"<A>\\\" \\\"<B>\\\"\"+b+\" for file relationships. Only read raw files when modifying or debugging specific code.\"});sys.stdout.write(json.dumps(d))'"
-                                }
-                            ]
-                        }
-                    ]
+            if "gemini" in to_configure:
+                gemini_settings_dir = target_project_dir / ".gemini"
+                gemini_settings_dir.mkdir(exist_ok=True)
+                gemini_settings = {
+                    "hooks": {
+                        "BeforeTool": [
+                            {
+                                "matcher": "read_file|list_directory",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "python3 -c 'import sys,pathlib,json;d={\"decision\":\"allow\"};t=json.loads(sys.stdin.read());t=t.get(\"tool_input\",t);s=(str(t.get(\"path\") or \"\")+\" \"+str(t.get(\"file_path\") or \"\")+\" \"+str(t.get(\"pattern\") or \"\")).lower().replace(chr(92),\"/\");words=s.split();exts=(\".py\",\".js\",\".ts\",\".tsx\",\".jsx\",\".go\",\".rs\",\".java\",\".rb\",\".c\",\".h\",\".cpp\",\".hpp\",\".cc\",\".cs\",\".kt\",\".swift\",\".php\",\".scala\",\".lua\",\".sh\",\".md\",\".rst\",\".txt\",\".mdx\");is_src=not any(x in s for x in (\"graphify-out/\",\"skills/\",\".claude/\",\".gemini/\",\".codex/\",\".git/\",\"node_modules/\")) and any(any(w.endswith(e) for e in exts) for w in words) if s else False;b=chr(96);is_src and pathlib.Path(\"graphify-out/graph.json\").exists() and d.update({\"decision\":\"deny\",\"additionalContext\":\"BLOCKED by graphify hook: This project has a knowledge graph at graphify-out/. Use graphify query <question> for codebase questions, graphify explain <concept> for deep-dives, or graphify path <A> <B> for file relationships. Only read raw files when modifying or debugging specific code.\"});sys.stdout.write(json.dumps(d))'"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 }
-            }
-            (gemini_settings_dir / "settings.json").write_text(json.dumps(gemini_settings, indent=2), encoding="utf-8")
-            ok("Gemini project-level hook configured")
+                (gemini_settings_dir / "settings.json").write_text(json.dumps(gemini_settings, indent=2), encoding="utf-8")
+                ok("Gemini project-level hook configured")
 
             # 3. Codex hook
-            codex_settings_dir = REPO_DIR / ".codex"
-            codex_settings_dir.mkdir(exist_ok=True)
-            codex_settings = {
-                "hooks": {
-                    "PreToolUse": [
-                        {
-                            "matcher": "Bash",
-                            "hooks": [
-                                {
-                                    "type": "command",
-                                    "command": "graphify hook-check"
-                                }
-                            ]
-                        }
-                    ]
+            if "codex" in to_configure:
+                codex_settings_dir = target_project_dir / ".codex"
+                codex_settings_dir.mkdir(exist_ok=True)
+                codex_settings = {
+                    "hooks": {
+                        "PreToolUse": [
+                            {
+                                "matcher": "Bash",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "graphify hook-check"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 }
-            }
-            (codex_settings_dir / "hooks.json").write_text(json.dumps(codex_settings, indent=2), encoding="utf-8")
-            ok("Codex project-level hook configured")
+                (codex_settings_dir / "hooks.json").write_text(json.dumps(codex_settings, indent=2), encoding="utf-8")
+                ok("Codex project-level hook configured")
         except Exception as e:
             warn(f"Failed to configure project-level hooks: {e}")
+
 
     print()
     print("Done! Restart Claude Code / Codex CLI / agy to pick up changes.")
