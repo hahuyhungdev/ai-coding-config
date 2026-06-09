@@ -58,6 +58,24 @@ By combining `rtk` (our ultra-compact filter proxy) and `graphify` (semantic gra
 | **Cross-File Relationships** | ~40,000 | ~300 | **99.2%** |
 | **Concept Deep-Dive** | ~20,000 | ~250 | **98.7%** |
 
+### 🧠 Graphify Execution & Rebuild Strategy
+
+To get the highest quality codebase map with the best speed-to-cost ratio, follow this two-tier strategy:
+
+1. **Initial Setup & Big Refactors (Semantic AI Mode):**
+   Run the deep semantic extraction using your Claude Code subscription to build a high-fidelity knowledge graph (including inferred logical edges and named communities) completely for free:
+   ```bash
+   graphify extract . --mode deep --backend claude-cli
+   ```
+   *Note: Ensure you are logged into the `claude` CLI (`claude` command works) beforehand.*
+
+2. **Daily Commits & Checkouts (Background Git Hooks):**
+   Let the automated background Git Hooks run the offline algorithm-only update:
+   ```bash
+   graphify update .
+   ```
+   This updates the graph instantly (1-2 seconds) using local AST and regex parsing for modified/new/deleted files without blocking your terminal or burning API limits.
+
 ---
 
 ## 🖥️ Interactive Web Dashboard
