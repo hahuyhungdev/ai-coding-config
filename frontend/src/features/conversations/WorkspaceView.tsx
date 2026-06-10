@@ -219,9 +219,12 @@ function MiniStat({ label, value, icon }: { label: string; value: string; icon?:
 interface WorkspaceViewProps {
   turn: ConversationTurn;
   stats: ConversationStats;
+  turns: ConversationTurn[];
+  activeTurn: number;
+  setActiveTurn: (index: number) => void;
 }
 
-export function WorkspaceView({ turn, stats }: WorkspaceViewProps) {
+export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn }: WorkspaceViewProps) {
   const turnOutputTokens = turn.agent?.est_tokens || 0;
   const turnToolsTokens = turn.tools.reduce((s, t) => s + t.est_tokens, 0);
   const turnUserTokens = turn.user?.est_tokens || 0;
@@ -232,12 +235,54 @@ export function WorkspaceView({ turn, stats }: WorkspaceViewProps) {
   return (
     <div className="w-[400px] border-l border-white/[0.08] bg-white/[0.03] flex flex-col flex-shrink-0">
       <div className="px-5 py-5 border-b border-white/[0.08]">
-        <div className="font-display font-semibold text-base text-text-primary mb-2 flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/15 flex items-center justify-center">
-            <Zap size={13} className="text-accent" />
+        <div className="font-display font-semibold text-base text-text-primary mb-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/15 flex items-center justify-center">
+              <Zap size={13} className="text-accent" />
+            </div>
+            Tool Flow
           </div>
-          Tool Flow
+          <span className="text-[11px] text-text-muted font-mono bg-white/[0.04] px-2.5 py-0.5 rounded border border-white/[0.05]">
+            Turn {activeTurn + 1} / {turns.length}
+          </span>
         </div>
+
+        {/* Turns Grid Selector */}
+        <div className="mb-4 bg-white/[0.01] border border-white/[0.06] rounded-xl p-3 shadow-inner">
+          <div className="text-[10px] text-text-muted/60 uppercase tracking-wider mb-2 font-semibold">
+            Turn Directory
+          </div>
+          <div className="grid grid-cols-8 gap-1.5 max-h-[105px] overflow-y-auto pr-1 scrollbar-thin">
+            {turns.map((t, idx) => {
+              const isCurrent = activeTurn === idx;
+              const hasCommand = t.tools.some(step => step.type === 'RUN_COMMAND');
+              const hasEdit = t.tools.some(step => step.type === 'CODE_ACTION');
+              const hasRead = t.tools.some(step => step.type === 'VIEW_FILE' || step.type === 'GREP_SEARCH');
+              const hasMcp = t.tools.some(step => step.type === 'MCP_TOOL');
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setActiveTurn(idx)}
+                  className={`h-9 rounded-lg text-xs font-mono flex flex-col items-center justify-center relative transition-all duration-150 cursor-pointer ${
+                    isCurrent
+                      ? 'bg-accent text-bg font-bold border border-accent/40 shadow-[0_0_8px_rgba(201,165,92,0.3)]'
+                      : 'bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:bg-white/[0.08] hover:border-white/[0.12] hover:text-text-primary'
+                  }`}
+                  title={`Turn ${idx + 1}`}
+                >
+                  <span>{idx + 1}</span>
+                  <div className="flex gap-0.5 absolute bottom-1">
+                    {hasCommand && <span className="w-1 h-1 rounded-full bg-accent" />}
+                    {hasEdit && <span className="w-1 h-1 rounded-full bg-purple-400" />}
+                    {hasRead && <span className="w-1 h-1 rounded-full bg-cyan-400" />}
+                    {hasMcp && <span className="w-1 h-1 rounded-full bg-success" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {turnReason && (
           <div className="text-[11px] text-accent/80 mb-3 leading-relaxed bg-accent/[0.03] rounded-lg p-3 border border-accent/10 max-h-[120px] overflow-y-auto scrollbar-thin">
             <div className="text-[10px] text-accent/50 uppercase tracking-wider mb-1 font-semibold">AI Reasoning</div>
