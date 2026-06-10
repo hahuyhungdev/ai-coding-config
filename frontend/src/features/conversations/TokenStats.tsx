@@ -9,11 +9,11 @@ interface TokenStatsProps {
 
 export function TokenStats({ icon, label, value, color }: TokenStatsProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass">
-      <div className={`${color} opacity-80`}>{icon}</div>
+    <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl glass hover:border-accent/20 transition-colors">
+      <div className={`${color} opacity-90`}>{icon}</div>
       <div>
-        <div className="text-[9px] text-text-muted uppercase tracking-[0.12] font-semibold mb-0.5">{label}</div>
-        <div className="font-mono text-[13px] font-semibold text-text-primary">{value}</div>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">{label}</div>
+        <div className="font-mono text-sm font-bold text-text-primary">{value}</div>
       </div>
     </div>
   );

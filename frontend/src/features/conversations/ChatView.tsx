@@ -31,31 +31,31 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
   }
 
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto p-6 flex flex-col gap-5">
+    <div ref={scrollRef} className="h-full overflow-y-auto p-6 flex flex-col gap-6">
       {/* User Message */}
       {turn.user && (
-        <div className="flex gap-3 max-w-[85%] animate-fade-in">
-          <div className="w-8 h-8 rounded-lg bg-accent/15 border border-accent/20 flex items-center justify-center flex-shrink-0">
-            <User size={14} className="text-accent" />
+        <div className="flex gap-3.5 max-w-[85%] animate-fade-in">
+          <div className="w-9 h-9 rounded-xl bg-accent/15 border border-accent/20 flex items-center justify-center flex-shrink-0">
+            <User size={15} className="text-accent" />
           </div>
-          <div className="bg-accent/[0.04] border border-accent/10 rounded-xl rounded-tl-md px-4 py-3.5 text-sm leading-relaxed text-text-primary">
-            <div className="text-[10px] font-semibold text-accent mb-2 uppercase tracking-[0.12]">You</div>
+          <div className="bg-accent/[0.05] border border-accent/12 rounded-2xl rounded-tl-md px-5 py-4 text-sm leading-relaxed text-text-primary">
+            <div className="text-xs font-bold text-accent mb-2.5 uppercase tracking-wider">You</div>
             <div className="cv-markdown" dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.user.content) }} />
-            <div className="mt-2.5 text-[10px] text-text-muted font-mono">~{turn.user.est_tokens.toLocaleString()} tk</div>
+            <div className="mt-3 text-[11px] text-text-muted font-mono">~{turn.user.est_tokens.toLocaleString()} tokens</div>
           </div>
         </div>
       )}
 
       {/* AI Response */}
       {turn.agent && (
-        <div className="flex gap-3 max-w-[85%] self-end animate-fade-in">
-          <div className="glass rounded-xl rounded-tr-md px-4 py-3.5 text-sm leading-relaxed text-text-primary">
-            <div className="text-[10px] font-semibold text-success mb-2 uppercase tracking-[0.12]">Assistant</div>
+        <div className="flex gap-3.5 max-w-[85%] self-end animate-fade-in">
+          <div className="glass rounded-2xl rounded-tr-md px-5 py-4 text-sm leading-relaxed text-text-primary">
+            <div className="text-xs font-bold text-success mb-2.5 uppercase tracking-wider">Assistant</div>
             <div className="cv-markdown" dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.agent.content) }} />
-            <div className="mt-2.5 text-[10px] text-text-muted font-mono">~{turn.agent.est_tokens.toLocaleString()} tk</div>
+            <div className="mt-3 text-[11px] text-text-muted font-mono">~{turn.agent.est_tokens.toLocaleString()} tokens</div>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-success/15 border border-success/20 flex items-center justify-center flex-shrink-0">
-            <Bot size={14} className="text-success" />
+          <div className="w-9 h-9 rounded-xl bg-success/15 border border-success/20 flex items-center justify-center flex-shrink-0">
+            <Bot size={15} className="text-success" />
           </div>
         </div>
       )}
@@ -65,19 +65,19 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
         <button
           onClick={onToggleWorkspace}
           disabled={isWorkspaceOpen}
-          className={`w-full text-left px-4 py-3 rounded-lg border transition-all duration-200 text-xs text-text-muted ${
+          className={`w-full text-left px-5 py-3.5 rounded-xl border transition-all duration-200 text-sm text-text-muted ${
             isWorkspaceOpen
               ? 'bg-white/[0.02] border-white/[0.05] cursor-default'
-              : 'bg-accent/[0.03] border-accent/15 hover:bg-accent/[0.06] hover:border-accent/25 hover:text-text-secondary cursor-pointer flex items-center justify-between'
+              : 'bg-accent/[0.04] border-accent/15 hover:bg-accent/[0.08] hover:border-accent/25 hover:text-text-secondary cursor-pointer flex items-center justify-between'
           }`}
         >
           <div>
-            <span className="font-medium text-text-secondary">{turn.tools.length} tool calls</span>
+            <span className="font-semibold text-text-secondary">{turn.tools.length} tool calls</span>
             <span className="mx-2 text-white/10">·</span>
-            <span className="font-mono text-[10px]">{turn.tools.map(t => t.type).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
+            <span className="font-mono text-xs">{turn.tools.map(t => t.type).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
           </div>
           {!isWorkspaceOpen && (
-            <span className="text-[10px] text-accent font-semibold tracking-wide flex items-center gap-1">
+            <span className="text-xs text-accent font-bold tracking-wide flex items-center gap-1">
               View details →
             </span>
           )}
