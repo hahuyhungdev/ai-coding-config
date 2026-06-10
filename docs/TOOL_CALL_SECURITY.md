@@ -5,33 +5,33 @@ This document outlines the security architecture and threat model of local AI Co
 
 ---
 
-### 🔄 Luồng chạy 7 bước của AI CLI (Bắt đầu từ bạn -> Cloud -> Máy bạn -> Trả về)
+### 🔄 7-Step Tool Calling Flow of AI CLI (Developer -> Cloud -> AI CLI -> Response)
 
-1. **Bạn hỏi**: Bạn gõ *"Đọc file App.tsx giúp tôi"* vào terminal.
-2. **Gửi lên Cloud (Lớp 1 - API Key)**: **AI CLI** gửi yêu cầu lên AI trên Cloud kèm theo **API Key** (xác thực danh tính) để kiểm tra tài khoản, hạn mức và quyền sử dụng Model.
-3. **AI ra chỉ thị (Lớp 2 - `tool_use_id`)**: AI nhận ra cần dùng công cụ đọc file. Nó tạo ra một chỉ thị: *"Hãy đọc file App.tsx"*, đóng dấu mã số phong bì là **`tool_use_id: 123`** rồi gửi ngược về máy bạn.
-4. **Định tuyến an toàn (Lớp 4 - Consent Gate)**: **AI CLI** dưới máy nhận tờ chỉ thị. Nếu chỉ thị thuộc nhóm nguy hiểm (như xóa file, chạy script), nó sẽ **dừng lại** hỏi bạn duyệt (`y/N`). Đọc file là an toàn nên nó sẽ tự động chạy.
-5. **Thực thi lệnh (Lớp 3 & Lớp 5 - OS & Sandbox)**: **AI CLI** dùng chính **quyền người dùng của bạn trên máy (OS Permission)** để thực thi công việc. Nếu cấu hình chạy trong **Docker (Sandbox)**, nó sẽ thực thi an toàn trong container để tránh làm ảnh hưởng đến máy thật.
-6. **Đóng gói kết quả (Lớp 2 - So khớp ID)**: Đọc xong code, **AI CLI** đóng gói nội dung file, dán nhãn đúng mã số **`tool_use_id: 123`** rồi gửi kết quả trả lại Cloud.
-7. **AI phản hồi**: AI trên Cloud nhận lại phong bì, so khớp đúng mã số `123` của yêu cầu trước đó, đọc nội dung code nhận được để phân tích và trả về câu trả lời hoàn chỉnh hiển thị lên màn hình cho bạn qua **AI CLI**.
-
----
-
-### ⚠️ Điểm yếu vật lý ở máy bạn (Lớp 6 - Local Secrets)
-Tất cả API Key, cấu hình và lịch sử chat này được lưu dạng **chữ thường (plaintext)** trong thư mục cấu hình cục bộ (ví dụ: `~/.claude/`, `~/.codex/`) trên máy bạn. Nếu máy bạn bị dính mã độc từ một phần mềm hoặc thư viện khác, kẻ tấn công chỉ cần vào thư mục này là có thể đọc trọn API Key và lịch sử code của bạn mà không cần xâm nhập từ xa.
+1. **Developer Prompt**: You type *"Read file App.tsx for me"* in the terminal.
+2. **Sent to Cloud (Layer 1 - API Key)**: The **AI CLI** sends the request to the Cloud AI along with the **API Key** (credentials) to verify identity, billing limits, and model access permissions.
+3. **AI Issues Instruction (Layer 2 - `tool_use_id`)**: The model recognizes it needs to use a tool to read the file. It generates an instruction: *"Please read App.tsx"*, assigns it an envelope identifier: **`tool_use_id: 123`**, and sends it back to your machine.
+4. **Safety Routing (Layer 4 - Consent Gate)**: The **AI CLI** client receives the instruction. If it is a dangerous command (like modifying files or running scripts), it **pauses** and prompts you for confirmation (`y/N`). Reading a file is low-risk, so it executes automatically.
+5. **Execution (Layer 3 & Layer 5 - OS & Sandbox)**: The **AI CLI** uses your active **user privileges on the host system (OS Permissions)** to execute the action. If configured to run inside a **Docker container (Sandbox)**, the execution is isolated to prevent accidental host system damage.
+6. **Package Result (Layer 2 - ID Matching)**: Once the action is complete, the **AI CLI** packages the output, stamps it with the corresponding **`tool_use_id: 123`**, and sends it back to the Cloud AI.
+7. **AI Final Response**: Cloud AI receives the payload, matches the ID `123` with the pending request, reads the content, and generates the final response, displaying it to you via **AI CLI**.
 
 ---
 
-### Sơ đồ luồng hoạt động đơn giản (Simple Flow Diagram)
+### ⚠️ Physical Vulnerability on Your Machine (Layer 6 - Local Secrets)
+All API Keys, configurations, and chat logs are stored in **plaintext** inside a local config directory (e.g., `~/.claude/` or `~/.codex/`) on your machine. If your system is compromised by local malware (like a malicious package in another project), attackers can read this directory to steal your API credentials and code history without needing remote network exploits.
+
+---
+
+### Simple Flow Diagram (Vertical Flow)
 
 ```mermaid
-graph LR
-    Dev["Developer Prompt"] -->|1. Gửi HTTPS Request| Cloud["Cloud AI (Phân tích & Gọi Tool)"]
-    Cloud -->|2. Chỉ thị & tool_use_id| Client["AI CLI (Local Client)"]
-    Client -->|3. Consent Gate & OS Permissions| OS["Local OS / Sandbox"]
-    OS -->|4. Dữ liệu/Kết quả thực tế| Client
-    Client -->|5. Trả kết quả + tool_use_id| Cloud
-    Cloud -->|6. Phản hồi hoàn chỉnh| Dev
+graph TD
+    Dev["1. Developer enters prompt"] -->|HTTPS Request + API Key| Cloud["2. Cloud AI (Analyzes Prompt)"]
+    Cloud -->|3. Tool Request + tool_use_id| Client["4. AI CLI Client (Local OS)"]
+    Client -->|5. Consent Gate / OS Execution| Host["6. File Read / Command Run"]
+    Host -->|7. Tool Output| Client
+    Client -->|8. HTTPS Response + tool_use_id| Cloud
+    Cloud -->|9. Final Response| Dev
 ```
 
 ---
