@@ -49,7 +49,7 @@ function ToolCard({ step, inputRate }: { step: ConversationStep; inputRate: numb
   const cost = (step.est_tokens / 1000000.0) * inputRate;
 
   return (
-    <div className="border border-white/[0.08] rounded-lg overflow-hidden bg-white/[0.03] transition-all duration-200 hover:border-white/[0.08]">
+    <div className="border border-white/[0.08] rounded-lg overflow-hidden bg-white/[0.03] transition-all duration-200 hover:border-white/[0.08] shrink-0">
       <div onClick={() => setExpanded(!expanded)} className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer group">
         <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${getToolColor(step.type)}`}>
           {getToolIcon(step.type)}

@@ -113,31 +113,34 @@ export default function App() {
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-8 animate-fade-up">
-            {activeTab === 'dashboard' && (
-              <DashboardTab tempConfig={config.tempConfig} logs={config.logs} setLogs={config.setLogs} setActiveTab={setActiveTab} setExplorerFilter={setExplorerFilter} setSelectedExplorer={setSelectedExplorer} />
-            )}
-            {activeTab === 'mcp' && (
-              <McpTab tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} selectedMcpServer={selectedMcpServer} setSelectedMcpServer={setSelectedMcpServer} filteredMcp={filteredMcp} mcpSearch={mcpSearch} setMcpSearch={setMcpSearch} handleMcpToggle={config.handleMcpToggle} deleteCustomMcp={mcpForm.deleteCustomMcp} setShowAddMcpModal={mcpForm.setShowAddMcpModal} showToast={showToast} />
-            )}
-            {activeTab === 'claude' && (
-              <ClaudeTab initialConfig={config.initialConfig} tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} handleClaudeEnvChange={config.handleClaudeEnvChange} handleClaudePermsChange={config.handleClaudePermsChange} />
-            )}
-            {activeTab === 'codex' && (
-              <CodexTab initialConfig={config.initialConfig} tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} />
-            )}
-            {activeTab === 'gemini' && (
-              <GeminiTab initialConfig={config.initialConfig} tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} />
-            )}
-            {activeTab === 'explorer' && (
-              <ExplorerTab tempConfig={config.tempConfig} selectedExplorer={selectedExplorer} setSelectedExplorer={setSelectedExplorer} showToast={showToast} explorerFilter={explorerFilter} setExplorerFilter={setExplorerFilter} />
-            )}
-            {activeTab === 'conversations' && (
-              <div className="h-full"><ConversationViewer /></div>
-            )}
+        {activeTab === 'conversations' ? (
+          <div className="flex-1 overflow-hidden p-6 animate-fade-up">
+            <ConversationViewer />
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-8 animate-fade-up">
+              {activeTab === 'dashboard' && (
+                <DashboardTab tempConfig={config.tempConfig} logs={config.logs} setLogs={config.setLogs} setActiveTab={setActiveTab} setExplorerFilter={setExplorerFilter} setSelectedExplorer={setSelectedExplorer} />
+              )}
+              {activeTab === 'mcp' && (
+                <McpTab tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} selectedMcpServer={selectedMcpServer} setSelectedMcpServer={setSelectedMcpServer} filteredMcp={filteredMcp} mcpSearch={mcpSearch} setMcpSearch={setMcpSearch} handleMcpToggle={config.handleMcpToggle} deleteCustomMcp={mcpForm.deleteCustomMcp} setShowAddMcpModal={mcpForm.setShowAddMcpModal} showToast={showToast} />
+              )}
+              {activeTab === 'claude' && (
+                <ClaudeTab initialConfig={config.initialConfig} tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} handleClaudeEnvChange={config.handleClaudeEnvChange} handleClaudePermsChange={config.handleClaudePermsChange} />
+              )}
+              {activeTab === 'codex' && (
+                <CodexTab initialConfig={config.initialConfig} tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} />
+              )}
+              {activeTab === 'gemini' && (
+                <GeminiTab initialConfig={config.initialConfig} tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} />
+              )}
+              {activeTab === 'explorer' && (
+                <ExplorerTab tempConfig={config.tempConfig} selectedExplorer={selectedExplorer} setSelectedExplorer={setSelectedExplorer} showToast={showToast} explorerFilter={explorerFilter} setExplorerFilter={setExplorerFilter} />
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       <ToastContainer toasts={toasts} />

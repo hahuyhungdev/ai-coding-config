@@ -1,4 +1,5 @@
-import { MessageSquare, Search, Clock, HardDrive, Zap, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, Search, Clock, HardDrive, Zap, DollarSign, Terminal } from 'lucide-react';
 import { formatDate, formatBytes, formatTokens, formatCost } from '../../utils/format';
 import { useConversations } from '../../hooks/useConversations';
 import { ChatView } from './ChatView';
@@ -6,6 +7,7 @@ import { TokenStats } from './TokenStats';
 import { WorkspaceView } from './WorkspaceView';
 
 export function ConversationViewer() {
+  const [showWorkspace, setShowWorkspace] = useState(true);
   const {
     filteredConversations, activeConvId, activeConvData,
     activeTurn, setActiveTurn, searchQuery, setSearchQuery,
@@ -15,7 +17,7 @@ export function ConversationViewer() {
   return (
     <div className="flex h-full overflow-hidden rounded-xl glass">
       {/* Sidebar */}
-      <aside className="w-80 flex flex-col flex-shrink-0 border-r border-white/[0.08] bg-white/[0.03]">
+      <aside className="w-72 flex flex-col flex-shrink-0 border-r border-white/[0.08] bg-white/[0.03]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/15 flex items-center justify-center">
@@ -99,10 +101,21 @@ export function ConversationViewer() {
                 </div>
                 <div className="text-xs text-text-muted font-mono">{activeConvData.stats.model_name}</div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <TokenStats icon={<Zap size={13} />} label="In" value={formatTokens(activeConvData.stats.est_input_tokens)} color="text-accent" />
                 <TokenStats icon={<Zap size={13} />} label="Out" value={formatTokens(activeConvData.stats.est_output_tokens)} color="text-success" />
                 <TokenStats icon={<DollarSign size={13} />} label="Cost" value={formatCost(activeConvData.stats.est_cost)} color="text-warning" />
+                <button
+                  onClick={() => setShowWorkspace(!showWorkspace)}
+                  className={`p-1.5 rounded-lg border transition-all duration-200 cursor-pointer ml-2 flex items-center justify-center ${
+                    showWorkspace
+                      ? 'bg-accent/15 border-accent/30 text-accent shadow-[0_0_8px_rgba(201,165,92,0.15)]'
+                      : 'bg-white/[0.03] border-white/[0.08] text-text-muted hover:text-text-secondary hover:bg-white/[0.06]'
+                  }`}
+                  title="Toggle Tool Flow"
+                >
+                  <Terminal size={14} />
+                </button>
               </div>
             </div>
 
@@ -123,8 +136,14 @@ export function ConversationViewer() {
             )}
 
             <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 overflow-hidden"><ChatView turn={currentTurn} /></div>
-              {currentTurn && currentTurn.tools.length > 0 && <WorkspaceView turn={currentTurn} stats={activeConvData.stats} />}
+              <div className="flex-1 overflow-hidden">
+                <ChatView
+                  turn={currentTurn}
+                  onToggleWorkspace={() => setShowWorkspace(true)}
+                  isWorkspaceOpen={showWorkspace}
+                />
+              </div>
+              {currentTurn && currentTurn.tools.length > 0 && showWorkspace && <WorkspaceView turn={currentTurn} stats={activeConvData.stats} />}
             </div>
           </>
         )}

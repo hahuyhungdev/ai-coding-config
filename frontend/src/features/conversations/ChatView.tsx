@@ -9,9 +9,13 @@ function renderMarkdown(text: string): string {
   try { return marked.parse(text) as string; } catch { return `<pre>${text}</pre>`; }
 }
 
-interface ChatViewProps { turn: ConversationTurn | null; }
+interface ChatViewProps {
+  turn: ConversationTurn | null;
+  onToggleWorkspace?: () => void;
+  isWorkspaceOpen?: boolean;
+}
 
-export function ChatView({ turn }: ChatViewProps) {
+export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,11 +62,26 @@ export function ChatView({ turn }: ChatViewProps) {
 
       {/* Tool calls */}
       {turn.tools.length > 0 && (
-        <div className="px-4 py-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-text-muted">
-          <span className="font-medium text-text-secondary">{turn.tools.length} tool calls</span>
-          <span className="mx-2 text-white/10">·</span>
-          <span className="font-mono text-[11px]">{turn.tools.map(t => t.type).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
-        </div>
+        <button
+          onClick={onToggleWorkspace}
+          disabled={isWorkspaceOpen}
+          className={`w-full text-left px-4 py-3 rounded-lg border transition-all duration-200 text-xs text-text-muted ${
+            isWorkspaceOpen
+              ? 'bg-white/[0.02] border-white/[0.05] cursor-default'
+              : 'bg-accent/[0.03] border-accent/15 hover:bg-accent/[0.06] hover:border-accent/25 hover:text-text-secondary cursor-pointer flex items-center justify-between'
+          }`}
+        >
+          <div>
+            <span className="font-medium text-text-secondary">{turn.tools.length} tool calls</span>
+            <span className="mx-2 text-white/10">·</span>
+            <span className="font-mono text-[10px]">{turn.tools.map(t => t.type).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
+          </div>
+          {!isWorkspaceOpen && (
+            <span className="text-[10px] text-accent font-semibold tracking-wide flex items-center gap-1">
+              View details →
+            </span>
+          )}
+        </button>
       )}
 
       <style>{`
