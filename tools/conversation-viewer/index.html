@@ -1322,7 +1322,7 @@
                 } else if (currentTurn) {
                     if (step.type === "PLANNER_RESPONSE") {
                         currentTurn.agent = step;
-                        currentTurn.lastReasoning = step.content || "";
+                        currentTurn.lastReasoning = step.thinking || step.content || "";
                     } else if ([
                         "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
                         "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
@@ -1368,12 +1368,11 @@
                 }
 
                 // AI Planner Bubble
-                if (turn.agent) {
+                if (turn.agent || turn.tools.length > 0) {
                     const aiContainer = document.createElement("div");
                     aiContainer.className = "chat-bubble-container ai";
                     
-                    // CALCULATE COMBINED TOTAL TOKENS (AI Response text + All executed tools in this turn)
-                    const agentTokens = turn.agent.est_tokens || 0;
+                    const agentTokens = turn.agent ? (turn.agent.est_tokens || 0) : 0;
                     const toolsTokens = turn.tools.reduce((sum, t) => sum + (t.est_tokens || 0), 0);
                     const totalTurnTokens = agentTokens + toolsTokens;
                     
@@ -1387,8 +1386,35 @@
                         `;
                     }
                     
-                    // Display consolidated turn tokens in the badge with a descriptive hover breakdown
                     const tokenBreakdownTitle = `Chi tiết Token lượt này:\n- AI Response: ${agentTokens.toLocaleString()}\n- Tools Execution: ${toolsTokens.toLocaleString()}\n- Tổng cộng: ${totalTurnTokens.toLocaleString()}`;
+                    
+                    let agentTextContent = "";
+                    if (turn.agent && turn.agent.content && turn.agent.content.trim()) {
+                        agentTextContent = marked.parse(turn.agent.content);
+                    } else {
+                        // Check if there was an error in the turn's tools
+                        const errorStep = turn.tools.find(t => t.type === "ERROR_MESSAGE" || t.status === "ERROR");
+                        if (errorStep) {
+                            const errorMsg = errorStep.error || errorStep.content || "Individual quota reached / Session crash";
+                            agentTextContent = `
+                                <div class="agent-error-banner" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; padding: 12px; margin-bottom: 8px; color: #ef4444; font-size: 13px;">
+                                    <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> Lượt chạy bị gián đoạn / Gặp lỗi hệ thống (Crashed/Exhausted)
+                                    </div>
+                                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; opacity: 0.9; white-space: pre-wrap; word-break: break-word;">${escapeHtml(errorMsg)}</div>
+                                </div>
+                            `;
+                        } else {
+                            agentTextContent = `
+                                <div class="agent-warning-banner" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 6px; padding: 12px; margin-bottom: 8px; color: #f59e0b; font-size: 13px;">
+                                    <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fa-solid fa-hourglass-half"></i> Lượt chạy bị gián đoạn giữa chừng (Session interrupted mid-execution)
+                                    </div>
+                                    <div style="margin-top: 4px; font-size: 12px; opacity: 0.8;">Agent đã thực thi các công cụ dưới đây nhưng chưa kịp trả về câu trả lời bằng văn bản.</div>
+                                </div>
+                            `;
+                        }
+                    }
                     
                     aiContainer.innerHTML = `
                         <div class="chat-meta">
@@ -1400,7 +1426,7 @@
                         </div>
                         <div class="chat-bubble" id="ai-bubble-${turn.index}" onclick="focusTurn(${turn.index}, 'agent')">
                             <div class="chat-body">
-                                ${marked.parse(turn.agent.content || "")}
+                                ${agentTextContent}
                             </div>
                             ${toolsBadge}
                         </div>
