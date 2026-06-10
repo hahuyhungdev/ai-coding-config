@@ -1095,6 +1095,84 @@ class ConfigHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"status": "success", "message": "Settings saved to templates"}).encode("utf-8"))
             except Exception as e:
                 self.send_error_json(500, str(e))
+        elif path == "/api/simulator/execute":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length).decode("utf-8")
+            try:
+                payload = json.loads(body)
+                action = payload.get("action")
+                args = payload.get("args", {})
+                
+                if action == "view_file":
+                    file_path = args.get("AbsolutePath", "")
+                    resolved_path = Path(file_path).resolve()
+                    if not resolved_path.exists() or not resolved_path.is_file():
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "error", "message": f"File '{file_path}' does not exist or is not a file."}).encode("utf-8"))
+                        return
+                    
+                    try:
+                        with open(resolved_path, "r", encoding="utf-8") as f:
+                            lines = [f.readline() for _ in range(15)]
+                            content = "".join(lines)
+                            if f.readline():
+                                content += "\n... (truncated)"
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "success", "output": content}).encode("utf-8"))
+                    except Exception as e:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
+                
+                elif action == "run_command":
+                    cmd_line = args.get("CommandLine", "")
+                    if not cmd_line:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "error", "message": "Command is empty."}).encode("utf-8"))
+                        return
+                    
+                    try:
+                        proc = subprocess.run(
+                            cmd_line,
+                            shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            timeout=5.0,
+                            cwd=str(REPO_DIR)
+                        )
+                        stdout_str = proc.stdout.decode("utf-8", errors="replace")
+                        stderr_str = proc.stderr.decode("utf-8", errors="replace")
+                        output = stdout_str + stderr_str
+                        
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({
+                            "status": "success" if proc.returncode == 0 else "error",
+                            "output": output or "[No output generated]"
+                        }).encode("utf-8"))
+                    except subprocess.TimeoutExpired:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "error", "message": "Command execution timed out (5s limit)."}).encode("utf-8"))
+                    except Exception as e:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
+                else:
+                    self.send_response(400)
+                    self.end_headers()
+            except Exception as e:
+                self.send_error_json(500, str(e))
         elif path == "/api/mcp/test":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length).decode("utf-8")

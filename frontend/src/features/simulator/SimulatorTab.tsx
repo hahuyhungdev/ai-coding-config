@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Shield, Key, Eye, HelpCircle, Check, X, Terminal, Cpu, Info, RefreshCw } from 'lucide-react';
+import { Play, Shield, Key, Eye, HelpCircle, Check, X, Terminal, Cpu, Info, RefreshCw, Zap } from 'lucide-react';
 
 interface SimulationStep {
   title: string;
@@ -15,29 +15,30 @@ const PRESETS = [
     name: 'Đọc file App.tsx (An toàn)',
     prompt: 'Xem nội dung file App.tsx để kiểm tra import',
     toolName: 'view_file',
-    args: { AbsolutePath: '/home/huyhung/projects/App.tsx' },
+    args: { AbsolutePath: '/home/huyhung/projects/personals/ai-coding-config/frontend/src/App.tsx' },
     risk: 'low',
     riskDesc: 'Đọc file (Read-only) - Tự động thực thi mà không cần duyệt.',
     output: "import React from 'react';\nimport { useState } from 'react';\n..."
   },
   {
     id: 'run-command',
-    name: 'Chạy lệnh Test & Build (Rủi ro cao)',
-    prompt: 'Chạy npm test và build dự án',
+    name: 'Chạy lệnh Git Status (Rủi ro cao)',
+    prompt: 'Kiểm tra trạng thái Git repository',
     toolName: 'run_command',
-    args: { CommandLine: 'npm run test && npm run build' },
+    args: { CommandLine: 'git status' },
     risk: 'high',
     riskDesc: 'Chạy lệnh Terminal (Write/Execute) - Bắt buộc phải dừng lại chờ User duyệt.',
-    output: "✓ 12 tests passed\nBuild succeeded in 1.4s"
+    output: "On branch master\nYour branch is ahead of 'origin/master' by 2 commits."
   }
 ];
 
 export const SimulatorTab: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState(PRESETS[0]);
+  const [mode, setMode] = useState<'simulation' | 'real'>('simulation');
   const [stepIndex, setStepIndex] = useState(-1);
   const [logs, setLogs] = useState<string[]>([]);
   const [approved, setApproved] = useState<boolean | null>(null);
-  const [toolUseId] = useState(() => 'toolu_' + Math.random().toString(36).substring(2, 15));
+  const [toolUseId, setToolUseId] = useState(() => 'toolu_' + Math.random().toString(36).substring(2, 15));
 
   const addLog = (msg: string) => setLogs(prev => [...prev, msg]);
 
@@ -45,6 +46,7 @@ export const SimulatorTab: React.FC = () => {
     setStepIndex(-1);
     setLogs([]);
     setApproved(null);
+    setToolUseId('toolu_' + Math.random().toString(36).substring(2, 15));
   };
 
   const nextStep = () => {
@@ -95,9 +97,29 @@ export const SimulatorTab: React.FC = () => {
     }
   };
 
-  const executeToolAction = () => {
+  const executeToolAction = async () => {
     addLog(`[LOCAL] Tiến trình thực thi khởi chạy dưới quyền của bạn.`);
-    addLog(`[LOCAL] Kết quả trả ra:\n${selectedPreset.output}`);
+    if (mode === 'real') {
+      addLog(`[LOCAL] [REAL MODE] Đang gọi API cục bộ để thực thi trực tiếp trên máy...`);
+      try {
+        const res = await fetch('/api/simulator/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: selectedPreset.toolName, args: selectedPreset.args })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          addLog(`[LOCAL] [REAL MODE] Thực thi THÀNH CÔNG! Kết quả thực tế từ hệ thống:\n${data.output}`);
+        } else {
+          addLog(`[LOCAL] [REAL MODE] Thực thi THẤT BẠI: ${data.message || data.output}`);
+        }
+      } catch (err: any) {
+        addLog(`[LOCAL] [REAL MODE] Lỗi kết nối hệ thống: ${err.message}`);
+      }
+    } else {
+      addLog(`[LOCAL] [SIMULATION MODE] Kết quả giả lập:\n${selectedPreset.output}`);
+    }
     setStepIndex(4);
   };
 
@@ -114,9 +136,35 @@ export const SimulatorTab: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1000px] mx-auto text-text-primary">
       {/* Intro info */}
-      <div className="animate-fade-up">
-        <h2 className="font-display text-2xl text-text-primary mb-1">Tool Calling & Security Simulator</h2>
-        <p className="text-sm text-text-muted">Mô phỏng trực quan từng bước luồng gửi yêu cầu, xác thực token và chạy lệnh cục bộ.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-up">
+        <div>
+          <h2 className="font-display text-2xl text-text-primary mb-1">Tool Calling & Security Simulator</h2>
+          <p className="text-sm text-text-muted">Mô phỏng trực quan từng bước luồng gửi yêu cầu, xác thực token và chạy lệnh cục bộ.</p>
+        </div>
+        
+        {/* Real/Simulation Mode Toggle */}
+        <div className="flex p-0.5 bg-white/[0.04] border border-white/[0.08] rounded-lg shrink-0 self-start md:self-center">
+          <button
+            onClick={() => { setMode('simulation'); resetSimulation(); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md cursor-pointer transition-all ${
+              mode === 'simulation'
+                ? 'bg-white/[0.06] text-accent'
+                : 'text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            <Cpu className="h-3.5 w-3.5" /> Mô Phỏng (Sim)
+          </button>
+          <button
+            onClick={() => { setMode('real'); resetSimulation(); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md cursor-pointer transition-all ${
+              mode === 'real'
+                ? 'bg-accent/10 border border-accent/20 text-accent glow-pulse'
+                : 'text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            <Zap className="h-3.5 w-3.5" /> Thực Tế (Real)
+          </button>
+        </div>
       </div>
 
       {/* Preset Selector */}
@@ -191,7 +239,7 @@ export const SimulatorTab: React.FC = () => {
                 onClick={resetSimulation}
                 className="flex-1 py-2 bg-white/[0.05] hover:bg-white/[0.08] text-text-secondary border border-white/[0.10] text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
-                Reset mô phỏng
+                Reset
               </button>
             )}
           </div>
@@ -203,7 +251,7 @@ export const SimulatorTab: React.FC = () => {
           <div className="glass rounded-xl overflow-hidden flex flex-col flex-1 min-h-[300px]">
             <div className="border-b border-white/[0.08] px-5 py-3 flex items-center justify-between bg-white/[0.03]">
               <div className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.12] flex items-center gap-2">
-                <Terminal className="h-3.5 w-3.5 text-accent" /> Trạng thái hoạt động
+                <Terminal className="h-3.5 w-3.5 text-accent" /> Trạng thái hoạt động ({mode === 'real' ? 'REAL MODE' : 'SIMULATION MODE'})
               </div>
               {stepIndex >= 0 && (
                 <span className="text-[10px] bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded font-mono">
@@ -214,7 +262,7 @@ export const SimulatorTab: React.FC = () => {
             <div className="flex-1 bg-bg p-5 font-mono text-[12px] leading-relaxed text-text-secondary overflow-y-auto max-h-[350px]">
               {logs.length > 0 ? (
                 logs.map((log, index) => (
-                  <div key={index} className="mb-1.5 animate-fade-in">
+                  <div key={index} className="mb-1.5 animate-fade-in whitespace-pre-wrap">
                     <span className="text-accent mr-1.5">&gt;</span>
                     {log}
                   </div>
