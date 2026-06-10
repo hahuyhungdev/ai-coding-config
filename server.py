@@ -442,6 +442,56 @@ def parse_gemini_jsonl(log_file: Path) -> list:
                     continue
     except Exception:
         pass
+
+    # Post-process to associate tool calls args with execution steps
+    pending_tool_calls = []
+    for step in steps:
+        step_type = step.get("type")
+        if step_type == "PLANNER_RESPONSE":
+            tool_calls = step.get("tool_calls", [])
+            for tc in tool_calls:
+                tc_name = tc.get("name")
+                tc_args = tc.get("args", {})
+                # Clean up string-wrapped arguments if they are double-quoted
+                cleaned_args = {}
+                if isinstance(tc_args, dict):
+                    for k, v in tc_args.items():
+                        if isinstance(v, str):
+                            v_clean = v.strip()
+                            if (v_clean.startswith('"') and v_clean.endswith('"')) or (v_clean.startswith("'") and v_clean.endswith("'")):
+                                try:
+                                    v_unquoted = json.loads(v_clean)
+                                    if isinstance(v_unquoted, str):
+                                        v_clean = v_unquoted
+                                    else:
+                                        v_clean = v_clean[1:-1]
+                                except Exception:
+                                    v_clean = v_clean[1:-1]
+                            cleaned_args[k] = v_clean
+                        else:
+                            cleaned_args[k] = v
+                else:
+                    cleaned_args = tc_args
+                pending_tool_calls.append({
+                    "name": tc_name,
+                    "args": cleaned_args
+                })
+        elif step_type not in ("USER_INPUT", "PLANNER_RESPONSE", "CONVERSATION_HISTORY"):
+            # This is a tool execution step. Find the first pending tool call that matches.
+            matched_idx = -1
+            for i, tc in enumerate(pending_tool_calls):
+                mapped_type = map_tool_name_to_step_type(tc["name"])
+                if mapped_type == step_type:
+                    matched_idx = i
+                    break
+            
+            if matched_idx != -1:
+                tc = pending_tool_calls.pop(matched_idx)
+                step["resolved_args"] = tc["args"]
+            elif pending_tool_calls:
+                tc = pending_tool_calls.pop(0)
+                step["resolved_args"] = tc["args"]
+
     return steps
 
 

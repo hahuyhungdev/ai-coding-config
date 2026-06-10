@@ -103,6 +103,7 @@ export interface ConversationStep {
   status?: string;
   resolved_args?: any;
   thinking?: string;
+  reason?: string;
 }
 
 export interface ConversationData {

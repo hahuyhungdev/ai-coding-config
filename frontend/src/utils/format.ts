@@ -46,5 +46,16 @@ export function parseTurns(steps: ConversationStep[]): ConversationTurn[] {
     }
   }
   if (current) turns.push(current);
+
+  // Attach reason from PLANNER_RESPONSE to each tool step
+  for (const turn of turns) {
+    if (turn.agent?.content && turn.tools.length > 0) {
+      const reason = turn.agent.content.trim();
+      for (const tool of turn.tools) {
+        tool.reason = reason;
+      }
+    }
+  }
+
   return turns;
 }

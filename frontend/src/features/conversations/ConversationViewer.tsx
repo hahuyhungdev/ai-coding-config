@@ -5,6 +5,38 @@ import { useConversations } from '../../hooks/useConversations';
 import { ChatView } from './ChatView';
 import { TokenStats } from './TokenStats';
 import { WorkspaceView } from './WorkspaceView';
+import type { ConversationTurn } from '../../types';
+
+function getTurnSummary(turn: ConversationTurn): string {
+  // Show brief summary of what this turn does
+  if (turn.tools.length === 0) {
+    if (turn.agent?.content) {
+      const text = turn.agent.content.replace(/[\n\r]+/g, ' ').trim();
+      return text.length > 30 ? text.slice(0, 30) + '…' : text;
+    }
+    return '';
+  }
+
+  // Summarize tool types used
+  const typeCounts: Record<string, number> = {};
+  for (const t of turn.tools) {
+    typeCounts[t.type] = (typeCounts[t.type] || 0) + 1;
+  }
+
+  const parts: string[] = [];
+  const order = ['RUN_COMMAND', 'CODE_ACTION', 'VIEW_FILE', 'GREP_SEARCH', 'MCP_TOOL', 'SEARCH_WEB'];
+  for (const t of order) {
+    if (typeCounts[t]) {
+      const label = t === 'RUN_COMMAND' ? 'cmd' : t === 'CODE_ACTION' ? 'edit' : t === 'VIEW_FILE' ? 'read' : t === 'GREP_SEARCH' ? 'grep' : t === 'MCP_TOOL' ? 'mcp' : 'web';
+      parts.push(typeCounts[t] > 1 ? `${label}×${typeCounts[t]}` : label);
+      delete typeCounts[t];
+    }
+  }
+  for (const [t, count] of Object.entries(typeCounts)) {
+    parts.push(count > 1 ? `${t.toLowerCase()}×${count}` : t.toLowerCase());
+  }
+  return parts.join(' · ');
+}
 
 export function ConversationViewer() {
   const [showWorkspace, setShowWorkspace] = useState(true);
@@ -117,17 +149,20 @@ export function ConversationViewer() {
 
             {turns.length > 0 && (
               <div className="flex items-center gap-1.5 px-6 py-3 border-b border-white/[0.08] bg-white/[0.03] overflow-x-auto">
-                {turns.map((turn, i) => (
-                  <button key={i} onClick={() => setActiveTurn(i)}
-                    className={`px-4 py-2 rounded-lg text-xs font-mono whitespace-nowrap transition-all duration-200 ${
-                      activeTurn === i
-                        ? 'bg-accent text-bg font-semibold shadow-[0_0_12px_rgba(201,165,92,0.2)]'
-                        : 'text-text-muted hover:text-text-secondary hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06]'
-                    }`}>
-                    Turn {i + 1}
-                    {turn.tools.length > 0 && <span className="ml-1.5 opacity-60">({turn.tools.length})</span>}
-                  </button>
-                ))}
+                {turns.map((turn, i) => {
+                  const summary = getTurnSummary(turn);
+                  return (
+                    <button key={i} onClick={() => setActiveTurn(i)}
+                      className={`px-4 py-2 rounded-lg text-xs font-mono whitespace-nowrap transition-all duration-200 ${
+                        activeTurn === i
+                          ? 'bg-accent text-bg font-semibold shadow-[0_0_12px_rgba(201,165,92,0.2)]'
+                          : 'text-text-muted hover:text-text-secondary hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06]'
+                      }`}>
+                      Turn {i + 1}
+                      {summary && <span className="ml-1.5 opacity-60">· {summary}</span>}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
