@@ -9,20 +9,32 @@ This document outlines the security architecture and threat model of local AI Co
 
 The security posture of an AI CLI agent is composed of six distinct layers, separating cloud-based authorization from local execution boundaries.
 
-```text
-+-------------------------------------------------------+
-|  Layer 1: API Credentials (Authn/Authz/Billing)      |  <- Cloud Gate
-+-------------------------------------------------------+
-|  Layer 2: tool_use_id (Correlation & State Integrity) |  <- Protocol Layer
-+-------------------------------------------------------+
-|  Layer 3: OS Permissions (UID/Token Privilege)        |  <- Local Execution
-+-------------------------------------------------------+
-|  Layer 4: Consent Gates (Human-in-the-Loop)           |  <- User Gate
-+-------------------------------------------------------+
-|  Layer 5: Sandbox / Isolation (Docker/VMs)            |  <- Isolation Boundary
-+-------------------------------------------------------+
-|  Layer 6: Local Secrets (~/.claude/, tokens)          |  <- Local Storage Risk
-+-------------------------------------------------------+
+```mermaid
+graph TD
+    subgraph Cloud["Cloud Boundary (API Provider)"]
+        L1["Layer 1: API Credentials (Authn / Authz / Quota / Billing)"]
+        L2["Layer 2: tool_use_id (Correlation & State Integrity)"]
+    end
+
+    subgraph Host["Host Machine (Local OS)"]
+        L3["Layer 3: OS Process Permissions (CLI inherits user UID / Access Token)"]
+        L4["Layer 4: Consent Gate (Interactive y/N Confirmation)"]
+        L6["Layer 6: Local Config Store (Keys & logs in ~/.claude/)"]
+    end
+
+    subgraph Sandbox["Sandbox Boundary (Optional)"]
+        L5["Layer 5: Container Isolation (Docker / VMs / WSL)"]
+    end
+
+    Developer["Developer Prompt"] -->|1. HTTPS Request with API Key| L1
+    L1 -->|2. Model decides to call Tool| L2
+    L2 -->|3. Sends tool_use + tool_use_id| L4
+    L4 -->|4. Approved by Developer?| L5
+    L5 -->|5. Local execution under UID| L3
+    L3 -->|6. Writes output| L6
+    L6 -.->|Risk: Key/Log theft| Malware["Local Malware"]
+    L3 -->|7. Sends tool_result + tool_use_id| L2
+    L2 -->|8. Matches ID & Returns Final Answer| Developer
 ```
 
 ---
