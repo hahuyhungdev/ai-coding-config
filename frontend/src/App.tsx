@@ -64,20 +64,22 @@ export default function App() {
   return (
     <div className="flex w-screen h-screen overflow-hidden bg-bg text-text-primary">
 
-      <Sidebar
-        initialConfig={config.initialConfig}
-        tempConfig={config.tempConfig}
-        handleTargetToggle={config.handleTargetToggle}
-        handleMcpToggle={config.handleMcpToggle}
-        batchMcp={config.batchMcp}
-        mcpSearch={mcpSearch}
-        setMcpSearch={setMcpSearch}
-        filteredMcp={filteredMcp}
-        hasPendingChanges={hasPendingChanges}
-        pendingChanges={mappedPendingChanges}
-        setShowApplyModal={setShowApplyModal}
-        setShowDiscardModal={setShowDiscardModal}
-      />
+      {activeTab !== 'conversations' && (
+        <Sidebar
+          initialConfig={config.initialConfig}
+          tempConfig={config.tempConfig}
+          handleTargetToggle={config.handleTargetToggle}
+          handleMcpToggle={config.handleMcpToggle}
+          batchMcp={config.batchMcp}
+          mcpSearch={mcpSearch}
+          setMcpSearch={setMcpSearch}
+          filteredMcp={filteredMcp}
+          hasPendingChanges={hasPendingChanges}
+          pendingChanges={mappedPendingChanges}
+          setShowApplyModal={setShowApplyModal}
+          setShowDiscardModal={setShowDiscardModal}
+        />
+      )}
 
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
