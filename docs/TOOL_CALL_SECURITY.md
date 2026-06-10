@@ -5,37 +5,40 @@ This document outlines the security architecture and threat model of local AI Co
 
 ---
 
+### 🔄 Luồng chạy 7 bước của AI CLI (Bắt đầu từ bạn -> Cloud -> Máy bạn -> Trả về)
+
+1. **Bạn hỏi**: Bạn gõ *"Đọc file App.tsx giúp tôi"* vào terminal.
+2. **Gửi lên Cloud (Lớp 1 - API Key)**: **AI CLI** gửi yêu cầu lên AI trên Cloud kèm theo **API Key** (xác thực danh tính) để kiểm tra tài khoản, hạn mức và quyền sử dụng Model.
+3. **AI ra chỉ thị (Lớp 2 - `tool_use_id`)**: AI nhận ra cần dùng công cụ đọc file. Nó tạo ra một chỉ thị: *"Hãy đọc file App.tsx"*, đóng dấu mã số phong bì là **`tool_use_id: 123`** rồi gửi ngược về máy bạn.
+4. **Định tuyến an toàn (Lớp 4 - Consent Gate)**: **AI CLI** dưới máy nhận tờ chỉ thị. Nếu chỉ thị thuộc nhóm nguy hiểm (như xóa file, chạy script), nó sẽ **dừng lại** hỏi bạn duyệt (`y/N`). Đọc file là an toàn nên nó sẽ tự động chạy.
+5. **Thực thi lệnh (Lớp 3 & Lớp 5 - OS & Sandbox)**: **AI CLI** dùng chính **quyền người dùng của bạn trên máy (OS Permission)** để thực thi công việc. Nếu cấu hình chạy trong **Docker (Sandbox)**, nó sẽ thực thi an toàn trong container để tránh làm ảnh hưởng đến máy thật.
+6. **Đóng gói kết quả (Lớp 2 - So khớp ID)**: Đọc xong code, **AI CLI** đóng gói nội dung file, dán nhãn đúng mã số **`tool_use_id: 123`** rồi gửi kết quả trả lại Cloud.
+7. **AI phản hồi**: AI trên Cloud nhận lại phong bì, so khớp đúng mã số `123` của yêu cầu trước đó, đọc nội dung code nhận được để phân tích và trả về câu trả lời hoàn chỉnh hiển thị lên màn hình cho bạn qua **AI CLI**.
+
+---
+
+### ⚠️ Điểm yếu vật lý ở máy bạn (Lớp 6 - Local Secrets)
+Tất cả API Key, cấu hình và lịch sử chat này được lưu dạng **chữ thường (plaintext)** trong thư mục cấu hình cục bộ (ví dụ: `~/.claude/`, `~/.codex/`) trên máy bạn. Nếu máy bạn bị dính mã độc từ một phần mềm hoặc thư viện khác, kẻ tấn công chỉ cần vào thư mục này là có thể đọc trọn API Key và lịch sử code của bạn mà không cần xâm nhập từ xa.
+
+---
+
+### Sơ đồ luồng hoạt động đơn giản (Simple Flow Diagram)
+
+```mermaid
+graph LR
+    Dev["Developer Prompt"] -->|1. Gửi HTTPS Request| Cloud["Cloud AI (Phân tích & Gọi Tool)"]
+    Cloud -->|2. Chỉ thị & tool_use_id| Client["AI CLI (Local Client)"]
+    Client -->|3. Consent Gate & OS Permissions| OS["Local OS / Sandbox"]
+    OS -->|4. Dữ liệu/Kết quả thực tế| Client
+    Client -->|5. Trả kết quả + tool_use_id| Cloud
+    Cloud -->|6. Phản hồi hoàn chỉnh| Dev
+```
+
+---
+
 ## The 6-Layer Security Model
 
 The security posture of an AI CLI agent is composed of six distinct layers, separating cloud-based authorization from local execution boundaries.
-
-```mermaid
-graph TD
-    subgraph Cloud["Cloud Boundary (API Provider)"]
-        L1["Layer 1: API Credentials (Authn / Authz / Quota / Billing)"]
-        L2["Layer 2: tool_use_id (Correlation & State Integrity)"]
-    end
-
-    subgraph Host["Host Machine (Local OS)"]
-        L3["Layer 3: OS Process Permissions (CLI inherits user UID / Access Token)"]
-        L4["Layer 4: Consent Gate (Interactive y/N Confirmation)"]
-        L6["Layer 6: Local Config Store (Keys & logs in ~/.claude/)"]
-    end
-
-    subgraph Sandbox["Sandbox Boundary (Optional)"]
-        L5["Layer 5: Container Isolation (Docker / VMs / WSL)"]
-    end
-
-    Developer["Developer Prompt"] -->|1. HTTPS Request with API Key| L1
-    L1 -->|2. Model decides to call Tool| L2
-    L2 -->|3. Sends tool_use + tool_use_id| L4
-    L4 -->|4. Approved by Developer?| L5
-    L5 -->|5. Local execution under UID| L3
-    L3 -->|6. Writes output| L6
-    L6 -.->|Risk: Key/Log theft| Malware["Local Malware"]
-    L3 -->|7. Sends tool_result + tool_use_id| L2
-    L2 -->|8. Matches ID & Returns Final Answer| Developer
-```
 
 ---
 
