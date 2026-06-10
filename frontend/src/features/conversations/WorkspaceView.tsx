@@ -47,7 +47,7 @@ function getToolLabel(step: ConversationStep): string {
       return dir ? `List: ${basename(dir)}` : 'List';
     }
     case 'MCP_TOOL': {
-      const name = args?.ToolName || args?.toolName || args?.name || args?.tool_name || args?.tool || args?.server || '';
+      const name = step.name || args?.ToolName || args?.toolName || args?.name || args?.tool_name || args?.tool || args?.server || '';
       return name ? `MCP: ${truncate(name, 40)}` : 'MCP';
     }
     case 'INVOKE_SUBAGENT': {

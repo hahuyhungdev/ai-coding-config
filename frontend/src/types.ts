@@ -97,6 +97,7 @@ export interface ConversationStats {
 
 export interface ConversationStep {
   type: string;
+  name?: string;
   content: string;
   est_tokens: number;
   timestamp?: string;

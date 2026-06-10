@@ -488,9 +488,11 @@ def parse_gemini_jsonl(log_file: Path) -> list:
             if matched_idx != -1:
                 tc = pending_tool_calls.pop(matched_idx)
                 step["resolved_args"] = tc["args"]
+                step["name"] = tc["name"]
             elif pending_tool_calls:
                 tc = pending_tool_calls.pop(0)
                 step["resolved_args"] = tc["args"]
+                step["name"] = tc["name"]
 
     return steps
 
@@ -531,6 +533,7 @@ def parse_claude_jsonl(log_file: Path) -> list:
                                             t_call = tool_calls_map[tool_id]
                                             steps.append({
                                                 "type": map_tool_name_to_step_type(t_call["name"]),
+                                                "name": t_call["name"],
                                                 "content": stdout,
                                                 "status": "ERROR" if is_error else "OK",
                                                 "resolved_args": t_call["input"]
@@ -674,6 +677,7 @@ def parse_codex_jsonl(log_file: Path) -> list:
                                     resolved_args = {"script": resolved_args}
                                 steps.append({
                                     "type": map_tool_name_to_step_type(t_call["name"]),
+                                    "name": t_call["name"],
                                     "content": stdout,
                                     "status": "ERROR" if is_error else "OK",
                                     "resolved_args": resolved_args
