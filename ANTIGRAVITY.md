@@ -47,7 +47,11 @@ Load and delegate complex tasks to specialized agents under `~/.gemini/config/ag
 <!-- ai-coding-config:graphify-start -->
 ## graphify
 
-This project has a knowledge graph at graphify-out/. For architecture or broad codebase discovery, the FIRST tool call must be `rtk graphify query "<question>"`; do not run ls/which/test or read source first. Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up query/path/explain calls, then hard stop all Graphify calls and synthesize the answer. Read GRAPH_REPORT.md only when scoped Graphify results are insufficient or the user asks for a broad report. Targeted raw reads are allowed for specific edits and debugging.
+⚠️ GRAPHIFY WORKFLOW RULES:
+- Architecture questions → rtk graphify query "question"
+- Code relationships → rtk graphify path "A" "B"
+- Deep-dive concepts → rtk graphify explain "concept"
+- Direct reads are ONLY for editing specific files.
 
 Rules:
 - For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.

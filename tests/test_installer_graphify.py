@@ -20,6 +20,9 @@ class TestGraphifyCommandClassification(unittest.TestCase):
             "ack controller",
             "ag repository",
             "graphify query 'architecture' | grep service",
+            "cat config/settings.json",
+            "head -n 50 index.html",
+            "tail -n 20 log.txt",
         ):
             with self.subTest(command=command):
                 self.assertTrue(install.is_broad_discovery_command(command))
@@ -30,7 +33,6 @@ class TestGraphifyCommandClassification(unittest.TestCase):
             "graphify path API Database",
             "graphify explain Router",
             "sed -n '1,120p' src/router.py",
-            "cat config/settings.json",
             "echo graphify grep rg find fd ack ag",
             "python scripts/graphify_report.py",
         ):

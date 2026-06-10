@@ -50,27 +50,5 @@
     ],
     "defaultMode": "acceptEdits"
   },
-  "skipDangerousModePermissionPrompt": true,
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "CMD=$(python3 -c \"import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',d).get('command',''))\" 2>/dev/null || true); case \"$CMD\" in *graphify*) true ;; *grep*|*rg\\ *|*ripgrep*|*find\\ *|*fd\\ *|*ack\\ *|*ag\\ *|*head\\ *|*cat\\ *|*tail\\ *|*less\\ *|*more\\ *|*bat\\ *|*wc\\ *)   [ -f graphify-out/graph.json ] &&   echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by graphify hook: Use graphify query <question> instead of grep/find/cat/head for codebase exploration. Only use these commands for non-codebase tasks (logs, configs, etc).\"}}'   || true ;; esac"
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "HIT=$(python3 -c \"import json,sys;d=json.load(sys.stdin);t=d.get('tool_input',d);s=(str(t.get('file_path') or '')+' '+str(t.get('pattern') or '')+' '+str(t.get('path') or '')).lower().replace(chr(92),'/');words=s.split();exts=('.py','.js','.ts','.tsx','.jsx','.go','.rs','.java','.rb','.c','.h','.cpp','.hpp','.cc','.cs','.kt','.swift','.php','.scala','.lua','.sh','.md','.rst','.txt','.mdx');is_src=not any(x in s for x in ('graphify-out/','skills/','.claude/','.gemini/','.codex/','.git/','node_modules/')) and any(any(w.endswith(e) for e in exts) for w in words) if s else False;sys.stdout.write('1' if is_src else '')\" 2>/dev/null || true); if [ \"$HIT\" = 1 ] && [ -f graphify-out/graph.json ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by graphify hook: This project has a knowledge graph at graphify-out/. Use graphify query <question> for codebase questions, graphify explain <concept> for deep-dives, or graphify path <A> <B> for file relationships. Only read raw files when modifying or debugging specific code.\"}}'; fi || true"
-          }
-        ]
-      }
-    ]
-  }
+  "skipDangerousModePermissionPrompt": true
 }

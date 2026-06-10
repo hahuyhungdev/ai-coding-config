@@ -11,23 +11,22 @@ from pathlib import Path
 
 
 MANAGED_GRAPHIFY_MARKER = "ai-coding-config:graphify-managed"
-BROAD_DISCOVERY_COMMANDS = {"grep", "rg", "ripgrep", "find", "fd", "ack", "ag"}
+BROAD_DISCOVERY_COMMANDS = {"grep", "rg", "ripgrep", "find", "fd", "ack", "ag", "head", "cat", "tail", "less", "more", "bat", "wc"}
 SOURCE_EXTENSIONS = {
     ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb",
     ".c", ".h", ".cpp", ".hpp", ".cc", ".cs", ".kt", ".swift", ".php",
     ".scala", ".lua", ".sh", ".md", ".rst", ".txt", ".mdx",
+    ".json", ".yaml", ".yml", ".toml",
 }
 IGNORED_SOURCE_PARTS = {
     "graphify-out", "skills", ".claude", ".gemini", ".codex", ".git", "node_modules",
 }
 GRAPHIFY_GUIDANCE = (
-    "This project has a knowledge graph at graphify-out/. For architecture or broad "
-    "codebase discovery, the FIRST tool call must be `rtk graphify query \"<question>\"`; "
-    "do not run ls/which/test or read source first. Use at most 3 Graphify calls total: "
-    "the initial query plus at most 2 follow-up query/path/explain calls, then hard stop "
-    "all Graphify calls and synthesize the answer. Read "
-    "GRAPH_REPORT.md only when scoped Graphify results are insufficient or the user asks "
-    "for a broad report. Targeted raw reads are allowed for specific edits and debugging."
+    "⚠️ GRAPHIFY WORKFLOW RULES:\n"
+    "- Architecture questions → rtk graphify query \"question\"\n"
+    "- Code relationships → rtk graphify path \"A\" \"B\"\n"
+    "- Deep-dive concepts → rtk graphify explain \"concept\"\n"
+    "- Direct reads are ONLY for editing specific files."
 )
 GRAPHIFY_INSTRUCTIONS = f"""## graphify
 
