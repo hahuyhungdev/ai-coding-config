@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Shield, Key, Eye, HelpCircle, Check, X, Terminal, Cpu, Info, RefreshCw, Zap } from 'lucide-react';
 
 interface SimulationStep {
@@ -39,6 +39,14 @@ export const SimulatorTab: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [approved, setApproved] = useState<boolean | null>(null);
   const [toolUseId, setToolUseId] = useState(() => 'toolu_' + Math.random().toString(36).substring(2, 15));
+
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs]);
 
   const addLog = (msg: string) => setLogs(prev => [...prev, msg]);
 
@@ -273,6 +281,7 @@ export const SimulatorTab: React.FC = () => {
                   <p>Chọn kịch bản và nhấn "Bắt đầu" để xem luồng.</p>
                 </div>
               )}
+              <div ref={terminalEndRef} />
 
               {/* User Consent Pop-up Simulation */}
               {stepIndex === 4 && selectedPreset.risk === 'high' && approved === null && (
