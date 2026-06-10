@@ -72,3 +72,48 @@ export interface ExplorerDetail {
   };
   prompt: string;
 }
+
+// Conversation Viewer Types
+export interface ConversationMeta {
+  id: string;
+  title: string;
+  last_updated: string;
+  size_bytes: number;
+  source?: string;
+  project?: string;
+}
+
+export interface ConversationStats {
+  total_steps: number;
+  user_messages: number;
+  tool_calls: number;
+  est_input_tokens: number;
+  est_output_tokens: number;
+  est_cost: number;
+  model_name: string;
+  input_rate: number;
+  output_rate: number;
+}
+
+export interface ConversationStep {
+  type: string;
+  content: string;
+  est_tokens: number;
+  timestamp?: string;
+  status?: string;
+  resolved_args?: any;
+  thinking?: string;
+}
+
+export interface ConversationData {
+  id: string;
+  stats: ConversationStats;
+  steps: ConversationStep[];
+}
+
+export interface ConversationTurn {
+  index: number;
+  user: ConversationStep | null;
+  agent: ConversationStep | null;
+  tools: ConversationStep[];
+}

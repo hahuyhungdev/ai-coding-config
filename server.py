@@ -6,6 +6,8 @@ import argparse
 import urllib.parse
 import urllib.request
 import shutil
+import os
+from datetime import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import toml
@@ -14,6 +16,10 @@ REPO_DIR = Path(__file__).resolve().parent
 SHARED_DISABLED = REPO_DIR / "shared-disabled-mcp.json"
 AGENTS_DIR = REPO_DIR / "agents"
 SKILLS_DIR = REPO_DIR / "skills"
+
+BRAIN_DIR = Path.home() / ".gemini" / "antigravity-cli" / "brain"
+CLAUDE_DIR = Path.home() / ".claude" / "projects"
+CODEX_DIR = Path.home() / ".codex" / "sessions"
 
 CLI_CONFIGS = {
     "claude": {"name": "Claude Code", "dir": "~/.claude"},
@@ -216,6 +222,420 @@ def get_targets_state() -> dict:
     return cli_state
 
 
+def estimate_tokens(text: any, is_output=False) -> int:
+    """Heuristic token estimator optimized for mixed English, code, and Vietnamese."""
+    if not text:
+        return 0
+    if not isinstance(text, str):
+        if isinstance(text, (list, dict)):
+            text = json.dumps(text, ensure_ascii=False)
+        else:
+            text = str(text)
+    chars = len(text)
+    non_ascii = sum(1 for char in text if ord(char) > 127)
+    ascii_len = chars - non_ascii
+    
+    # 4 chars per token for ASCII/English, 1.5 chars per token for Vietnamese/Unicode
+    est = (ascii_len / 4.0) + (non_ascii / 1.5)
+    return int(est)
+
+
+def clean_project_name(folder_name: str) -> str:
+    """Extract a clean project name from URL-encoded folder names."""
+    if folder_name.startswith("-"):
+        parts = [p for p in folder_name.split("-") if p]
+        if parts:
+            return parts[-1]
+    return folder_name
+
+
+def map_tool_name_to_step_type(tool_name: str) -> str:
+    """Map various tool names from different CLIs to a unified step type."""
+    name_lower = tool_name.lower()
+    if name_lower in ("bash", "execute_command", "run_command", "run_shell_command"):
+        return "RUN_COMMAND"
+    elif name_lower in ("read", "view_file", "read_file", "get_file_contents"):
+        return "VIEW_FILE"
+    elif name_lower in ("grep", "grep_search", "search_code", "search_issues"):
+        return "GREP_SEARCH"
+    elif name_lower in ("list", "list_directory", "list_dir"):
+        return "LIST_DIRECTORY"
+    elif name_lower in ("replace_file_content", "write_to_file", "multi_replace_file_content", "apply_patch", "edit_file", "create_or_update_file", "push_files"):
+        return "CODE_ACTION"
+    elif name_lower in ("search_web", "google_search", "search_repositories"):
+        return "SEARCH_WEB"
+    elif name_lower in ("read_url_content", "read_url", "read_browser_page"):
+        return "READ_URL_CONTENT"
+    elif name_lower in ("ask_question", "ask_permission"):
+        return "ASK_QUESTION"
+    elif name_lower in ("invoke_subagent", "define_subagent"):
+        return "INVOKE_SUBAGENT"
+    elif name_lower in ("list_resources", "list_permissions"):
+        return "LIST_RESOURCES"
+    else:
+        return "MCP_TOOL"
+
+
+def get_gemini_metadata(conv_dir: Path) -> dict:
+    log_file = conv_dir / ".system_generated" / "logs" / "transcript.jsonl"
+    if not log_file.exists():
+        return None
+        
+    mtime = log_file.stat().st_mtime
+    dt = datetime.fromtimestamp(mtime)
+    
+    title = "Untitled Gemini Conversation"
+    try:
+        with log_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if data.get("type") == "USER_INPUT":
+                        content = data.get("content", "").strip()
+                        if content:
+                            if "<USER_REQUEST>" in content:
+                                content = content.split("<USER_REQUEST>")[-1].split("</USER_REQUEST>")[0].strip()
+                            title = content[:80] + "..." if len(content) > 80 else content
+                            break
+                except Exception:
+                    continue
+    except Exception:
+        pass
+        
+    return {
+        "id": f"gemini__{conv_dir.name}",
+        "title": title,
+        "last_updated": dt.isoformat(),
+        "size_bytes": log_file.stat().st_size,
+        "source": "gemini",
+        "project": "Antigravity CLI"
+    }
+
+
+def get_claude_metadata(session_file: Path, project_dir_name: str) -> dict:
+    mtime = session_file.stat().st_mtime
+    dt = datetime.fromtimestamp(mtime)
+    
+    title = "Untitled Claude Conversation"
+    try:
+        with session_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if data.get("type") == "user" and "message" in data:
+                        msg = data["message"]
+                        role = msg.get("role")
+                        if role == "user":
+                            content = msg.get("content", "")
+                            if isinstance(content, str) and content.strip():
+                                if "❯" in content:
+                                    content = content.replace("❯", "").strip()
+                                title = content[:80] + "..." if len(content) > 80 else content
+                                break
+                except Exception:
+                    continue
+    except Exception:
+        pass
+        
+    project_clean = clean_project_name(project_dir_name)
+    return {
+        "id": f"claude__{project_dir_name}__{session_file.stem}",
+        "title": title,
+        "last_updated": dt.isoformat(),
+        "size_bytes": session_file.stat().st_size,
+        "source": "claude",
+        "project": project_clean
+    }
+
+
+def get_codex_metadata(rollout_file: Path, year: str, month: str, day: str) -> dict:
+    mtime = rollout_file.stat().st_mtime
+    dt = datetime.fromtimestamp(mtime)
+    
+    title = "Untitled Codex Conversation"
+    project = "nx-monorepo-workspace"
+    try:
+        with rollout_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if data.get("type") == "session_meta" and "payload" in data:
+                        cwd = data["payload"].get("cwd", "")
+                        if cwd:
+                            project = Path(cwd).name
+                    if data.get("type") == "response_item" and "payload" in data:
+                        payload = data["payload"]
+                        if payload.get("type") == "message":
+                            role = payload.get("role")
+                            if role == "user":
+                                for block in payload.get("content", []):
+                                    if block.get("type") in ("input_text", "text"):
+                                        content = block.get("text", "").strip()
+                                        if content:
+                                            if "❯" in content:
+                                                content = content.replace("❯", "").strip()
+                                            title = content[:80] + "..." if len(content) > 80 else content
+                                            break
+                                if title != "Untitled Codex Conversation":
+                                    break
+                except Exception:
+                    continue
+    except Exception:
+        pass
+        
+    return {
+        "id": f"codex__{year}-{month}-{day}__{rollout_file.stem}",
+        "title": title,
+        "last_updated": dt.isoformat(),
+        "size_bytes": rollout_file.stat().st_size,
+        "source": "codex",
+        "project": project
+    }
+
+
+
+def get_all_conversations():
+    conversations = []
+    
+    # 1. Gemini / Antigravity CLI
+    if BRAIN_DIR.exists() and BRAIN_DIR.is_dir():
+        for child in BRAIN_DIR.iterdir():
+            if child.is_dir():
+                meta = get_gemini_metadata(child)
+                if meta:
+                    conversations.append(meta)
+                    
+    # 2. Claude Code
+    if CLAUDE_DIR.exists() and CLAUDE_DIR.is_dir():
+        for project_dir in CLAUDE_DIR.iterdir():
+            if project_dir.is_dir():
+                for session_file in project_dir.glob("*.jsonl"):
+                    meta = get_claude_metadata(session_file, project_dir.name)
+                    if meta:
+                        conversations.append(meta)
+                        
+    # 3. Codex CLI
+    if CODEX_DIR.exists() and CODEX_DIR.is_dir():
+        for year_dir in CODEX_DIR.iterdir():
+            if year_dir.is_dir() and year_dir.name.isdigit():
+                for month_dir in year_dir.iterdir():
+                    if month_dir.is_dir() and month_dir.name.isdigit():
+                        for day_dir in month_dir.iterdir():
+                            if day_dir.is_dir() and day_dir.name.isdigit():
+                                for rollout_file in day_dir.glob("*.jsonl"):
+                                    meta = get_codex_metadata(rollout_file, year_dir.name, month_dir.name, day_dir.name)
+                                    if meta:
+                                        conversations.append(meta)
+                                        
+    conversations.sort(key=lambda x: x["last_updated"], reverse=True)
+    return conversations
+
+
+def parse_gemini_jsonl(log_file: Path) -> list:
+    steps = []
+    try:
+        with log_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    steps.append(json.loads(line))
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return steps
+
+
+def parse_claude_jsonl(log_file: Path) -> list:
+    steps = []
+    tool_calls_map = {}
+    try:
+        with log_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    line_type = data.get("type")
+                    
+                    if line_type == "user" and "message" in data:
+                        msg = data["message"]
+                        role = msg.get("role")
+                        if role == "user":
+                            content = msg.get("content", "")
+                            if isinstance(content, list):
+                                for block in content:
+                                    if block.get("type") == "tool_result":
+                                        tool_id = block.get("tool_use_id")
+                                        stdout = block.get("content", "")
+                                        if isinstance(stdout, list):
+                                            stdout_parts = []
+                                            for b in stdout:
+                                                if isinstance(b, dict) and b.get("type") == "text":
+                                                    stdout_parts.append(b.get("text", ""))
+                                                elif isinstance(b, str):
+                                                    stdout_parts.append(b)
+                                            stdout = "\n".join(stdout_parts)
+                                        elif not isinstance(stdout, str):
+                                            stdout = str(stdout)
+                                        is_error = block.get("is_error", False)
+                                        
+                                        if tool_id in tool_calls_map:
+                                            t_call = tool_calls_map[tool_id]
+                                            steps.append({
+                                                "type": map_tool_name_to_step_type(t_call["name"]),
+                                                "content": stdout,
+                                                "status": "ERROR" if is_error else "OK",
+                                                "resolved_args": t_call["input"]
+                                            })
+                            else:
+                                steps.append({
+                                    "type": "USER_INPUT",
+                                    "content": content
+                                })
+                                
+                    elif line_type == "assistant" and "message" in data:
+                        msg = data["message"]
+                        role = msg.get("role")
+                        if role == "assistant":
+                            blocks = msg.get("content", [])
+                            text_content = []
+                            thinking_content = []
+                            proposed_tool_calls = []
+                            
+                            for block in blocks:
+                                b_type = block.get("type")
+                                if b_type == "text":
+                                    text_content.append(block.get("text", ""))
+                                elif b_type == "thinking":
+                                    thinking_content.append(block.get("thinking", ""))
+                                elif b_type == "tool_use":
+                                    t_id = block.get("id")
+                                    t_name = block.get("name")
+                                    t_input = block.get("input", {})
+                                    
+                                    tool_calls_map[t_id] = {
+                                        "name": t_name,
+                                        "input": t_input
+                                    }
+                                    proposed_tool_calls.append({
+                                        "name": t_name,
+                                        "arguments": t_input
+                                    })
+                                    
+                            steps.append({
+                                "type": "PLANNER_RESPONSE",
+                                "content": "\n".join(text_content),
+                                "thinking": "\n".join(thinking_content),
+                                "tool_calls": proposed_tool_calls
+                            })
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return steps
+
+
+def parse_codex_jsonl(log_file: Path) -> list:
+    steps = []
+    tool_calls_map = {}
+    try:
+        with log_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    line_type = data.get("type")
+                    
+                    if line_type == "response_item" and "payload" in data:
+                        payload = data["payload"]
+                        payload_type = payload.get("type")
+                        
+                        if payload_type == "message":
+                            role = payload.get("role")
+                            content = payload.get("content", [])
+                            
+                            if role == "user":
+                                text_parts = []
+                                for block in content:
+                                    if isinstance(block, dict):
+                                        b_type = block.get("type")
+                                        if b_type in ("input_text", "text"):
+                                            text_parts.append(block.get("text", ""))
+                                    elif isinstance(block, str):
+                                        text_parts.append(block)
+                                content_str = "\n".join(text_parts).strip()
+                                if content_str:
+                                    steps.append({
+                                        "type": "USER_INPUT",
+                                        "content": content_str
+                                    })
+                                    
+                            elif role == "assistant":
+                                text_content = []
+                                thinking_content = []
+                                proposed_tool_calls = []
+                                
+                                for block in content:
+                                    if isinstance(block, dict):
+                                        b_type = block.get("type")
+                                        if b_type in ("text", "output_text"):
+                                            text_content.append(block.get("text", ""))
+                                        elif b_type == "thinking":
+                                            thinking_content.append(block.get("thinking", ""))
+                                    elif isinstance(block, str):
+                                        text_content.append(block)
+                                        
+                                steps.append({
+                                    "type": "PLANNER_RESPONSE",
+                                    "content": "\n".join(text_content),
+                                    "thinking": "\n".join(thinking_content),
+                                    "tool_calls": proposed_tool_calls
+                                })
+                                
+                        elif payload_type == "custom_tool_call":
+                            call_id = payload.get("call_id")
+                            name = payload.get("name")
+                            t_input = payload.get("input", "")
+                            tool_calls_map[call_id] = {
+                                "name": name,
+                                "input": t_input
+                            }
+                            
+                        elif payload_type == "custom_tool_call_output":
+                            call_id = payload.get("call_id")
+                            output_blocks = payload.get("output", [])
+                            
+                            stdout_parts = []
+                            if isinstance(output_blocks, list):
+                                for block in output_blocks:
+                                    if isinstance(block, dict):
+                                        b_type = block.get("type")
+                                        if b_type in ("input_text", "text"):
+                                            stdout_parts.append(block.get("text", ""))
+                                    elif isinstance(block, str):
+                                        stdout_parts.append(block)
+                            elif isinstance(output_blocks, str):
+                                stdout_parts.append(output_blocks)
+                                
+                            stdout = "\n".join(stdout_parts)
+                            is_error = payload.get("is_error", False)
+                            
+                            if call_id in tool_calls_map:
+                                t_call = tool_calls_map[call_id]
+                                resolved_args = t_call["input"]
+                                if isinstance(resolved_args, str):
+                                    resolved_args = {"script": resolved_args}
+                                steps.append({
+                                    "type": map_tool_name_to_step_type(t_call["name"]),
+                                    "content": stdout,
+                                    "status": "ERROR" if is_error else "OK",
+                                    "resolved_args": resolved_args
+                                })
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return steps
+
+
+
 class ConfigHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         # Override to suppress standard HTTP logging to keep console clean
@@ -225,6 +645,30 @@ class ConfigHandler(BaseHTTPRequestHandler):
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
         query = urllib.parse.parse_qs(parsed_url.query)
+        
+        # Serve transcript screenshots/media if requested
+        unquoted_path = urllib.parse.unquote(path).strip("/")
+        if any(x in unquoted_path for x in (".playwright-mcp", ".gemini", ".claude", ".codex")):
+            if unquoted_path.startswith("home/"):
+                file_path = Path("/") / unquoted_path
+            else:
+                file_path = Path.home() / unquoted_path
+                if not file_path.exists():
+                    file_path = REPO_DIR / unquoted_path
+
+            if file_path.exists() and file_path.is_file():
+                content_type = "image/png" if file_path.suffix == ".png" else "application/octet-stream"
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(file_path.stat().st_size))
+                self.end_headers()
+                self.wfile.write(file_path.read_bytes())
+                return
+            else:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"File not found")
+                return
         
         # Static files serving for compiled Vite React app (frontend/dist/)
         dist_dir = REPO_DIR / "frontend" / "dist"
@@ -333,6 +777,23 @@ class ConfigHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_error_json(500, str(e))
                 
+        elif path == "/api/conversations":
+            try:
+                conversations = get_all_conversations()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(conversations, indent=2).encode("utf-8"))
+            except Exception as e:
+                self.send_error_json(500, str(e))
+                
+        elif path.startswith("/api/conversation/"):
+            conv_id = path.replace("/api/conversation/", "")
+            try:
+                self.handle_get_conversation(conv_id)
+            except Exception as e:
+                self.send_error_json(500, str(e))
+
         elif path == "/api/apply/stream":
             force = query.get("force", ["false"])[0] == "true"
             claude = query.get("claude", ["true"])[0] == "true"
@@ -376,6 +837,156 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             self.wfile.write(b"Not Found")
+
+    def handle_get_conversation(self, conv_id):
+        clean_id = "".join(c for c in conv_id if c.isalnum() or c in "-_")
+        parts = clean_id.split("__")
+        if len(parts) < 2:
+            self.send_error_json(400, "Invalid conversation ID format")
+            return
+            
+        source = parts[0]
+        steps = []
+        model_name = "unknown"
+        
+        if source == "gemini":
+            gemini_id = parts[1]
+            log_file = BRAIN_DIR / gemini_id / ".system_generated" / "logs" / "transcript.jsonl"
+            if not log_file.exists():
+                self.send_error_json(404, "Gemini conversation log not found")
+                return
+            steps = parse_gemini_jsonl(log_file)
+            model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+            
+        elif source == "claude":
+            if len(parts) < 3:
+                self.send_error_json(400, "Invalid Claude conversation ID format")
+                return
+            project_dir_name = parts[1]
+            session_id = parts[2]
+            log_file = CLAUDE_DIR / project_dir_name / f"{session_id}.jsonl"
+            if not log_file.exists():
+                self.send_error_json(404, "Claude conversation log not found")
+                return
+            steps = parse_claude_jsonl(log_file)
+            model_name = "claude-3-5-sonnet"
+            try:
+                with log_file.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        data = json.loads(line)
+                        if data.get("type") == "assistant" and "message" in data:
+                            model_name = data["message"].get("model", model_name)
+                            break
+            except Exception:
+                pass
+            
+        elif source == "codex":
+            if len(parts) < 3:
+                self.send_error_json(400, "Invalid Codex conversation ID format")
+                return
+            year_month_day = parts[1]
+            rollout_filename = parts[2]
+            
+            y_m_d_parts = year_month_day.split("-")
+            if len(y_m_d_parts) != 3:
+                self.send_error_json(400, "Invalid Codex date format")
+                return
+            year, month, day = y_m_d_parts
+            
+            log_file = CODEX_DIR / year / month / day / f"{rollout_filename}.jsonl"
+            if not log_file.exists():
+                self.send_error_json(404, "Codex conversation log not found")
+                return
+            steps = parse_codex_jsonl(log_file)
+            model_name = "gpt-5"
+            try:
+                with log_file.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        data = json.loads(line)
+                        if data.get("type") == "session_meta" and "payload" in data:
+                            model_name = data["payload"].get("model_provider", model_name)
+                            break
+            except Exception:
+                pass
+        else:
+            self.send_error_json(400, f"Unsupported conversation source: {source}")
+            return
+
+        # Determine model rates
+        model_lower = model_name.lower()
+        if "pro" in model_lower:
+            input_rate = 1.25
+            output_rate = 5.00
+        elif "flash" in model_lower:
+            input_rate = 0.075
+            output_rate = 0.30
+        elif "sonnet" in model_lower or "claude-3-5" in model_lower or "claude-3.7" in model_lower:
+            input_rate = 3.00
+            output_rate = 15.00
+        elif "opus" in model_lower:
+            input_rate = 15.00
+            output_rate = 75.00
+        elif "haiku" in model_lower:
+            input_rate = 0.25
+            output_rate = 1.25
+        elif "gpt-5" in model_lower or "openai" in model_lower:
+            input_rate = 5.00
+            output_rate = 15.00
+        else:
+            input_rate = 1.25
+            output_rate = 5.00
+
+        stats = {
+            "total_steps": 0,
+            "user_messages": 0,
+            "tool_calls": 0,
+            "est_input_tokens": 0,
+            "est_output_tokens": 0,
+            "est_cost": 0.0,
+            "model_name": model_name,
+            "input_rate": input_rate,
+            "output_rate": output_rate
+        }
+        
+        for step in steps:
+            content = step.get("content")
+            if content is None:
+                content = ""
+            step["content"] = content
+            tokens = estimate_tokens(content)
+            step["est_tokens"] = tokens
+            
+            stats["total_steps"] += 1
+            step_type = step.get("type")
+            if step_type == "USER_INPUT":
+                stats["user_messages"] += 1
+                stats["est_input_tokens"] += 25000 + tokens
+            elif step_type == "PLANNER_RESPONSE":
+                stats["est_output_tokens"] += tokens
+            elif step_type in (
+                "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
+                "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
+                "ASK_QUESTION", "INVOKE_SUBAGENT", "CHECKPOINT", "ERROR_MESSAGE",
+                "LIST_RESOURCES", "GENERIC"
+            ):
+                if step_type != "CHECKPOINT":
+                    stats["tool_calls"] += 1
+                stats["est_input_tokens"] += tokens
+
+        input_cost = (stats["est_input_tokens"] / 1_000_000.0) * input_rate
+        output_cost = (stats["est_output_tokens"] / 1_000_000.0) * output_rate
+        stats["est_cost"] = round(input_cost + output_cost, 4)
+        
+        payload = {
+            "id": clean_id,
+            "stats": stats,
+            "steps": steps
+        }
+        
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
 
     def do_POST(self):
         parsed_url = urllib.parse.urlparse(self.path)
