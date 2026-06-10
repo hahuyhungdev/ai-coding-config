@@ -186,8 +186,8 @@ elif exists:
     if claude:
         output = r'''out={}
 if context:
- out={"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":context}}
- if decision=="deny": out["hookSpecificOutput"].update({"permissionDecision":"deny","permissionDecisionReason":context})
+ out={"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":context,"permissionDecision":decision}}
+ if decision=="deny": out["hookSpecificOutput"].update({"permissionDecisionReason":context})
 sys.stdout.write(json.dumps(out) if out else "")
 '''
     else:
