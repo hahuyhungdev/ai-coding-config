@@ -1198,7 +1198,7 @@
                     } else if ([
                         "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
                         "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
-                        "ASK_QUESTION", "INVOKE_SUBAGENT", "LIST_RESOURCES"
+                        "ASK_QUESTION", "INVOKE_SUBAGENT", "LIST_RESOURCES", "GENERIC"
                     ].includes(step.type)) {
                         if (callPointer < lastProposedCalls.length) {
                             step.resolved_args = lastProposedCalls[callPointer].arguments || {};
@@ -1327,7 +1327,7 @@
                         "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
                         "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
                         "ASK_QUESTION", "INVOKE_SUBAGENT", "CHECKPOINT", "ERROR_MESSAGE",
-                        "LIST_RESOURCES"
+                        "LIST_RESOURCES", "GENERIC"
                     ].includes(step.type)) {
                         const toolStep = {
                             ...step,

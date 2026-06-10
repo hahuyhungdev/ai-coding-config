@@ -212,7 +212,7 @@ class TranscriptAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
                             "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
                             "ASK_QUESTION", "INVOKE_SUBAGENT", "CHECKPOINT", "ERROR_MESSAGE",
-                            "LIST_RESOURCES"
+                            "LIST_RESOURCES", "GENERIC"
                         ):
                             if step_type != "CHECKPOINT":
                                 stats["tool_calls"] += 1
