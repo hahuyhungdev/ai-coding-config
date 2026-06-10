@@ -25,10 +25,10 @@ const CodexTab: React.FC<CodexTabProps> = ({ tempConfig, initialConfig, setTempC
   const isInstructionsModified = initialConfig.codex_instructions !== tempConfig.codex_instructions;
   const inputBase = "w-full bg-white/[0.03] border border-white/[0.10] text-text-primary text-sm rounded-lg px-3 py-2 outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/10 transition-all duration-300";
   const labelBase = "text-sm font-medium text-text-secondary";
-  const accentColor = "text-[#c084fc]";
+  const accentColor = "text-[#50fa7b]";
 
   return (
-    <div className="flex flex-col gap-5 max-w-[800px]">
+    <div className="flex flex-col gap-5 w-full">
       <div>
         <h2 className="font-display text-2xl text-text-primary mb-1">Codex CLI</h2>
         <p className="text-sm text-text-muted">Configure model, security, and agent behavior</p>

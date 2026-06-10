@@ -42,7 +42,7 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
     ...(explorerFilter === 'all' || explorerFilter === 'skills' ? tempConfig.skills.map(s => ({ type: 'skill' as const, name: s })) : [])
   ].filter(item => item.name.toLowerCase().includes(explorerSearch.toLowerCase()));
 
-  const accentForType = (type: 'agent' | 'skill') => type === 'agent' ? '#60a5fa' : '#c084fc';
+  const accentForType = (type: 'agent' | 'skill') => type === 'agent' ? '#60a5fa' : '#8be9fd';
 
   return (
     <div className="flex h-[calc(100vh-180px)] glass rounded-xl overflow-hidden">
@@ -104,8 +104,8 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
                       <Bot className="h-5 w-5 text-[#60a5fa]" />
                     </div>
                   ) : (
-                    <div className="h-10 w-10 rounded-lg bg-[#c084fc]/10 border border-[#c084fc]/15 flex items-center justify-center">
-                      <Wrench className="h-5 w-5 text-[#c084fc]" />
+                    <div className="h-10 w-10 rounded-lg bg-[#8be9fd]/10 border border-[#8be9fd]/15 flex items-center justify-center">
+                      <Wrench className="h-5 w-5 text-[#8be9fd]" />
                     </div>
                   )}
                   <div>
@@ -118,7 +118,7 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <span className={`text-[9px] font-mono font-semibold px-3 py-1 rounded-full uppercase border ${
                   selectedExplorer?.type === 'agent'
                     ? 'bg-[#60a5fa]/10 text-[#60a5fa] border-[#60a5fa]/15'
-                    : 'bg-[#c084fc]/10 text-[#c084fc] border-[#c084fc]/15'
+                    : 'bg-[#8be9fd]/10 text-[#8be9fd] border-[#8be9fd]/15'
                 }`}>{selectedExplorer?.type}</span>
               </div>
 

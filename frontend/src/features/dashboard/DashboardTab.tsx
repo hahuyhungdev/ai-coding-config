@@ -42,7 +42,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       '32': 'text-success font-bold',
       '33': 'text-warning font-bold',
       '34': 'text-info font-bold',
-      '35': 'text-[#c084fc] font-bold',
+      '35': 'text-[#8be9fd] font-bold',
       '36': 'text-[#22d3ee] font-bold',
       '90': 'text-text-muted',
       '91': 'text-error',
@@ -85,7 +85,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-[900px]">
+    <div className="flex flex-col gap-6 w-full">
       {/* Hero greeting */}
       <div className="animate-fade-up">
         <h2 className="font-display text-3xl text-text-primary mb-1">Dashboard</h2>
@@ -112,7 +112,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
               <h3 className="text-[15px] font-medium text-text-primary flex items-center gap-2.5">
                 {cid === 'claude' && <MessageSquareCode className="h-4 w-4 text-[#60a5fa]" />}
-                {cid === 'codex' && <TerminalIcon className="h-4 w-4 text-[#c084fc]" />}
+                {cid === 'codex' && <TerminalIcon className="h-4 w-4 text-[#50fa7b]" />}
                 {cid === 'agy' && <Sparkles className="h-4 w-4 text-accent" />}
                 {info.name}
               </h3>
@@ -143,8 +143,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           onClick={() => { setExplorerFilter('skills'); setActiveTab('explorer'); }}
           className="glass rounded-xl p-4 flex items-center gap-4 cursor-pointer hover-lift group"
         >
-          <div className="h-10 w-10 rounded-lg bg-[#c084fc]/10 border border-[#c084fc]/15 flex items-center justify-center group-hover:border-[#c084fc]/30 transition-colors">
-            <Wrench className="h-5 w-5 text-[#c084fc]" />
+          <div className="h-10 w-10 rounded-lg bg-[#8be9fd]/10 border border-[#8be9fd]/15 flex items-center justify-center group-hover:border-[#8be9fd]/30 transition-colors">
+            <Wrench className="h-5 w-5 text-[#8be9fd]" />
           </div>
           <div>
             <div className="text-[10px] text-text-muted uppercase font-semibold tracking-[0.12]">Skills</div>
@@ -206,11 +206,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className="glass rounded-xl p-5 flex flex-col">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
             <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.12] flex items-center gap-2">
-              <Wrench className="h-3.5 w-3.5 text-[#c084fc]" /> Skills ({tempConfig.skills.length})
+              <Wrench className="h-3.5 w-3.5 text-[#8be9fd]" /> Skills ({tempConfig.skills.length})
             </h4>
             <button
               onClick={() => { setExplorerFilter('skills'); setActiveTab('explorer'); }}
-              className="text-[10px] text-[#c084fc] hover:text-[#d4a8ff] font-medium transition-colors cursor-pointer"
+              className="text-[10px] text-[#8be9fd] hover:text-[#a4f1fe] font-medium transition-colors cursor-pointer"
             >
               View All →
             </button>
@@ -220,10 +220,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div
                 key={skillName}
                 onClick={() => { setSelectedExplorer({ type: 'skill', name: skillName }); setActiveTab('explorer'); }}
-                className="flex items-center justify-between p-2.5 bg-white/[0.04] border border-white/[0.08] hover:border-[#c084fc]/20 rounded-lg cursor-pointer transition-all duration-200"
+                className="flex items-center justify-between p-2.5 bg-white/[0.04] border border-white/[0.08] hover:border-[#8be9fd]/20 rounded-lg cursor-pointer transition-all duration-200"
               >
                 <span className="text-[12px] font-mono text-text-secondary">{skillName}</span>
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#c084fc]/10 text-[#c084fc] border border-[#c084fc]/15 font-medium">Skill</span>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#8be9fd]/10 text-[#8be9fd] border border-[#8be9fd]/15 font-medium">Skill</span>
               </div>
             ))}
             {tempConfig.skills.length === 0 && (

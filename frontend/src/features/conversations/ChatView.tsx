@@ -41,7 +41,7 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
           <div className="bg-accent/[0.05] border border-accent/12 rounded-2xl rounded-tl-md px-5 py-4 text-sm leading-relaxed text-text-primary">
             <div className="text-xs font-bold text-accent mb-2.5 uppercase tracking-wider">You</div>
             <div className="cv-markdown" dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.user.content) }} />
-            <div className="mt-3 text-[11px] text-text-muted font-mono">~{turn.user.est_tokens.toLocaleString()} tokens</div>
+            <div className="mt-3 text-[13px] text-text-secondary font-mono">~{turn.user.est_tokens.toLocaleString()} tokens</div>
           </div>
         </div>
       )}
@@ -52,7 +52,7 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
           <div className="glass rounded-2xl rounded-tr-md px-5 py-4 text-sm leading-relaxed text-text-primary">
             <div className="text-xs font-bold text-success mb-2.5 uppercase tracking-wider">Assistant</div>
             <div className="cv-markdown" dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.agent.content) }} />
-            <div className="mt-3 text-[11px] text-text-muted font-mono">~{turn.agent.est_tokens.toLocaleString()} tokens</div>
+            <div className="mt-3 text-[13px] text-text-secondary font-mono">~{turn.agent.est_tokens.toLocaleString()} tokens</div>
           </div>
           <div className="w-9 h-9 rounded-xl bg-success/15 border border-success/20 flex items-center justify-center flex-shrink-0">
             <Bot size={15} className="text-success" />
@@ -92,7 +92,7 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
           padding: 2px 6px;
           border-radius: 4px;
           font-family: 'JetBrains Mono', monospace;
-          font-size: 12px;
+          font-size: 13px;
           color: var(--color-accent);
         }
         .cv-markdown pre {
@@ -106,7 +106,7 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
         .cv-markdown pre code {
           background: none;
           padding: 0;
-          font-size: 12px;
+          font-size: 13px;
           line-height: 1.6;
           color: var(--color-text-secondary);
         }

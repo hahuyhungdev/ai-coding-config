@@ -12,13 +12,15 @@ export function ConversationViewer() {
   const {
     filteredConversations, activeConvId, activeConvData,
     activeTurn, setActiveTurn, searchQuery, setSearchQuery,
-    isLoading, selectConversation, turns, currentTurn
+    isLoading, selectConversation, deselectConversation, turns, currentTurn
   } = useConversations();
 
   return (
     <div className="flex h-full overflow-hidden rounded-xl glass">
       {/* Sidebar */}
-      <aside className="w-80 flex flex-col flex-shrink-0 border-r border-white/[0.08] bg-white/[0.03]">
+      <aside className={`w-80 flex flex-col flex-shrink-0 border-r border-white/[0.08] bg-white/[0.03] ${
+        activeConvId ? 'hidden lg:flex' : 'flex'
+      }`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/15 flex items-center justify-center">
@@ -26,7 +28,7 @@ export function ConversationViewer() {
             </div>
             <div>
               <span className="font-display font-semibold text-sm text-text-primary block">Conversations</span>
-              <span className="text-[11px] text-text-muted">{filteredConversations.length} items · {formatBytes(filteredConversations.reduce((s, c) => s + c.size_bytes, 0))}</span>
+              <span className="text-[13px] text-white font-medium">{filteredConversations.length} items · {formatBytes(filteredConversations.reduce((s, c) => s + c.size_bytes, 0))}</span>
             </div>
           </div>
         </div>
@@ -49,22 +51,22 @@ export function ConversationViewer() {
               }`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                  conv.source === 'claude' ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20' :
+                  conv.source === 'claude' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20' :
                   conv.source === 'codex' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
                   'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20'
                 }`}>
                   {conv.source || 'gemini'}
                 </span>
-                <span className="text-xs text-text-muted font-medium truncate" title={conv.project}>
+                <span className="text-[13px] text-white font-medium truncate" title={conv.project}>
                   {conv.project || 'Global'}
                 </span>
               </div>
-              <div className="text-[13px] font-medium text-text-primary leading-snug line-clamp-2 mb-2 group-hover:text-accent transition-colors">
+              <div className="text-[14px] font-semibold text-text-primary leading-snug line-clamp-2 mb-2 group-hover:text-accent transition-colors">
                 {conv.title}
               </div>
-              <div className="flex items-center gap-3 text-[11px] text-text-muted">
-                <span className="flex items-center gap-1.5"><Clock size={11} />{formatDate(conv.last_updated)}</span>
-                <span className="flex items-center gap-1.5"><HardDrive size={11} />{formatBytes(conv.size_bytes)}</span>
+              <div className="flex items-center gap-3 text-[13px] text-white">
+                <span className="flex items-center gap-1.5"><Clock size={11} className="text-accent" />{formatDate(conv.last_updated)}</span>
+                <span className="flex items-center gap-1.5"><HardDrive size={11} className="text-accent" />{formatBytes(conv.size_bytes)}</span>
               </div>
             </button>
           ))}
@@ -92,6 +94,16 @@ export function ConversationViewer() {
         ) : (
           <>
             <div className="flex items-center gap-6 px-6 py-4 border-b border-white/[0.08] bg-white/[0.03]">
+              {activeConvId && (
+                <button
+                  onClick={deselectConversation}
+                  className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                  title="Back to List"
+                >
+                  <ChevronLeft size={16} />
+                  <span>List</span>
+                </button>
+              )}
               <div className="flex-1">
                 <div className="font-display font-semibold text-lg text-text-primary mb-1">
                   #{activeConvId?.slice(0, 8)}
@@ -141,7 +153,7 @@ export function ConversationViewer() {
               </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden relative">
               <div className="flex-1 overflow-hidden">
                 <ChatView
                   turn={currentTurn}
@@ -150,13 +162,16 @@ export function ConversationViewer() {
                 />
               </div>
               {currentTurn && currentTurn.tools.length > 0 && showWorkspace && (
-                <WorkspaceView
-                  turn={currentTurn}
-                  stats={activeConvData.stats}
-                  turns={turns}
-                  activeTurn={activeTurn}
-                  setActiveTurn={setActiveTurn}
-                />
+                <div className="absolute inset-y-0 right-0 z-10 md:relative md:z-0 w-full md:w-[350px] lg:w-[400px] h-full flex flex-col bg-bg md:bg-transparent">
+                  <WorkspaceView
+                    turn={currentTurn}
+                    stats={activeConvData.stats}
+                    turns={turns}
+                    activeTurn={activeTurn}
+                    setActiveTurn={setActiveTurn}
+                    onClose={() => setShowWorkspace(false)}
+                  />
+                </div>
               )}
             </div>
           </>

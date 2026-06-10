@@ -12,18 +12,18 @@
 
   --color-border: rgba(98, 114, 164, 0.25);
   --color-border-subtle: rgba(98, 114, 164, 0.12);
-  --color-border-gold: rgba(255, 121, 198, 0.30); /* Pink border */
-  --color-border-focus: #bd93f9; /* Purple focus */
+  --color-border-gold: rgba(139, 233, 253, 0.30); /* Cyan border */
+  --color-border-focus: #8be9fd; /* Cyan focus */
 
   --color-text-primary: #f8f8f2;
   --color-text-secondary: #e2e2dc;
-  --color-text-muted: #6272a4;
+  --color-text-muted: #ffffff; /* High-contrast white comment color */
   --color-text-inverse: #282a36;
 
-  --color-accent: #bd93f9; /* Purple accent */
-  --color-accent-hover: #caa9fa;
-  --color-accent-dim: rgba(189, 147, 249, 0.15);
-  --color-accent-glow: rgba(189, 147, 249, 0.08);
+  --color-accent: #8be9fd; /* Dracula Cyan accent */
+  --color-accent-hover: #a4f1fe;
+  --color-accent-dim: rgba(139, 233, 253, 0.15);
+  --color-accent-glow: rgba(139, 233, 253, 0.08);
 
   --color-success: #50fa7b; /* Green success */
   --color-success-dim: rgba(80, 250, 123, 0.12);
@@ -41,10 +41,10 @@
   --color-white: #ffffff;
   --color-black: #000000;
 
-  /* Dracula Pink/Purple gradient for accents */
-  --color-gold-start: #bd93f9;
-  --color-gold-mid: #ff79c6;
-  --color-gold-end: #8be9fd;
+  /* Dracula Cyan/Green/Yellow gradient for accents */
+  --color-gold-start: #8be9fd;
+  --color-gold-mid: #50fa7b;
+  --color-gold-end: #f1fa8c;
 
   /* Typography */
   --font-display: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -56,8 +56,8 @@
 body {
   background-color: var(--color-bg);
   background-image:
-    radial-gradient(ellipse at 20% 0%, rgba(189, 147, 249, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 100%, rgba(255, 121, 198, 0.03) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 0%, rgba(139, 233, 253, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(80, 250, 123, 0.03) 0%, transparent 50%);
   color: var(--color-text-primary);
   margin: 0;
   font-family: var(--font-sans);
@@ -87,6 +87,11 @@ body::before {
 ::-webkit-scrollbar-thumb { background: rgba(98, 114, 164, 0.3); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(98, 114, 164, 0.5); }
 
+/* Prevent layout shift when scrollbars appear/disappear */
+.main-content-scrollbar {
+  scrollbar-gutter: stable;
+}
+
 /* Selection */
 ::selection {
   background: var(--color-accent-dim);
@@ -103,7 +108,7 @@ body::before {
 }
 
 .glass-gold {
-  background: linear-gradient(135deg, rgba(255, 121, 198, 0.06) 0%, rgba(33, 34, 44, 0.8) 100%);
+  background: linear-gradient(135deg, rgba(139, 233, 253, 0.06) 0%, rgba(33, 34, 44, 0.8) 100%);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid var(--color-border-gold);
@@ -201,4 +206,13 @@ body::before {
 .divider-gold {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--color-border-gold), transparent);
+}
+
+/* Scrollbar none utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

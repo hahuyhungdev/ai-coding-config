@@ -40,6 +40,11 @@ export function useConversations() {
     }
   }, []);
 
+  const deselectConversation = useCallback(() => {
+    setActiveConvId(null);
+    setActiveConvData(null);
+  }, []);
+
   const filteredConversations = conversations.filter(c =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -51,7 +56,7 @@ export function useConversations() {
     conversations, filteredConversations,
     activeConvId, activeConvData, activeTurn, setActiveTurn,
     searchQuery, setSearchQuery, isLoading,
-    selectConversation, loadConversations,
+    selectConversation, deselectConversation, loadConversations,
     turns, currentTurn
   };
 }

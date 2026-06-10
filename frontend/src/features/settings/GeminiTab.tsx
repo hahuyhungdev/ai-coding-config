@@ -26,7 +26,7 @@ const GeminiTab: React.FC<GeminiTabProps> = ({ initialConfig, tempConfig, setTem
   const accentColor = "text-[#f59e0b]";
 
   return (
-    <div className="flex flex-col gap-5 max-w-[800px]">
+    <div className="flex flex-col gap-5 w-full">
       <div>
         <h2 className="font-display text-2xl text-text-primary mb-1">Antigravity CLI</h2>
         <p className="text-sm text-text-muted">Configure Gemini model and workspace trust</p>

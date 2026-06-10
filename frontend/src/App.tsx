@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sliders, LayoutDashboard, Cpu, MessageSquareCode,
   Terminal as TerminalIcon, Sparkles, Compass, MessageSquare
@@ -32,13 +33,19 @@ export default function App() {
   const { toasts, showToast } = useToast();
   const config = useConfig(showToast);
 
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const rawPath = location.pathname.substring(1);
+  const activeTab = TABS.some(t => t.id === rawPath) ? rawPath : 'dashboard';
+  const setActiveTab = (tabId: string) => navigate(`/${tabId}`);
+
   const [mcpSearch, setMcpSearch] = useState('');
   const [explorerFilter, setExplorerFilter] = useState<'all' | 'agents' | 'skills'>('all');
   const [selectedExplorer, setSelectedExplorer] = useState<{ type: 'agent' | 'skill'; name: string } | null>(null);
   const [selectedMcpServer, setSelectedMcpServer] = useState<string | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [showMainSidebar, setShowMainSidebar] = useState(false);
 
   const mcpForm = useMcpForm(config.tempConfig, config.setTempConfig, setSelectedMcpServer, showToast);
 
@@ -65,26 +72,50 @@ export default function App() {
     <div className="flex w-screen h-screen overflow-hidden bg-bg text-text-primary">
 
       {activeTab !== 'conversations' && (
-        <Sidebar
-          initialConfig={config.initialConfig}
-          tempConfig={config.tempConfig}
-          handleTargetToggle={config.handleTargetToggle}
-          handleMcpToggle={config.handleMcpToggle}
-          batchMcp={config.batchMcp}
-          mcpSearch={mcpSearch}
-          setMcpSearch={setMcpSearch}
-          filteredMcp={filteredMcp}
-          hasPendingChanges={hasPendingChanges}
-          pendingChanges={mappedPendingChanges}
-          setShowApplyModal={setShowApplyModal}
-          setShowDiscardModal={setShowDiscardModal}
-        />
+        <>
+          {/* Main Sidebar Wrapper */}
+          <div className={`fixed inset-y-0 left-0 z-20 lg:relative lg:z-0 lg:flex shrink-0 ${
+            showMainSidebar ? 'flex' : 'hidden'
+          }`}>
+            <Sidebar
+              initialConfig={config.initialConfig}
+              tempConfig={config.tempConfig}
+              handleTargetToggle={config.handleTargetToggle}
+              handleMcpToggle={config.handleMcpToggle}
+              batchMcp={config.batchMcp}
+              mcpSearch={mcpSearch}
+              setMcpSearch={setMcpSearch}
+              filteredMcp={filteredMcp}
+              hasPendingChanges={hasPendingChanges}
+              pendingChanges={mappedPendingChanges}
+              setShowApplyModal={setShowApplyModal}
+              setShowDiscardModal={setShowDiscardModal}
+            />
+          </div>
+          {/* Mobile Overlay backdrop */}
+          {showMainSidebar && (
+            <div 
+              onClick={() => setShowMainSidebar(false)}
+              className="fixed inset-0 bg-black/50 z-10 lg:hidden backdrop-blur-sm animate-fade-in"
+            />
+          )}
+        </>
       )}
 
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <header className="flex bg-surface/40 backdrop-blur-md border-b border-white/[0.08] px-6 items-center justify-between">
-          <nav className="flex gap-0.5">
+        <header className="flex bg-surface/40 backdrop-blur-md border-b border-white/[0.08] px-4 sm:px-6 items-center justify-between overflow-hidden shrink-0">
+          <div className="flex items-center gap-2 flex-1 overflow-hidden">
+            {activeTab !== 'conversations' && (
+              <button
+                onClick={() => setShowMainSidebar(!showMainSidebar)}
+                className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0"
+                title="Toggle Sidebar"
+              >
+                <Sliders className="h-4 w-4" />
+              </button>
+            )}
+            <nav className="flex gap-0.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 flex-1 max-w-full">
             {TABS.map((tab, i) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -92,7 +123,7 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center gap-2 py-3.5 px-3.5 text-[12px] font-medium border-b-2 transition-all duration-300 cursor-pointer animate-fade-up stagger-${i + 1} ${
+                  className={`relative flex items-center gap-2 py-3.5 px-3 sm:px-3.5 text-[12px] font-medium border-b-2 transition-all duration-300 cursor-pointer flex-shrink-0 animate-fade-up stagger-${i + 1} ${
                     active
                       ? 'text-accent border-accent'
                       : 'text-text-muted border-transparent hover:text-text-secondary hover:border-white/[0.10]'
@@ -106,8 +137,9 @@ export default function App() {
                 </button>
               );
             })}
-          </nav>
-          <div className="flex items-center gap-3">
+            </nav>
+          </div>
+          <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
             <span className="text-[10px] text-text-muted bg-white/[0.03] border border-white/[0.10] px-3 py-1 rounded-full font-mono tracking-wide">
               v1.0
             </span>
@@ -120,8 +152,8 @@ export default function App() {
             <ConversationViewer />
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-8 animate-fade-up">
+          <div className="flex-1 overflow-y-auto main-content-scrollbar">
+            <div className="p-6 sm:p-8 animate-fade-up w-full max-w-[1000px] mx-auto">
               {activeTab === 'dashboard' && (
                 <DashboardTab tempConfig={config.tempConfig} logs={config.logs} setLogs={config.setLogs} setActiveTab={setActiveTab} setExplorerFilter={setExplorerFilter} setSelectedExplorer={setSelectedExplorer} />
               )}

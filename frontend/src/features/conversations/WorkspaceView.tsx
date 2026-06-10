@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { marked } from 'marked';
 import {
   Terminal, FileText, Search, FolderOpen, Globe, Code,
-  ChevronDown, ChevronRight, Zap, DollarSign
+  ChevronDown, ChevronRight, Zap, DollarSign, X
 } from 'lucide-react';
 import type { ConversationTurn, ConversationStats, ConversationStep } from '../../types';
 import { formatTokens, formatCost } from '../../utils/format';
@@ -123,9 +123,9 @@ function renderStepContent(step: ConversationStep) {
   if (isPlainText) {
     return (
       <div className="mt-2.5">
-        <div className="text-[10px] text-text-muted/60 uppercase tracking-wider mb-1.5 font-semibold">Output</div>
+        <div className="text-[11px] text-white/80 uppercase tracking-wider mb-1.5 font-semibold">Output</div>
         <div className="bg-black/40 rounded-xl border border-white/[0.08] p-4 overflow-x-auto max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin">
-          <pre className="text-[11px] font-mono text-text-secondary leading-relaxed whitespace-pre select-text">
+          <pre className="text-[13px] font-mono text-white leading-relaxed whitespace-pre select-text">
             {content}
           </pre>
         </div>
@@ -136,9 +136,9 @@ function renderStepContent(step: ConversationStep) {
   // Otherwise, render as markdown
   return (
     <div className="mt-2.5">
-      <div className="text-[10px] text-text-muted/60 uppercase tracking-wider mb-1.5 font-semibold">Result</div>
+      <div className="text-[11px] text-white/80 uppercase tracking-wider mb-1.5 font-semibold">Result</div>
       <div 
-        className="cv-ws-md text-xs leading-relaxed text-text-secondary font-mono bg-bg/50 rounded-xl p-4 border border-white/[0.10] max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin" 
+        className="cv-ws-md text-[14px] leading-relaxed text-white font-mono bg-bg/50 rounded-xl p-4 border border-white/[0.10] max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin" 
         dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} 
       />
     </div>
@@ -167,7 +167,7 @@ function ToolCard({ step, inputRate }: { step: ConversationStep; inputRate: numb
             </span>
           </div>
           {reason && (
-            <div className="text-[10.5px] text-accent/80 mt-1 leading-normal whitespace-pre-wrap break-words" title={step.reason}>
+            <div className="text-[14px] text-white mt-1 leading-normal whitespace-pre-wrap break-words italic" title={step.reason}>
               {reason}
             </div>
           )}
@@ -187,15 +187,15 @@ function ToolCard({ step, inputRate }: { step: ConversationStep; inputRate: numb
       {expanded && (
         <div className="px-4 pb-4 pt-0 animate-fade-in space-y-3">
           {step.reason && (
-            <div className="text-[11px] text-accent/80 font-mono bg-accent/[0.04] rounded-lg p-3 border border-accent/10">
-              <div className="text-[10px] text-accent/50 uppercase tracking-wider mb-1.5 font-semibold">Reason</div>
+            <div className="text-[14px] text-white font-mono bg-black/20 rounded-lg p-3 border border-accent/10">
+              <div className="text-[12px] text-accent font-semibold uppercase tracking-wider mb-1.5">Reason</div>
               <div className="whitespace-pre-wrap break-words leading-relaxed">{step.reason}</div>
             </div>
           )}
           {step.resolved_args && Object.keys(step.resolved_args).length > 0 && (
-            <div className="text-[11px] text-text-muted font-mono bg-white/[0.03] rounded-lg p-3 border border-white/[0.06]">
-              <div className="text-[10px] text-text-muted/60 uppercase tracking-wider mb-1.5 font-semibold">Arguments</div>
-              <pre className="whitespace-pre-wrap break-all text-text-secondary select-text scrollbar-thin max-h-[150px] overflow-y-auto">{JSON.stringify(step.resolved_args, null, 2)}</pre>
+            <div className="text-[13px] text-white/90 font-mono bg-white/[0.03] rounded-lg p-3 border border-white/[0.06]">
+              <div className="text-[12px] text-white/80 uppercase tracking-wider mb-1.5 font-semibold">Arguments</div>
+              <pre className="whitespace-pre-wrap break-all text-white select-text scrollbar-thin max-h-[150px] overflow-y-auto">{JSON.stringify(step.resolved_args, null, 2)}</pre>
             </div>
           )}
           {renderStepContent(step)}
@@ -222,9 +222,10 @@ interface WorkspaceViewProps {
   turns: ConversationTurn[];
   activeTurn: number;
   setActiveTurn: (index: number) => void;
+  onClose?: () => void;
 }
 
-export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn }: WorkspaceViewProps) {
+export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn, onClose }: WorkspaceViewProps) {
   const turnOutputTokens = turn.agent?.est_tokens || 0;
   const turnToolsTokens = turn.tools.reduce((s, t) => s + t.est_tokens, 0);
   const turnUserTokens = turn.user?.est_tokens || 0;
@@ -233,7 +234,7 @@ export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn }:
   const turnReason = turn.agent?.content?.trim() || '';
 
   return (
-    <div className="w-[400px] border-l border-white/[0.08] bg-white/[0.03] flex flex-col flex-shrink-0">
+    <div className="w-full h-full border-l border-white/[0.08] bg-white/[0.03] flex flex-col">
       <div className="px-5 py-5 border-b border-white/[0.08]">
         <div className="font-display font-semibold text-base text-text-primary mb-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -242,9 +243,20 @@ export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn }:
             </div>
             Tool Flow
           </div>
-          <span className="text-[11px] text-text-muted font-mono bg-white/[0.04] px-2.5 py-0.5 rounded border border-white/[0.05]">
-            Turn {activeTurn + 1} / {turns.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-text-muted font-mono bg-white/[0.04] px-2.5 py-0.5 rounded border border-white/[0.05]">
+              Turn {activeTurn + 1} / {turns.length}
+            </span>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="md:hidden p-1.5 rounded-lg hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                title="Close Tool Flow"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Turns Grid Selector */}
@@ -273,7 +285,7 @@ export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn }:
                   <span>{idx + 1}</span>
                   <div className="flex gap-0.5 absolute bottom-1">
                     {hasCommand && <span className="w-1 h-1 rounded-full bg-accent" />}
-                    {hasEdit && <span className="w-1 h-1 rounded-full bg-purple-400" />}
+                    {hasEdit && <span className="w-1 h-1 rounded-full bg-orange-400" />}
                     {hasRead && <span className="w-1 h-1 rounded-full bg-cyan-400" />}
                     {hasMcp && <span className="w-1 h-1 rounded-full bg-success" />}
                   </div>
@@ -284,8 +296,8 @@ export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn }:
         </div>
 
         {turnReason && (
-          <div className="text-[11px] text-accent/80 mb-3 leading-relaxed bg-accent/[0.03] rounded-lg p-3 border border-accent/10 max-h-[120px] overflow-y-auto scrollbar-thin">
-            <div className="text-[10px] text-accent/50 uppercase tracking-wider mb-1 font-semibold">AI Reasoning</div>
+          <div className="text-[14px] text-white mb-3 leading-relaxed bg-black/20 rounded-lg p-3 border border-accent/10 max-h-[120px] overflow-y-auto scrollbar-thin">
+            <div className="text-[12px] text-accent font-semibold uppercase tracking-wider mb-1">AI Reasoning</div>
             <div className="cv-ws-md whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: renderMarkdown(turnReason) }} />
           </div>
         )}
@@ -306,11 +318,11 @@ export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn }:
       </div>
 
       <style>{`
-        .cv-ws-md p { margin: 0 0 6px; }
-        .cv-ws-md p:last-child { margin: 0; }
-        .cv-ws-md pre { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 14px; overflow-x: auto; margin: 6px 0; font-size: 11px; line-height: 1.5; }
-        .cv-ws-md code { background: rgba(255,255,255,0.04); padding: 1px 4px; border-radius: 3px; font-size: 11px; color: var(--color-accent); }
-        .cv-ws-md pre code { background: none; padding: 0; color: var(--color-text-secondary); }
+        .cv-ws-md { font-size: 14px; color: #ffffff; }
+        .cv-ws-md p { margin: 0 0 6px; font-size: 14px; color: #ffffff; }
+        .cv-ws-md pre { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 14px; overflow-x: auto; margin: 6px 0; font-size: 13px; line-height: 1.5; }
+        .cv-ws-md code { background: rgba(255,255,255,0.04); padding: 1px 4px; border-radius: 3px; font-size: 13px; color: var(--color-accent); }
+        .cv-ws-md pre code { background: none; padding: 0; color: #ffffff; font-size: 13px; }
         .cv-ws-md ul, .cv-ws-md ol { padding-left: 16px; margin: 4px 0; }
         .cv-ws-md li { margin: 2px 0; }
         

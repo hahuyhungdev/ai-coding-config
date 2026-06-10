@@ -83,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     {cid === 'claude' && <MessageSquareCode className="h-4 w-4 text-[#60a5fa]" />}
-                    {cid === 'codex' && <TerminalIcon className="h-4 w-4 text-[#c084fc]" />}
+                    {cid === 'codex' && <TerminalIcon className="h-4 w-4 text-[#50fa7b]" />}
                     {cid === 'agy' && <Sparkles className="h-4 w-4 text-[#f59e0b]" />}
                     <div>
                       <div className="text-[13px] font-medium text-text-primary">{info.name}</div>
