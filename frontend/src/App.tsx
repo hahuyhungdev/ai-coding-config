@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sliders, LayoutDashboard, Cpu, MessageSquareCode,
-  Terminal as TerminalIcon, Sparkles, Compass, MessageSquare
+  Terminal as TerminalIcon, Sparkles, Compass, MessageSquare, Play
 } from 'lucide-react';
 
 import { ToastContainer } from './components/Toast';
@@ -14,6 +14,7 @@ import { McpTab } from './features/settings/McpTab';
 import CodexTab from './features/settings/CodexTab';
 import GeminiTab from './features/settings/GeminiTab';
 import ExplorerTab from './features/explorer/ExplorerTab';
+import { SimulatorTab } from './features/simulator/SimulatorTab';
 import { ConversationViewer } from './features/conversations/ConversationViewer';
 import { useToast } from './hooks/useToast';
 import { useConfig } from './hooks/useConfig';
@@ -26,7 +27,8 @@ const TABS = [
   { id: 'codex', label: 'Codex', icon: TerminalIcon },
   { id: 'gemini', label: 'Gemini', icon: Sparkles },
   { id: 'explorer', label: 'Agents', icon: Compass },
-  { id: 'conversations', label: 'Conversations', icon: MessageSquare }
+  { id: 'conversations', label: 'Conversations', icon: MessageSquare },
+  { id: 'simulator', label: 'Simulator', icon: Play }
 ];
 
 export default function App() {
@@ -171,6 +173,9 @@ export default function App() {
               )}
               {activeTab === 'explorer' && (
                 <ExplorerTab tempConfig={config.tempConfig} selectedExplorer={selectedExplorer} setSelectedExplorer={setSelectedExplorer} showToast={showToast} explorerFilter={explorerFilter} setExplorerFilter={setExplorerFilter} />
+              )}
+              {activeTab === 'simulator' && (
+                <SimulatorTab />
               )}
             </div>
           </div>
