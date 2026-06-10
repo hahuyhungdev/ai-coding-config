@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Conversation Viewer & Token Estimator</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MarkedJS & PrismJS for Markdown rendering and code highlight -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+    <style>
+        :root {
+            /* Light Mode Variables (Default) */
+            --bg-base: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-surface-hover: #f1f5f9;
+            --border-color: #e2e8f0;
+            --border-focus: #6366f1;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            
+            --accent-cyan: #0891b2;
+            --accent-purple: #7c3aed;
+            --accent-green: #059669;
+            --accent-pink: #db2777;
+            
+            /* Workspace variables for Light Mode */
+            --workspace-bg: #f1f5f9;
+            --workspace-border: #cbd5e1;
+            --workspace-text: #0f172a;
+            --workspace-header-bg: #ffffff;
+            --workspace-tab-bg: #e2e8f0;
+            --workspace-tab-active-text: #0f172a;
+            
+            --terminal-bg: #ffffff;
+            --terminal-header-bg: #f8fafc;
+            --terminal-output-color: #0f172a;
+            --terminal-window-dot-bar: #e2e8f0;
+            --terminal-meta-bar-bg: #f8fafc;
+            --terminal-meta-bar-text: #475569;
+            
+            --reasoning-box-bg: rgba(124, 58, 237, 0.06);
+            --reasoning-box-text: #1e1b4b;
+            
+            --meta-card-bg: #ffffff;
+            --meta-card-text: #334155;
+            --meta-card-header: #0f172a;
+            --meta-card-muted: #475569;
+            
+            --user-bubble-bg: #f5f3ff;
+            --user-bubble-border: rgba(124, 58, 237, 0.15);
+            --ai-bubble-bg: #f0fdf4;
+            --ai-bubble-border: rgba(5, 150, 105, 0.15);
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.03), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+            
+            --inline-code-bg: #f1f5f9;
+            --inline-code-color: #be185d;
+        }
+ 
+        body.dark-theme {
+            /* Dark Mode Variables */
+            --bg-base: #07080d;
+            --bg-surface: #0f111a;
+            --bg-surface-hover: #181b28;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-focus: rgba(0, 242, 254, 0.5);
+            
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            
+            --accent-cyan: #00f2fe;
+            --accent-purple: #a154ff;
+            --accent-green: #05ffc5;
+            --accent-pink: #ff5e97;
+            
+            /* Workspace variables for Dark Mode */
+            --workspace-bg: #05060b;
+            --workspace-border: rgba(255, 255, 255, 0.06);
+            --workspace-text: #f3f4f6;
+            --workspace-header-bg: #0f111a;
+            --workspace-tab-bg: rgba(0, 0, 0, 0.2);
+            --workspace-tab-active-text: #ffffff;
+            
+            --terminal-bg: #020205;
+            --terminal-header-bg: rgba(255, 255, 255, 0.01);
+            --terminal-output-color: #cbd5e1;
+            --terminal-window-dot-bar: #111827;
+            --terminal-meta-bar-bg: rgba(255, 255, 255, 0.02);
+            --terminal-meta-bar-text: #64748b;
+            
+            --reasoning-box-bg: rgba(124, 58, 237, 0.08);
+            --reasoning-box-text: #e2e8f0;
+            
+            --meta-card-bg: rgba(255, 255, 255, 0.02);
+            --meta-card-text: #e2e8f0;
+            --meta-card-header: #ffffff;
+            --meta-card-muted: #cbd5e1;
+            
+            --user-bubble-bg: rgba(161, 84, 255, 0.06);
+            --user-bubble-border: rgba(161, 84, 255, 0.2);
+            --ai-bubble-bg: rgba(5, 255, 197, 0.02);
+            --ai-bubble-border: rgba(5, 255, 197, 0.15);
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.25);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.35);
+            
+            --inline-code-bg: rgba(255, 255, 255, 0.08);
+            --inline-code-color: #ff5e97;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            border-right: 1px solid var(--border-color);
+            background: var(--bg-surface);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+            z-index: 20;
+        }
+
+        .sidebar-header {
+            padding: 20px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .brand-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-logo {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .theme-btn {
+            background: var(--bg-base);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .theme-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+        }
+
+        .search-container {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--bg-base);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px 8px 32px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .search-input:focus {
+            border-color: var(--border-focus);
+            background: var(--bg-surface);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .conv-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px 8px;
+        }
+
+        .conv-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .conv-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+
+        .conv-item {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .conv-item:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        .conv-item.active {
+            background: var(--bg-surface-hover);
+            border-color: var(--border-color);
+        }
+
+        .conv-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 10px;
+            bottom: 10px;
+            width: 3px;
+            background: var(--accent-purple);
+            border-radius: 0 2px 2px 0;
+        }
+
+        .conv-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.35;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .conv-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .conv-size {
+            background: var(--bg-base);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+        }
+
+        .sidebar-stats {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-surface-hover);
+        }
+
+        /* Main Workspace Container */
+        .workspace-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Top Header */
+        .main-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-surface);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .active-conv-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+            max-width: 400px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .active-conv-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: var(--bg-surface-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .stat-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-value.cost {
+            color: var(--accent-green);
+        }
+
+        .stat-value.tokens-val {
+            color: var(--accent-purple);
+        }
+
+        .stat-label {
+            font-size: 8px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Central Split Screen */
+        .split-pane {
+            display: flex;
+            flex-grow: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Left Split: Classic Chat Stream */
+        .chat-column {
+            width: 55%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: var(--bg-base);
+            border-right: 1px solid var(--border-color);
+        }
+
+        .chat-viewport {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .chat-viewport::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-viewport::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .chat-bubble-container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+            max-width: 90%;
+        }
+
+        .chat-bubble-container.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .chat-bubble-container.ai {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .chat-bubble {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .chat-bubble:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+        
+        .chat-bubble.selected {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .chat-bubble-container.user .chat-bubble {
+            background: var(--user-bubble-bg);
+            border-color: var(--user-bubble-border);
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-bubble-container.ai .chat-bubble {
+            background: var(--ai-bubble-bg);
+            border-color: var(--ai-bubble-border);
+            border-top-left-radius: 4px;
+        }
+
+        .chat-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .chat-bubble-container.user .chat-meta {
+            flex-direction: row-reverse;
+        }
+
+        .chat-body {
+            font-size: 13.5px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        /* Compact tool executions trigger badge inside chat bubble */
+        .chat-tool-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            padding: 5px 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-purple);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .chat-tool-trigger:hover {
+            background: var(--bg-surface-hover);
+            border-color: var(--accent-purple);
+        }
+
+        /* Right Split: Inspector Workspace */
+        .workspace-column {
+            width: 45%;
+            background: var(--workspace-bg);
+            border-left: 1px solid var(--workspace-border);
+            color: var(--workspace-text);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .workspace-tabs {
+            display: flex;
+            background: var(--workspace-tab-bg);
+            border-bottom: 1px solid var(--workspace-border);
+            padding: 0 16px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 12px 16px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            outline: none;
+        }
+
+        .tab-btn.active {
+            color: var(--workspace-tab-active-text);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 16px;
+            right: 16px;
+            height: 2px;
+            background: var(--accent-cyan);
+        }
+
+        .workspace-viewport {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .workspace-viewport::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .workspace-viewport::-webkit-scrollbar-thumb {
+            background: var(--workspace-border);
+            border-radius: 3px;
+        }
+
+        /* Workspace Header */
+        .workspace-header {
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--workspace-border);
+        }
+
+        .workspace-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--workspace-text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workspace-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Collapsible Terminal Cards inside Workspace */
+        .terminal-accordion {
+            background: var(--terminal-bg);
+            border: 1px solid var(--workspace-border);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .terminal-header {
+            padding: 10px 14px;
+            background: var(--terminal-header-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .terminal-header:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        .terminal-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11.5px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--workspace-text);
+            max-width: 80%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .terminal-title-group i.status-icon {
+            font-size: 10px;
+        }
+
+        .terminal-chevron {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        .terminal-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s ease-out;
+            background: var(--terminal-bg);
+        }
+
+        .terminal-body.open {
+            max-height: 450px;
+            overflow-y: auto;
+        }
+
+        .terminal-window-header {
+            background: var(--terminal-window-dot-bar);
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-bottom: 1px solid var(--workspace-border);
+        }
+        
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .dot-red { background-color: #ef4444; }
+        .dot-yellow { background-color: #f59e0b; }
+        .dot-green { background-color: #10b981; }
+
+        .terminal-output {
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            line-height: 1.6;
+            color: var(--terminal-output-color);
+            white-space: pre-wrap;
+        }
+
+        .tool-meta-bar {
+            background: var(--terminal-meta-bar-bg);
+            border-bottom: 1px solid var(--workspace-border);
+            padding: 4px 12px;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--terminal-meta-bar-text);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Typography & Custom markdown styling inside Chat bubble */
+        .chat-body p {
+            margin-bottom: 8px;
+        }
+        .chat-body p:last-child {
+            margin-bottom: 0;
+        }
+        .chat-body ul, .chat-body ol {
+            margin-left: 16px;
+            margin-bottom: 8px;
+        }
+        .chat-body li {
+            margin-bottom: 3px;
+        }
+        .chat-body code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: var(--inline-code-bg);
+            padding: 2px 4px;
+            border-radius: 4px;
+            color: var(--inline-code-color);
+            font-weight: 500;
+        }
+        .chat-body pre {
+            margin: 10px 0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .chat-body pre code {
+            display: block;
+            padding: 10px 14px;
+            overflow-x: auto;
+            background: #1e293b !important;
+            color: #f8fafc;
+            font-size: 12px;
+        }
+
+        /* Empty state workspace */
+        .workspace-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 80%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .workspace-empty i {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: var(--workspace-border);
+        }
+
+        /* Loader */
+        .loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(124, 58, 237, 0.1);
+            border-top: 3px solid var(--accent-purple);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Timeline Flow UX Styles */
+        .flow-timeline {
+            position: relative;
+            padding-left: 20px;
+            margin-top: 15px;
+        }
+        .flow-timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 5px;
+            bottom: 5px;
+            width: 2px;
+            background: var(--border-color);
+        }
+        .flow-step {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        .flow-node {
+            position: absolute;
+            left: -20px;
+            top: 6px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0px;
+            box-shadow: var(--shadow-sm);
+        }
+        .reasoning-box {
+            background: var(--reasoning-box-bg);
+            border-left: 3px solid var(--accent-purple);
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--reasoning-box-text);
+        }
+        .reasoning-header {
+            font-weight: 600;
+            font-size: 11px;
+            color: var(--accent-purple);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .reasoning-box p {
+            margin: 0;
+        }
+        .screenshot-container {
+            margin-top: 10px;
+            border: 1px solid var(--workspace-border);
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--terminal-bg);
+            max-width: 100%;
+        }
+        .screenshot-header {
+            background: var(--terminal-meta-bar-bg);
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--terminal-meta-bar-text);
+            border-bottom: 1px solid var(--workspace-border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .screenshot-img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            cursor: zoom-in;
+            transition: opacity 0.2s;
+        }
+        .screenshot-img:hover {
+            opacity: 0.95;
+        }
+        
+        /* User environment context styles */
+        .user-metadata-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .meta-card {
+            background: var(--meta-card-bg);
+            border: 1px solid var(--workspace-border);
+            border-radius: 6px;
+            padding: 14px 16px;
+            color: var(--meta-card-text);
+        }
+        .meta-card h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: var(--meta-card-header);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .meta-card ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 12.5px;
+            color: var(--meta-card-muted);
+            line-height: 1.6;
+        }
+        .meta-card li {
+            margin-bottom: 4px;
+        }
+        
+        /* Zoom Image Modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 15, 20, 0.9);
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+        .image-modal-img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 4px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <div class="brand-info">
+                    <div class="brand-logo">A</div>
+                    <div class="brand-title">AI Conv Viewer</div>
+                </div>
+                <button id="theme-toggle" class="theme-btn" title="Chuyển chế độ Dark/Light">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+            <div class="search-container">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="search" class="search-input" placeholder="Tìm kiếm...">
+            </div>
+        </div>
+
+        <div class="conv-list" id="conversations-list">
+            <!-- Will be populated dynamically -->
+        </div>
+
+        <div class="sidebar-stats">
+            <div class="stats-grid-small">
+                <div class="stat-card-small">
+                    <div class="stat-card-small-val" id="global-conv-count">0</div>
+                    <div class="stat-card-small-lbl">Hội thoại</div>
+                </div>
+                <div class="stat-card-small">
+                    <div class="stat-card-small-val" id="global-total-size">0 KB</div>
+                    <div class="stat-card-small-lbl">Dung lượng</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="workspace-container">
+        <!-- Main Top Header -->
+        <div class="main-header" id="active-header" style="display: none;">
+            <div>
+                <div class="active-conv-title" id="active-title">Chọn cuộc hội thoại</div>
+                <div class="active-conv-sub">
+                    <span>ID: <span id="active-id">-</span></span>
+                    <span>•</span>
+                    <span id="active-time">-</span>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-value cost" id="stat-cost">$0.00</div>
+                    <div class="stat-label">Chi phí</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value tokens-val" id="stat-tokens">0</div>
+                    <div class="stat-label">Tokens</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-turns">0</div>
+                    <div class="stat-label">Lượt / Tools</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Central Split Screen Pane -->
+        <div class="split-pane">
+            
+            <!-- LEFT COLUMN: Clean Chat Dialogue -->
+            <div class="chat-column">
+                <div class="chat-viewport" id="chat-viewport">
+                    <div class="empty-state">
+                        <i class="fa-solid fa-comments"></i>
+                        <h3>Trình xem lịch sử AI Coding</h3>
+                        <p>Chọn một cuộc hội thoại từ danh sách bên trái để bắt đầu xem luồng chat.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Agent Execution Workspace -->
+            <div class="workspace-column">
+                <div class="workspace-tabs">
+                    <button id="tab-turn-actions" class="tab-btn active">Công cụ đã dùng trong lượt</button>
+                    <button id="tab-global-actions" class="tab-btn">Tổng thể hoạt động (Session)</button>
+                </div>
+                
+                <div class="workspace-viewport" id="workspace-viewport">
+                    <div class="workspace-empty">
+                        <i class="fa-solid fa-terminal"></i>
+                        <p>Nhấp vào một tin nhắn của Agent ở cột bên trái để soi chi tiết hoạt động của các công cụ.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        const API_BASE = "";
+        let conversations = [];
+        let activeId = null;
+        let activeConversationData = null;
+        let activeTurnIndex = null;
+        let currentTab = "turn"; // "turn" or "global"
+
+        // Custom config for marked
+        marked.setOptions({
+            gfm: true,
+            breaks: true,
+            headerIds: false,
+            mangle: false
+        });
+
+        // DOM Elements
+        const conversationsListEl = document.getElementById("conversations-list");
+        const searchInputEl = document.getElementById("search");
+        const globalConvCountEl = document.getElementById("global-conv-count");
+        const globalTotalSizeEl = document.getElementById("global-total-size");
+        
+        const activeHeaderEl = document.getElementById("active-header");
+        const activeTitleEl = document.getElementById("active-title");
+        const activeIdEl = document.getElementById("active-id");
+        const activeTimeEl = document.getElementById("active-time");
+        
+        const statCostEl = document.getElementById("stat-cost");
+        const statTokensEl = document.getElementById("stat-tokens");
+        const statTurnsEl = document.getElementById("stat-turns");
+        
+        const chatViewportEl = document.getElementById("chat-viewport");
+        const workspaceViewportEl = document.getElementById("workspace-viewport");
+        const themeToggleBtn = document.getElementById("theme-toggle");
+
+        const tabTurnBtn = document.getElementById("tab-turn-actions");
+        const tabGlobalBtn = document.getElementById("tab-global-actions");
+
+        // Theme Switcher
+        const savedTheme = localStorage.getItem("theme") || "light";
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-theme");
+            themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+        }
+
+        themeToggleBtn.addEventListener("click", () => {
+            const isDark = document.body.classList.toggle("dark-theme");
+            localStorage.setItem("theme", isDark ? "dark" : "light");
+            themeToggleBtn.innerHTML = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        });
+
+        // Tab Event Listeners
+        tabTurnBtn.addEventListener("click", () => {
+            currentTab = "turn";
+            tabTurnBtn.classList.add("active");
+            tabGlobalBtn.classList.remove("active");
+            renderWorkspace();
+        });
+
+        tabGlobalBtn.addEventListener("click", () => {
+            currentTab = "global";
+            tabGlobalBtn.classList.add("active");
+            tabTurnBtn.classList.remove("active");
+            renderWorkspace();
+        });
+
+        // Format Date
+        function formatDate(isoStr) {
+            if (!isoStr) return "-";
+            const date = new Date(isoStr);
+            return date.toLocaleString('vi-VN', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        // Format Bytes
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // Load conversations list
+        async function loadConversations() {
+            try {
+                const res = await fetch(`${API_BASE}/api/conversations`);
+                conversations = await res.json();
+                
+                globalConvCountEl.textContent = conversations.length;
+                const totalBytes = conversations.reduce((acc, c) => acc + (c.size_bytes || 0), 0);
+                globalTotalSizeEl.textContent = formatBytes(totalBytes);
+                
+                renderConversations(conversations);
+            } catch (err) {
+                console.error("Lỗi khi tải danh sách cuộc trò chuyện:", err);
+                conversationsListEl.innerHTML = `<div style="color: var(--accent-pink); padding: 12px; text-align: center; font-size: 12px;">Lỗi tải dữ liệu.</div>`;
+            }
+        }
+
+        function renderConversations(list) {
+            conversationsListEl.innerHTML = "";
+            if (list.length === 0) {
+                conversationsListEl.innerHTML = `<div style="color: var(--text-muted); padding: 12px; text-align: center; font-size: 12px;">Không có dữ liệu.</div>`;
+                return;
+            }
+
+            list.forEach(c => {
+                const item = document.createElement("div");
+                item.className = `conv-item ${c.id === activeId ? 'active' : ''}`;
+                item.dataset.id = c.id;
+                item.innerHTML = `
+                    <div class="conv-title">${c.title || 'Untitled Conversation'}</div>
+                    <div class="conv-meta">
+                        <span class="conv-time"><i class="fa-regular fa-clock"></i> ${formatDate(c.last_updated)}</span>
+                        <span class="conv-size">${formatBytes(c.size_bytes)}</span>
+                    </div>
+                `;
+                item.addEventListener("click", () => selectConversation(c.id));
+                conversationsListEl.appendChild(item);
+            });
+        }
+
+        // Filter search list
+        searchInputEl.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = conversations.filter(c => 
+                (c.title && c.title.toLowerCase().includes(query)) || 
+                (c.id && c.id.toLowerCase().includes(query))
+            );
+            renderConversations(filtered);
+        });
+
+        // Select conversation
+        async function selectConversation(id) {
+            activeId = id;
+            activeTurnIndex = null;
+            
+            document.querySelectorAll(".conv-item").forEach(item => {
+                item.classList.toggle("active", item.dataset.id === id);
+            });
+
+            chatViewportEl.innerHTML = `
+                <div class="loader">
+                    <div class="spinner"></div>
+                </div>
+            `;
+            activeHeaderEl.style.display = "none";
+            workspaceViewportEl.innerHTML = `
+                <div class="workspace-empty">
+                    <i class="fa-solid fa-terminal"></i>
+                    <p>Nhấp vào một tin nhắn của Agent ở cột bên trái để soi chi tiết hoạt động của các công cụ.</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/conversation/${id}`);
+                const data = await res.json();
+                
+                // Map tool execution arguments sequentially to resolve commands and file paths
+                let lastProposedCalls = [];
+                let callPointer = 0;
+                data.steps.forEach(step => {
+                    if (step.type === "PLANNER_RESPONSE") {
+                        lastProposedCalls = step.tool_calls || [];
+                        callPointer = 0;
+                    } else if ([
+                        "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
+                        "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
+                        "ASK_QUESTION", "INVOKE_SUBAGENT", "LIST_RESOURCES"
+                    ].includes(step.type)) {
+                        if (callPointer < lastProposedCalls.length) {
+                            step.resolved_args = lastProposedCalls[callPointer].arguments || {};
+                            callPointer++;
+                        } else {
+                            step.resolved_args = {};
+                        }
+                    }
+                });
+
+                activeConversationData = data;
+                
+                // Show Header & Update Info
+                activeHeaderEl.style.display = "flex";
+                activeTitleEl.textContent = data.steps.find(s => s.type === "USER_INPUT")?.content?.substring(0, 80) || "Conversation Summary";
+                activeIdEl.textContent = data.id;
+                
+                const metaInfo = conversations.find(c => c.id === id);
+                activeTimeEl.textContent = metaInfo ? formatDate(metaInfo.last_updated) : "";
+
+                // Update Stats
+                statCostEl.textContent = `$${data.stats.est_cost}`;
+                statTokensEl.textContent = `${(data.stats.est_input_tokens + data.stats.est_output_tokens).toLocaleString()}`;
+                statTurnsEl.textContent = `${data.stats.user_messages} turns / ${data.stats.tool_calls} tools`;
+
+                parseAndRenderChat(data.steps);
+            } catch (err) {
+                console.error("Lỗi khi tải chi tiết:", err);
+                chatViewportEl.innerHTML = `<div style="color: var(--accent-pink); padding: 20px;">Lỗi tải chi tiết cuộc hội thoại.</div>`;
+            }
+        }
+
+        // Environment Context Parser
+        function parseUserMetadata(rawContent) {
+            const result = {
+                time: "",
+                commands: [],
+                openFiles: [],
+                editorState: ""
+            };
+            if (!rawContent || !rawContent.includes("<ADDITIONAL_METADATA>")) {
+                return result;
+            }
+            const metaBlock = rawContent.split("<ADDITIONAL_METADATA>")[1].split("</ADDITIONAL_METADATA>")[0].trim();
+            
+            // Extract local time
+            const timeMatch = metaBlock.match(/local time is:\s*([^\s\n\r]+)/i);
+            if (timeMatch) {
+                result.time = timeMatch[1];
+            }
+            
+            // Extract running commands
+            if (metaBlock.includes("Running terminal commands:")) {
+                const parts = metaBlock.split("Running terminal commands:");
+                const cmdSection = parts[1].split("\n\n")[0].trim();
+                const lines = cmdSection.split("\n");
+                lines.forEach(line => {
+                    if (line.trim().startsWith("-")) {
+                        result.commands.push(line.replace(/^\s*-\s*/, "").trim());
+                    }
+                });
+            }
+            
+            // Extract open files
+            if (metaBlock.includes("Open files:") || metaBlock.includes("Editor state:") || metaBlock.includes("The user's current state is as follows:")) {
+                const searchMarker = metaBlock.includes("Open files:") ? "Open files:" : (metaBlock.includes("Editor state:") ? "Editor state:" : "The user's current state is as follows:");
+                const filesPart = metaBlock.split(searchMarker)[1];
+                if (filesPart) {
+                    const cleanFiles = filesPart.split("\n\n")[0].trim();
+                    const lines = cleanFiles.split("\n");
+                    lines.forEach(line => {
+                        if (line.trim().startsWith("-") && !line.includes("Running terminal commands:")) {
+                            result.openFiles.push(line.replace(/^\s*-\s*/, "").trim());
+                        }
+                    });
+                }
+            }
+            
+            result.editorState = metaBlock;
+            return result;
+        }
+
+        // Playwright Screenshot URL Parser
+        function extractScreenshotUrl(content) {
+            if (!content) return null;
+            // Match markdown links pointing to images: [caption](path.png)
+            const match = content.match(/\[Screenshot[^\]]*\]\(([^)]+\.png)\)/i);
+            if (match) {
+                return match[1];
+            }
+            // Match raw paths inside playwright screenshot commands
+            const pathMatch = content.match(/path:\s*['"]([^'"]+\.png)['"]/i);
+            if (pathMatch) {
+                return pathMatch[1];
+            }
+            return null;
+        }
+
+        // Group steps into chat turns (User turn -> Agent turn + tools)
+        let structuredTurns = [];
+        let activeSelectionType = "agent"; // "user" or "agent"
+        
+        function parseAndRenderChat(steps) {
+            chatViewportEl.innerHTML = "";
+            structuredTurns = [];
+            
+            let currentTurn = null;
+            
+            steps.forEach((step, idx) => {
+                if (step.type === "USER_INPUT") {
+                    if (currentTurn) {
+                        structuredTurns.push(currentTurn);
+                    }
+                    currentTurn = {
+                        index: structuredTurns.length,
+                        user: step,
+                        agent: null,
+                        tools: [],
+                        lastReasoning: ""
+                    };
+                } else if (currentTurn) {
+                    if (step.type === "PLANNER_RESPONSE") {
+                        currentTurn.agent = step;
+                        currentTurn.lastReasoning = step.content || "";
+                    } else if ([
+                        "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
+                        "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
+                        "ASK_QUESTION", "INVOKE_SUBAGENT", "CHECKPOINT", "ERROR_MESSAGE",
+                        "LIST_RESOURCES"
+                    ].includes(step.type)) {
+                        const toolStep = {
+                            ...step,
+                            reasoning: currentTurn.lastReasoning || ""
+                        };
+                        currentTurn.tools.push(toolStep);
+                        currentTurn.lastReasoning = ""; // Reset
+                    }
+                }
+            });
+            if (currentTurn) {
+                structuredTurns.push(currentTurn);
+            }
+
+            // Render turns in Chat column
+            structuredTurns.forEach(turn => {
+                // User Input Bubble
+                if (turn.user) {
+                    const userContainer = document.createElement("div");
+                    userContainer.className = "chat-bubble-container user";
+                    
+                    let content = turn.user.content || "";
+                    if (content.includes("<USER_REQUEST>")) {
+                        content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].trim();
+                    }
+                    
+                    userContainer.innerHTML = `
+                        <div class="chat-meta">
+                            <span>Người dùng (User)</span>
+                            <span>•</span>
+                            <span>~${turn.user.est_tokens} tokens</span>
+                        </div>
+                        <div class="chat-bubble" id="user-bubble-${turn.index}" onclick="focusTurn(${turn.index}, 'user')">
+                            <div class="chat-body">${marked.parse(content)}</div>
+                        </div>
+                    `;
+                    chatViewportEl.appendChild(userContainer);
+                }
+
+                // AI Planner Bubble
+                if (turn.agent) {
+                    const aiContainer = document.createElement("div");
+                    aiContainer.className = "chat-bubble-container ai";
+                    
+                    // CALCULATE COMBINED TOTAL TOKENS (AI Response text + All executed tools in this turn)
+                    const agentTokens = turn.agent.est_tokens || 0;
+                    const toolsTokens = turn.tools.reduce((sum, t) => sum + (t.est_tokens || 0), 0);
+                    const totalTurnTokens = agentTokens + toolsTokens;
+                    
+                    let toolsBadge = "";
+                    if (turn.tools.length > 0) {
+                        toolsBadge = `
+                            <div class="chat-tool-trigger" onclick="focusTurn(${turn.index}, 'agent'); event.stopPropagation();">
+                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                                <span>Đã chạy ${turn.tools.length} công cụ (Xem chi tiết bên phải)</span>
+                            </div>
+                        `;
+                    }
+                    
+                    // Display consolidated turn tokens in the badge with a descriptive hover breakdown
+                    const tokenBreakdownTitle = `Chi tiết Token lượt này:\n- AI Response: ${agentTokens.toLocaleString()}\n- Tools Execution: ${toolsTokens.toLocaleString()}\n- Tổng cộng: ${totalTurnTokens.toLocaleString()}`;
+                    
+                    aiContainer.innerHTML = `
+                        <div class="chat-meta">
+                            <span>Antigravity Agent</span>
+                            <span>•</span>
+                            <span class="token-badge" style="cursor: help; border-color: rgba(5, 150, 105, 0.25);" title="${tokenBreakdownTitle}">
+                                <i class="fa-solid fa-microchip"></i> ~${totalTurnTokens.toLocaleString()} tokens
+                            </span>
+                        </div>
+                        <div class="chat-bubble" id="ai-bubble-${turn.index}" onclick="focusTurn(${turn.index}, 'agent')">
+                            <div class="chat-body">
+                                ${marked.parse(turn.agent.content || "")}
+                            </div>
+                            ${toolsBadge}
+                        </div>
+                    `;
+                    chatViewportEl.appendChild(aiContainer);
+                }
+            });
+
+            // Auto Scroll to bottom
+            chatViewportEl.scrollTop = chatViewportEl.scrollHeight;
+            Prism.highlightAll();
+        }
+
+        // Highlight and focus on specific turn details
+        window.focusTurn = function(index, type = "agent") {
+            activeTurnIndex = index;
+            activeSelectionType = type;
+            
+            // Toggle highlight visual classes on bubbles
+            document.querySelectorAll(".chat-bubble").forEach(el => {
+                el.classList.remove("selected");
+            });
+            const bubbleId = type === "user" ? `user-bubble-${index}` : `ai-bubble-${index}`;
+            const selectedBubble = document.getElementById(bubbleId);
+            if (selectedBubble) {
+                selectedBubble.classList.add("selected");
+            }
+
+            // Render workspace
+            renderWorkspace();
+        };
+
+        // Render Workspace based on active tab
+        function renderWorkspace() {
+            workspaceViewportEl.innerHTML = "";
+            
+            if (currentTab === "turn") {
+                if (activeTurnIndex === null) {
+                    workspaceViewportEl.innerHTML = `
+                        <div class="workspace-empty">
+                            <i class="fa-solid fa-hand-pointer"></i>
+                            <p>Nhấp vào một tin nhắn ở cột bên trái để hiển thị chi tiết tool đã dùng trong lượt đó.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const turn = structuredTurns[activeTurnIndex];
+                
+                // User details view
+                if (activeSelectionType === "user") {
+                    const meta = parseUserMetadata(turn.user.content);
+                    
+                    const header = document.createElement("div");
+                    header.className = "workspace-header";
+                    header.innerHTML = `
+                        <div class="workspace-title" style="color: var(--accent-purple);">
+                            <i class="fa-solid fa-circle-user"></i>
+                            <span>Ngữ cảnh & Yêu cầu Người dùng (Lượt #${turn.index + 1})</span>
+                        </div>
+                        <div class="workspace-subtitle">
+                            <span>Chi tiết trạng thái hệ thống khi gửi yêu cầu</span>
+                        </div>
+                    `;
+                    workspaceViewportEl.appendChild(header);
+
+                    const container = document.createElement("div");
+                    container.className = "user-metadata-container";
+
+                    let userQuery = turn.user.content || "";
+                    if (userQuery.includes("<USER_REQUEST>")) {
+                        userQuery = userQuery.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].trim();
+                    }
+                    
+                    const queryCard = document.createElement("div");
+                    queryCard.className = "meta-card";
+                    queryCard.innerHTML = `
+                        <h4><i class="fa-solid fa-comment-dots" style="color: var(--accent-purple);"></i> Nội dung yêu cầu</h4>
+                        <div style="font-size: 13px; line-height: 1.5; color: var(--meta-card-text);">${marked.parse(userQuery)}</div>
+                    `;
+                    container.appendChild(queryCard);
+
+                    if (meta.time) {
+                        const timeCard = document.createElement("div");
+                        timeCard.className = "meta-card";
+                        timeCard.innerHTML = `
+                            <h4><i class="fa-solid fa-clock" style="color: var(--accent-purple);"></i> Thời gian cục bộ</h4>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">${meta.time}</div>
+                        `;
+                        container.appendChild(timeCard);
+                    }
+
+                    if (meta.commands.length > 0) {
+                        const cmdCard = document.createElement("div");
+                        cmdCard.className = "meta-card";
+                        cmdCard.innerHTML = `
+                            <h4><i class="fa-solid fa-terminal" style="color: var(--accent-purple);"></i> Lệnh shell đang chạy nền</h4>
+                            <ul>
+                                ${meta.commands.map(c => `<li><code>${escapeHtml(c)}</code></li>`).join("")}
+                            </ul>
+                        `;
+                        container.appendChild(cmdCard);
+                    }
+
+                    if (meta.openFiles.length > 0) {
+                        const fileCard = document.createElement("div");
+                        fileCard.className = "meta-card";
+                        fileCard.innerHTML = `
+                            <h4><i class="fa-solid fa-file-lines" style="color: var(--accent-purple);"></i> File đang mở / Trạng thái con trỏ</h4>
+                            <ul>
+                                ${meta.openFiles.map(f => `<li><code>${escapeHtml(f)}</code></li>`).join("")}
+                            </ul>
+                        `;
+                        container.appendChild(fileCard);
+                    }
+                    
+                    const rawCard = document.createElement("div");
+                    rawCard.className = "meta-card";
+                    rawCard.innerHTML = `
+                        <h4><i class="fa-solid fa-code" style="color: #94a3b8;"></i> Dữ liệu thô (Raw Meta)</h4>
+                        <div class="terminal-accordion" style="margin-top: 8px;">
+                            <div class="terminal-header" onclick="toggleTerminal(this)" style="padding: 6px 12px; font-size: 11px;">
+                                <span>Xem toàn bộ payload ADDITIONAL_METADATA</span>
+                                <i class="fa-solid fa-chevron-down terminal-chevron"></i>
+                            </div>
+                            <div class="terminal-body" style="padding: 10px;">
+                                <pre style="font-family: 'JetBrains Mono', monospace; font-size: 11px; margin: 0; white-space: pre-wrap; overflow-x: auto; color: #cbd5e1;">${escapeHtml(meta.editorState)}</pre>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(rawCard);
+
+                    workspaceViewportEl.appendChild(container);
+                    return;
+                }
+                
+                // Agent details view - Flow Timeline
+                const turnOutputTokens = turn.agent ? (turn.agent.est_tokens || 0) : 0;
+                const turnToolsTokens = turn.tools.reduce((sum, t) => sum + (t.est_tokens || 0), 0);
+                const turnUserTokens = turn.user ? (turn.user.est_tokens || 0) : 0;
+                const turnInputTokens = 25000 + turnUserTokens + turnToolsTokens;
+                
+                const modelName = activeConversationData.stats.model_name || "gemini-2.5-pro";
+                const inputRate = activeConversationData.stats.input_rate || 1.25;
+                const outputRate = activeConversationData.stats.output_rate || 5.00;
+                const turnCost = (turnInputTokens / 1000000.0 * inputRate) + (turnOutputTokens / 1000000.0 * outputRate);
+
+                const header = document.createElement("div");
+                header.className = "workspace-header";
+                header.innerHTML = `
+                    <div class="workspace-title" style="margin-bottom: 8px;">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Flow thực thi của Agent (Lượt #${turn.index + 1})</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <span class="badge" style="background: rgba(124, 58, 237, 0.1); color: var(--accent-purple); padding: 2px 6px; border-radius: 4px; font-weight: 600;">
+                            Model: ${modelName}
+                        </span>
+                        <span>•</span>
+                        <span>Chứa ${turn.tools.length} bước công cụ</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
+                        <div style="background: var(--terminal-meta-bar-bg); border: 1px solid var(--workspace-border); padding: 8px 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: var(--terminal-meta-bar-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Token In</div>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--workspace-text);">
+                                ~${turnInputTokens.toLocaleString()}
+                            </div>
+                        </div>
+                        <div style="background: var(--terminal-meta-bar-bg); border: 1px solid var(--workspace-border); padding: 8px 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: var(--terminal-meta-bar-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Token Out</div>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--workspace-text);">
+                                ~${turnOutputTokens.toLocaleString()}
+                            </div>
+                        </div>
+                        <div style="background: var(--terminal-meta-bar-bg); border: 1px solid var(--workspace-border); padding: 8px 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: var(--terminal-meta-bar-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Chi phí lượt</div>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--accent-green);">
+                                $${turnCost.toFixed(4)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                workspaceViewportEl.appendChild(header);
+
+                if (turn.tools.length === 0) {
+                    workspaceViewportEl.innerHTML += `
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px 10px; font-size: 13px;">
+                            Không có công cụ nào được chạy trong lượt này.
+                        </div>
+                    `;
+                    return;
+                }
+
+                renderToolsList(turn.tools);
+            } 
+            else if (currentTab === "global") {
+                if (!activeConversationData) {
+                    workspaceViewportEl.innerHTML = `
+                        <div class="workspace-empty">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>Vui lòng chọn một cuộc trò chuyện.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const allTools = activeConversationData.steps.filter(s => 
+                    [
+                        "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
+                        "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
+                        "ASK_QUESTION", "INVOKE_SUBAGENT", "CHECKPOINT", "ERROR_MESSAGE",
+                        "LIST_RESOURCES"
+                    ].includes(s.type)
+                );
+                
+                const globalInputTokens = activeConversationData.stats.est_input_tokens || 0;
+                const globalOutputTokens = activeConversationData.stats.est_output_tokens || 0;
+                const globalCost = activeConversationData.stats.est_cost || 0.0;
+                const modelName = activeConversationData.stats.model_name || "gemini-2.5-pro";
+
+                const header = document.createElement("div");
+                header.className = "workspace-header";
+                header.innerHTML = `
+                    <div class="workspace-title" style="margin-bottom: 8px;">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span>Tổng quan Session (${allTools.length} Tools)</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <span class="badge" style="background: rgba(124, 58, 237, 0.1); color: var(--accent-purple); padding: 2px 6px; border-radius: 4px; font-weight: 600;">
+                            Model: ${modelName}
+                        </span>
+                        <span>•</span>
+                        <span>Danh sách toàn bộ hoạt động hệ thống.</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
+                        <div style="background: var(--terminal-meta-bar-bg); border: 1px solid var(--workspace-border); padding: 8px 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: var(--terminal-meta-bar-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Tổng Token In</div>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--workspace-text);">
+                                ~${globalInputTokens.toLocaleString()}
+                            </div>
+                        </div>
+                        <div style="background: var(--terminal-meta-bar-bg); border: 1px solid var(--workspace-border); padding: 8px 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: var(--terminal-meta-bar-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Tổng Token Out</div>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--workspace-text);">
+                                ~${globalOutputTokens.toLocaleString()}
+                            </div>
+                        </div>
+                        <div style="background: var(--terminal-meta-bar-bg); border: 1px solid var(--workspace-border); padding: 8px 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 10px; color: var(--terminal-meta-bar-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Tổng chi phí</div>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--accent-green);">
+                                $${globalCost.toFixed(4)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                workspaceViewportEl.appendChild(header);
+
+                if (allTools.length === 0) {
+                    workspaceViewportEl.innerHTML += `
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px 10px; font-size: 13px;">
+                            Không có công cụ nào được thực thi trong toàn bộ session.
+                        </div>
+                    `;
+                    return;
+                }
+
+                renderToolsList(allTools);
+            }
+        }
+
+        // Help render list of terminal/accordion tools as a step timeline
+        function renderToolsList(tools) {
+            const timelineContainer = document.createElement("div");
+            timelineContainer.className = "flow-timeline";
+            
+            tools.forEach((step, idx) => {
+                const type = step.type;
+                let title = "System Execution";
+                let icon = "fa-terminal";
+                let detailLabel = "Output";
+                let details = typeof step.content === 'object' ? JSON.stringify(step.content, null, 2) : (step.content || "");
+                let isError = step.status === "ERROR";
+                
+                // Retrieve resolved arguments mapped on load
+                const args = step.resolved_args || {};
+                let commandLine = args.CommandLine || args.command || "";
+                let filePath = args.AbsolutePath || args.path || "";
+                let queryStr = args.Query || args.query || "";
+                let dirPath = args.DirectoryPath || args.path || "";
+                
+                // Fallback parses
+                if (!filePath && type === "VIEW_FILE" && details.includes("File Path: `")) {
+                    filePath = details.split("File Path: `")[1].split("`")[0];
+                }
+                if (!commandLine && type === "RUN_COMMAND") {
+                    if (details.includes("Task Description: ")) {
+                        commandLine = details.split("Task Description: ")[1].split("\n")[0];
+                    }
+                }
+
+                // Title and details parsing
+                if (type === "RUN_COMMAND") {
+                    title = `Run Command: ${commandLine ? commandLine : "bash"}`;
+                    icon = "fa-terminal";
+                } else if (type === "VIEW_FILE") {
+                    let displayPath = filePath || "file";
+                    if (displayPath.startsWith("file:///")) {
+                        displayPath = displayPath.replace("file://", "");
+                    }
+                    const basename = displayPath.substring(displayPath.lastIndexOf('/') + 1);
+                    title = `Read File: ${basename || displayPath}`;
+                    icon = "fa-file-lines";
+                    detailLabel = `File Content (${displayPath})`;
+                } else if (type === "GREP_SEARCH") {
+                    title = `Search Match: "${queryStr || "query"}"`;
+                    icon = "fa-magnifying-glass";
+                    detailLabel = "Matches Result";
+                } else if (type === "LIST_DIRECTORY") {
+                    title = `List Directory: ${dirPath || "dir"}`;
+                    icon = "fa-folder-open";
+                    detailLabel = "Files List";
+                } else if (type === "MCP_TOOL") {
+                    const server = args.ServerName || "mcp";
+                    const tool = args.ToolName || "tool";
+                    title = `MCP Tool: ${server}/${tool}`;
+                    icon = "fa-puzzle-piece";
+                    detailLabel = "MCP Tool Response";
+                } else if (type === "CODE_ACTION") {
+                    let fileText = "";
+                    if (args.TargetFile) {
+                        const cleanPath = args.TargetFile.replace("file://", "");
+                        const basename = cleanPath.substring(cleanPath.lastIndexOf('/') + 1);
+                        fileText = `: ${basename}`;
+                    } else {
+                        const fileMatch = details.match(/(?:Created file|multi_replace_file_content tool to|replace_file_content tool to):\s*([^\s]+)/);
+                        if (fileMatch) {
+                            const cleanPath = fileMatch[1].replace("file://", "");
+                            const basename = cleanPath.substring(cleanPath.lastIndexOf('/') + 1);
+                            fileText = `: ${basename}`;
+                        }
+                    }
+                    title = `Write/Edit File${fileText}`;
+                    icon = "fa-file-code";
+                    detailLabel = "File Modification Logs / Diff";
+                } else if (type === "SEARCH_WEB") {
+                    const q = args.query || args.Query || "query";
+                    title = `Web Search: "${q}"`;
+                    icon = "fa-globe";
+                    detailLabel = "Web Search Results";
+                } else if (type === "READ_URL_CONTENT") {
+                    const u = args.Url || args.url || "url";
+                    title = `Read URL: ${u}`;
+                    icon = "fa-link";
+                    detailLabel = "URL Extracted Markdown Content";
+                } else if (type === "ASK_QUESTION") {
+                    title = `User Interview (Question)`;
+                    icon = "fa-circle-question";
+                    detailLabel = "Interactive Question Content & Response Options";
+                } else if (type === "INVOKE_SUBAGENT") {
+                    title = `Invoke Subagent`;
+                    icon = "fa-network-wired";
+                    detailLabel = "Subagent Request & Spawn Details";
+                } else if (type === "CHECKPOINT") {
+                    title = `Compaction Checkpoint`;
+                    icon = "fa-bookmark";
+                    detailLabel = "Progress Summary / Request History";
+                } else if (type === "ERROR_MESSAGE" || isError) {
+                    title = `Tool Execution Error`;
+                    icon = "fa-triangle-exclamation";
+                    detailLabel = "Execution Error Log";
+                    isError = true;
+                } else if (type === "LIST_RESOURCES") {
+                    title = `List MCP Resources`;
+                    icon = "fa-list-ul";
+                    detailLabel = "MCP Resources List";
+                }
+
+                // Check for Playwright screenshots
+                let screenshotHtml = "";
+                const screenshotUrl = extractScreenshotUrl(details);
+                if (screenshotUrl) {
+                    screenshotHtml = `
+                        <div class="screenshot-container">
+                            <div class="screenshot-header">
+                                <i class="fa-solid fa-image"></i> Ảnh chụp màn hình trình duyệt (Screenshot)
+                            </div>
+                            <img src="${screenshotUrl}" alt="Browser Screenshot" class="screenshot-img" onclick="openFullscreenImage('${screenshotUrl}')" />
+                        </div>
+                    `;
+                }
+
+                // Compile reasoning block
+                let reasoningHtml = "";
+                if (step.reasoning) {
+                    reasoningHtml = `
+                        <div class="reasoning-box">
+                            <div class="reasoning-header">
+                                <i class="fa-solid fa-brain"></i> Suy luận (Reasoning)
+                            </div>
+                            <div>${marked.parse(step.reasoning)}</div>
+                        </div>
+                    `;
+                }
+
+                const flowStep = document.createElement("div");
+                flowStep.className = "flow-step";
+                flowStep.innerHTML = `
+                    <div class="flow-node"></div>
+                    ${reasoningHtml}
+                    <div class="terminal-accordion">
+                        <div class="terminal-header" onclick="toggleTerminal(this)">
+                            <div class="terminal-title-group" title="${title}">
+                                <i class="fa-solid ${icon} status-icon ${isError ? 'status-error' : 'status-success'}"></i>
+                                <span>Bước ${idx + 1}: ${title}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 9px; color: var(--text-muted);">~${step.est_tokens.toLocaleString()} tokens</span>
+                                <i class="fa-solid fa-chevron-down terminal-chevron"></i>
+                            </div>
+                        </div>
+                        <div class="terminal-body ${idx === 0 ? 'open' : ''}">
+                            <div class="terminal-window-header">
+                                <span class="dot dot-red"></span>
+                                <span class="dot dot-yellow"></span>
+                                <span class="dot dot-green"></span>
+                            </div>
+                            <div class="tool-meta-bar">
+                                <span>${detailLabel}</span>
+                                <span>Status: ${step.status || 'OK'}</span>
+                            </div>
+                            <div class="terminal-output">${escapeHtml(details)}</div>
+                            ${screenshotHtml}
+                        </div>
+                    </div>
+                `;
+                
+                if (idx === 0) {
+                    const chev = flowStep.querySelector(".terminal-chevron");
+                    if (chev) chev.style.transform = "rotate(180deg)";
+                }
+
+                timelineContainer.appendChild(flowStep);
+            });
+            workspaceViewportEl.appendChild(timelineContainer);
+        }
+
+
+        // Toggle terminal accordion collapse
+        window.toggleTerminal = function(headerEl) {
+            const body = headerEl.nextElementSibling;
+            const chevron = headerEl.querySelector(".terminal-chevron");
+            if (body.classList.contains("open")) {
+                body.classList.remove("open");
+                chevron.style.transform = "rotate(0deg)";
+            } else {
+                body.classList.add("open");
+                chevron.style.transform = "rotate(180deg)";
+            }
+        };
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Zoom Modal Handlers
+        window.openFullscreenImage = function(src) {
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("imageModalImg");
+            modal.style.display = "flex";
+            modalImg.src = src;
+        };
+        window.closeImageModal = function() {
+            document.getElementById("imageModal").style.display = "none";
+        };
+
+        // Init load
+        loadConversations();
+    </script>
+
+    <!-- Image Modal for Fullscreen Screenshot -->
+    <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+        <img id="imageModalImg" class="image-modal-img" src="" alt="Fullscreen Preview">
+    </div>
+</body>
+</html>
