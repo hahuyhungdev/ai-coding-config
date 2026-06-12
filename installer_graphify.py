@@ -143,12 +143,16 @@ def log(m):
 if bypass:
  log("Bypass enabled"); sys.exit(0)
 if exists:
+ def sq(s):
+  s=s.strip()
+  while len(s)>=2 and s[0]==s[-1] and s[0] in ('"',"'"): s=s[1:-1].strip()
+  return s
  tool_ctx="exploration"
  if TOOL=="Edit": tool_ctx="editing"
  else:
   fp=str(t.get("file_path") or t.get("AbsolutePath") or t.get("path") or "")
   if fp and any(m in fp for m in ["IMPROVEMENT","PLAN","TODO","CHANGELOG"]): tool_ctx="planning"
-  cmd=str(t.get("command") or t.get("CommandLine") or "")
+  cmd=sq(str(t.get("command") or t.get("CommandLine") or ""))
   if cmd:
    low_cmd=cmd.lower()
    if any(w in low_cmd for w in ["error","debug","test","fix","bug"]): tool_ctx="debugging"
@@ -158,7 +162,7 @@ if exists:
   decision="deny"
   context="❌ BLOCKED: Grep is blocked for codebase exploration\n💡 TIP: Use `graphify query \"your question\"` for codebase exploration"
  elif TOOL=="Bash":
-  raw=str(t.get("command") or t.get("CommandLine") or "");low=raw.lower().replace(chr(92),"/")
+  raw=sq(str(t.get("command") or t.get("CommandLine") or ""));low=raw.lower().replace(chr(92),"/")
   try:
    lx=shlex.shlex(raw,posix=True,punctuation_chars="|&;()");lx.whitespace_split=True;tokens=list(lx)
   except ValueError: tokens=[]
