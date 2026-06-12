@@ -39,6 +39,7 @@ from installer import (
     sync_mcp_disabled,
     compile_agents,
     configure_project_assistants,
+    show_status,
 )
 
 REPO_DIR = Path(__file__).resolve().parent
@@ -63,8 +64,13 @@ Examples:
     parser.add_argument("--force", action="store_true", help="Overwrite all without asking")
     parser.add_argument("--project", type=str, help="Target project directory to configure project-level hooks (defaults to current repo)")
     parser.add_argument("--uninstall", action="store_true", help="Uninstall all global and/or project-level configurations and hooks")
+    parser.add_argument("--status", action="store_true", help="Show configuration status, active account, and token usage")
 
     args = parser.parse_args()
+
+    if args.status:
+        show_status()
+        return
 
     if args.uninstall:
         if args.project:

@@ -34,7 +34,8 @@ class GraphifyCache:
         cache_file = self.cache_path / f"{key}.json"
         if cache_file.exists():
             with open(cache_file, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                return data.get('value')
         return None
 
     def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
