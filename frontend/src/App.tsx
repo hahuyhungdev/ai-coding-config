@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sliders, LayoutDashboard, Cpu, MessageSquareCode,
-  Terminal as TerminalIcon, Sparkles, Compass, MessageSquare, Play
+  Terminal as TerminalIcon, Sparkles, Compass, MessageSquare, Play, Share2
 } from 'lucide-react';
 
 import { ToastContainer } from './components/Toast';
@@ -16,6 +16,7 @@ import GeminiTab from './features/settings/GeminiTab';
 import ExplorerTab from './features/explorer/ExplorerTab';
 import { SimulatorTab } from './features/simulator/SimulatorTab';
 import { ConversationViewer } from './features/conversations/ConversationViewer';
+import { GraphTab } from './features/graph/GraphTab';
 import { useToast } from './hooks/useToast';
 import { useConfig } from './hooks/useConfig';
 import { useMcpForm } from './hooks/useMcpForm';
@@ -28,6 +29,7 @@ const TABS = [
   { id: 'gemini', label: 'Gemini', icon: Sparkles },
   { id: 'explorer', label: 'Agents', icon: Compass },
   { id: 'conversations', label: 'Observability', icon: MessageSquare },
+  { id: 'graph', label: 'Code Graph', icon: Share2 },
   { id: 'simulator', label: 'Simulator', icon: Play }
 ];
 
@@ -73,7 +75,7 @@ export default function App() {
   return (
     <div className="flex w-screen h-screen overflow-hidden bg-bg text-text-primary">
 
-      {activeTab !== 'conversations' && (
+      {activeTab !== 'conversations' && activeTab !== 'graph' && (
         <>
           {/* Main Sidebar Wrapper */}
           <div className={`fixed inset-y-0 left-0 z-20 lg:relative lg:z-0 lg:flex shrink-0 ${
@@ -108,7 +110,7 @@ export default function App() {
         {/* Header */}
         <header className="flex bg-surface/40 backdrop-blur-md border-b border-white/[0.08] px-4 sm:px-6 items-center justify-between overflow-hidden shrink-0">
           <div className="flex items-center gap-2 flex-1 overflow-hidden">
-            {activeTab !== 'conversations' && (
+            {activeTab !== 'conversations' && activeTab !== 'graph' && (
               <button
                 onClick={() => setShowMainSidebar(!showMainSidebar)}
                 className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0"
@@ -152,6 +154,10 @@ export default function App() {
         {activeTab === 'conversations' ? (
           <div className="flex-1 overflow-hidden p-6 animate-fade-up">
             <ConversationViewer />
+          </div>
+        ) : activeTab === 'graph' ? (
+          <div className="flex-1 overflow-hidden p-6 animate-fade-up">
+            <GraphTab />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto main-content-scrollbar">

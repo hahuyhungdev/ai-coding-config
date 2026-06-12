@@ -1029,6 +1029,46 @@ class ConfigHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_error_json(500, str(e))
                 
+        elif path == "/api/graphify/view":
+            try:
+                project_name = query.get("project", ["mswcc-front-fe"])[0]
+                view_type = query.get("type", ["graph"])[0] # 'graph' or 'tree'
+                
+                # Find the project directory dynamically
+                project_dir = None
+                search_paths = [
+                    Path.home() / "projects" / "company" / project_name,
+                    Path.home() / "projects" / "personals" / project_name,
+                    Path.home() / "projects" / project_name
+                ]
+                for p in search_paths:
+                    if p.exists() and p.is_dir():
+                        project_dir = p
+                        break
+                        
+                if not project_dir:
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
+                    return
+                    
+                filename = "graph.html" if view_type == "graph" else "GRAPH_TREE.html"
+                file_path = project_dir / "graphify-out" / filename
+                
+                if not file_path.exists():
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(f"Graph visualization file '{filename}' not found in project '{project_name}'".encode("utf-8"))
+                    return
+                    
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(file_path.stat().st_size))
+                self.end_headers()
+                self.wfile.write(file_path.read_bytes())
+            except Exception as e:
+                self.send_error_json(500, str(e))
+                
         elif path == "/api/analytics":
             try:
                 analytics = get_aggregate_analytics()
