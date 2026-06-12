@@ -941,7 +941,42 @@ class ConfigHandler(BaseHTTPRequestHandler):
         # Override to suppress standard HTTP logging to keep console clean
         pass
 
+    def validate_host_and_origin(self, check_origin=True):
+        host = self.headers.get("Host", "")
+        # Allow localhost and 127.0.0.1 with any port or without port
+        host_name = host.split(":")[0] if ":" in host else host
+        if host_name not in ("localhost", "127.0.0.1"):
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b"Bad Request: Invalid Host Header")
+            return False
+
+        if check_origin:
+            origin = self.headers.get("Origin")
+            referer = self.headers.get("Referer")
+            
+            if origin:
+                parsed_origin = urllib.parse.urlparse(origin)
+                origin_host = parsed_origin.hostname
+                if origin_host not in ("localhost", "127.0.0.1"):
+                    self.send_response(403)
+                    self.end_headers()
+                    self.wfile.write(b"Forbidden: Cross-Origin request blocked")
+                    return False
+                    
+            if referer:
+                parsed_referer = urllib.parse.urlparse(referer)
+                referer_host = parsed_referer.hostname
+                if referer_host and referer_host not in ("localhost", "127.0.0.1"):
+                    self.send_response(403)
+                    self.end_headers()
+                    self.wfile.write(b"Forbidden: Cross-Origin referer blocked")
+                    return False
+        return True
+
     def do_GET(self):
+        if not self.validate_host_and_origin(check_origin=False):
+            return
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
         query = urllib.parse.parse_qs(parsed_url.query)
@@ -1124,13 +1159,11 @@ class ConfigHandler(BaseHTTPRequestHandler):
                     filename = "GRAPH_TREE.html"
                     file_path = project_dir / "graphify-out" / filename
                     if not file_path.exists():
-                        import subprocess
                         subprocess.run(["graphify", "tree"], cwd=str(project_dir), capture_output=True)
                 elif view_type == "callflow":
                     filename = f"{project_name}-callflow.html"
                     file_path = project_dir / "graphify-out" / filename
                     if not file_path.exists():
-                        import subprocess
                         subprocess.run(["graphify", "export", "callflow-html"], cwd=str(project_dir), capture_output=True)
                 else:
                     filename = "graph.html"
@@ -1363,8 +1396,19 @@ class ConfigHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
 
     def do_POST(self):
+        if not self.validate_host_and_origin(check_origin=True):
+            return
+            
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
+        
+        if path.startswith("/api/"):
+            content_type = self.headers.get("Content-Type", "")
+            if not content_type.split(";")[0].strip().lower() == "application/json":
+                self.send_response(415)
+                self.end_headers()
+                self.wfile.write(b"Unsupported Media Type: Content-Type must be application/json")
+                return
         
         if path == "/api/save-temp":
             content_length = int(self.headers.get("Content-Length", 0))
@@ -1446,7 +1490,6 @@ class ConfigHandler(BaseHTTPRequestHandler):
                 if force:
                     cmd.append("--force")
                 
-                import subprocess
                 result = subprocess.run(cmd, cwd=str(project_dir), capture_output=True, text=True)
                 
                 self.send_response(200)

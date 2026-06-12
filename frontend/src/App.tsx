@@ -201,8 +201,8 @@ export default function App() {
         newMcpUrl={mcpForm.newMcpUrl} setNewMcpUrl={mcpForm.setNewMcpUrl}
         onAdd={mcpForm.addCustomMcp}
       />
-      <ApplyModal isOpen={showApplyModal} onClose={() => setShowApplyModal(false)} onApply={(force) => config.executeApply(force, { claude: config.tempConfig!.targets.claude, codex: config.tempConfig!.targets.codex, agy: config.tempConfig!.targets.agy })} />
-      <DiscardModal isOpen={showDiscardModal} onClose={() => setShowDiscardModal(false)} onDiscard={config.executeDiscard} />
+      <ApplyModal isOpen={showApplyModal} onClose={() => setShowApplyModal(false)} onApply={(force) => { config.executeApply(force, { claude: config.tempConfig!.targets.claude, codex: config.tempConfig!.targets.codex, agy: config.tempConfig!.targets.agy }); setShowApplyModal(false); }} />
+      <DiscardModal isOpen={showDiscardModal} onClose={() => setShowDiscardModal(false)} onDiscard={() => { config.executeDiscard(); setShowDiscardModal(false); }} />
     </div>
   );
 }

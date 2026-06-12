@@ -67,7 +67,7 @@ const TEMPLATES = {
     
     // 1. Edit Claude Code Configuration
     console.log("Navigating to Claude Code tab...");
-    await page.click('button:has-text("Claude Code")');
+    await page.click('header >> text="Claude"');
     await page.waitForTimeout(300);
     console.log("Changing Max Thinking Tokens to 25000...");
     await page.fill('input[value="20000"]', '25000');
@@ -85,20 +85,20 @@ const TEMPLATES = {
 
     // 2. Edit Codex CLI Configuration
     console.log("Navigating to Codex CLI tab...");
-    await page.click('button:has-text("Codex CLI")');
+    await page.click('header >> text="Codex"');
     await page.waitForTimeout(300);
     console.log("Changing Model Alias to gpt-6.0-ultra...");
     await page.fill('input[value="gpt-5.5"]', 'gpt-6.0-ultra');
 
     // 3. Edit Antigravity CLI Configuration
     console.log("Navigating to Antigravity CLI tab...");
-    await page.click('button:has-text("Antigravity CLI")');
+    await page.click('header >> text="Gemini"');
     await page.waitForTimeout(300);
     console.log("Changing Model Alias to Gemini 4.0 Pro...");
     await page.fill('input[value="Gemini 3.5 Flash (High)"]', 'Gemini 4.0 Pro');
 
     // Verify staged changes in sidebar
-    const stagedText = await page.locator('div.section-title:has-text("Staged Changes") + div').textContent();
+    const stagedText = await page.locator('section:has-text("Staged Changes") >> div.rounded-lg').textContent();
     console.log(`Staged changes in sidebar:\n${stagedText}`);
     
     if (!stagedText.includes("MAX_THINKING_TOKENS") || !stagedText.includes("gpt-6.0-ultra") || !stagedText.includes("Gemini 4.0 Pro") || !stagedText.includes("CLAUDE.md")) {
@@ -110,13 +110,16 @@ const TEMPLATES = {
     await page.click('button:has-text("Apply Changes")');
     await page.waitForTimeout(300);
     await page.click('button:has-text("Standard Apply")');
+    await page.waitForSelector('h2:has-text("Apply Staged Changes?")', { state: 'hidden' });
+    await page.click('header >> text="Dashboard"');
+    await page.waitForTimeout(300);
     
     console.log("Waiting for installation logs to finish...");
     let logsText = "";
     let completed = false;
     for (let i = 0; i < 30; i++) {
       await page.waitForTimeout(1000);
-      logsText = await page.locator('div:has-text("Process Output Logs")').locator('xpath=following-sibling::div').textContent();
+      logsText = await page.locator('div:has-text("Process Output")').locator('xpath=following-sibling::div').textContent();
       if (logsText.includes("SUCCESS:") || logsText.includes("ERROR:") || logsText.includes("Done!")) {
         completed = true;
         break;
@@ -171,7 +174,7 @@ const TEMPLATES = {
 
     // Change something on the web tab to trigger another apply
     console.log("Changing Max Thinking Tokens to 26000 on Web...");
-    await page.click('button:has-text("Claude Code")');
+    await page.click('header >> text="Claude"');
     await page.waitForTimeout(300);
     await page.fill('input[value="25000"]', '26000');
     
@@ -180,11 +183,14 @@ const TEMPLATES = {
     await page.click('button:has-text("Apply Changes")');
     await page.waitForTimeout(300);
     await page.click('button:has-text("Standard Apply")');
+    await page.waitForSelector('h2:has-text("Apply Staged Changes?")', { state: 'hidden' });
+    await page.click('header >> text="Dashboard"');
+    await page.waitForTimeout(300);
 
     completed = false;
     for (let i = 0; i < 30; i++) {
       await page.waitForTimeout(1000);
-      logsText = await page.locator('div:has-text("Process Output Logs")').locator('xpath=following-sibling::div').textContent();
+      logsText = await page.locator('div:has-text("Process Output")').locator('xpath=following-sibling::div').textContent();
       if (logsText.includes("SUCCESS:") || logsText.includes("ERROR:") || logsText.includes("Done!")) {
         completed = true;
         break;
@@ -208,7 +214,7 @@ const TEMPLATES = {
     // Apply Changes via Force Overwrite (conflict should be overwritten)
     console.log("\nApplying changes via Force Overwrite...");
     // Let's modify Max Thinking Tokens to make sure there are staged changes to apply
-    await page.click('button:has-text("Claude Code")');
+    await page.click('header >> text="Claude"');
     await page.waitForTimeout(300);
     await page.fill('input[value="26000"]', '27000');
     await page.waitForTimeout(300);
@@ -216,11 +222,14 @@ const TEMPLATES = {
     await page.click('button:has-text("Apply Changes")');
     await page.waitForTimeout(300);
     await page.click('button:has-text("Force Overwrite")');
+    await page.waitForSelector('h2:has-text("Apply Staged Changes?")', { state: 'hidden' });
+    await page.click('header >> text="Dashboard"');
+    await page.waitForTimeout(300);
 
     completed = false;
     for (let i = 0; i < 30; i++) {
       await page.waitForTimeout(1000);
-      logsText = await page.locator('div:has-text("Process Output Logs")').locator('xpath=following-sibling::div').textContent();
+      logsText = await page.locator('div:has-text("Process Output")').locator('xpath=following-sibling::div').textContent();
       if (logsText.includes("SUCCESS:") || logsText.includes("ERROR:") || logsText.includes("Done!")) {
         completed = true;
         break;

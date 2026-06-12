@@ -58,41 +58,90 @@ By combining `rtk` (our ultra-compact filter proxy) and `graphify` (semantic gra
 | **Cross-File Relationships** | ~40,000 | ~300 | **99.2%** |
 | **Concept Deep-Dive** | ~20,000 | ~250 | **98.7%** |
 
-### 🧠 Graphify Execution & Rebuild Strategy
+### 🧠 Graphify Execution, Clustering, & Rebuild Strategy
 
-To get the highest quality codebase map with the best speed-to-cost ratio, follow this two-tier strategy:
+To get the highest quality codebase map with the best speed-to-cost ratio, follow this execution and update strategy:
 
 1. **Initial Setup & Big Refactors (Semantic AI Mode):**
-   Run the deep semantic extraction using your Claude Code subscription to build a high-fidelity knowledge graph (including inferred logical edges and named communities) completely for free:
+   Run the deep semantic extraction to build a high-fidelity knowledge graph (including inferred logical edges and named communities):
    ```bash
-   graphify extract . --mode deep --backend claude-cli
+   graphify extract . --mode deep --backend gemini
    ```
-   *Note: Ensure you are logged into the `claude` CLI (`claude` command works) beforehand.*
+   *Note: You can choose whichever LLM backend you prefer (`gemini`, `claude-cli`, `openai`, `kimi`, etc.) based on active API keys.*
 
-2. **Daily Commits & Checkouts (Background Git Hooks):**
-   Let the automated background Git Hooks run the offline algorithm-only update:
+2. **Louvain Clustering & AI Labeling:**
+   Graphify segments codebase modules using **Louvain Community Detection** locally (free & offline).
+   *   **Default State:** Communities are named `Community 0`, `Community 1`, etc. in `graphify-out/.graphify_labels.json`.
+   *   **AI Community Naming:** Assign descriptive names (e.g. *"Authentication & JWT"*, *"Database Migrations"*) via the LLM:
+       ```bash
+       graphify label . --backend gemini
+       ```
+   *   **Re-clustering (After major refactors):** Recalculate community boundaries without losing existing names:
+       ```bash
+       graphify cluster-only .
+       graphify label . --backend gemini
+       ```
+
+3. **Daily Commits & Checkouts (Background Git Hooks):**
+   Automated background Git Hooks run the offline algorithm-only update:
    ```bash
    graphify update .
    ```
-   This updates the graph instantly (1-2 seconds) using local AST and regex parsing for modified/new/deleted files without blocking your terminal or burning API limits.
+   This updates the graph instantly (1-2 seconds) using local AST and regex parsing. It automatically preserves the named community labels in `graphify-out/.graphify_labels.json` to avoid duplicate LLM calls or burning API limits.
 
-3. **Periodic AI Refresh (Weekly / End of Sprint):**
+4. **Periodic AI Refresh (Weekly / End of Sprint):**
    To prevent "semantic degradation" (since daily commits only update structural nodes), refresh the semantic edges periodically:
    *   **Linux/WSL (Cron):** Add to `crontab -e`:
        ```bash
-       0 22 * * 5 cd ~/projects/ai-coding-config && graphify extract . --mode deep --backend claude-cli --no-cluster
+       0 22 * * 5 cd ~/projects/ai-coding-config && graphify extract . --mode deep --backend gemini --no-cluster
        ```
    *   **Windows (Command Prompt):** Register a Task Scheduler command:
        ```cmd
-       schtasks /create /tn "Graphify AI Refresh" /tr "cmd.exe /c cd C:\projects\ai-coding-config && graphify extract . --mode deep --backend claude-cli --no-cluster" /sc weekly /d FRI /st 22:00
+       schtasks /create /tn "Graphify AI Refresh" /tr "cmd.exe /c cd C:\projects\ai-coding-config && graphify extract . --mode deep --backend gemini --no-cluster" /sc weekly /d FRI /st 22:00
        ```
    *   *Optimization Tip:* Adding `--no-cluster` skips community grouping, making the rebuild much faster and lighter on tokens.
 
-4. **Quality Auditing (Graph Health Check):**
+5. **Quality Auditing (Graph Health Check):**
    Measure the token savings and graph quality at any time:
    ```bash
    graphify benchmark graphify-out/graph.json
    ```
+
+---
+
+## 🔄 Unified Workflow & Configuration Scope
+
+The AI Coding Config Engine manages a three-way sync workflow to align developer tools system-wide.
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                 Interactive Dashboard                    │
+│                 (http://localhost:8000)                  │
+└────────────────────────────┬─────────────────────────────┘
+                             │
+                             ▼  Saves Enabled Configs
+               ┌─────────────┴─────────────┐
+               │    server.py Sync Hub     │
+               └─┬───────────┬───────────┬─┘
+                 │           │           │
+                 ▼           ▼           ▼
+             [Claude]     [Codex]     [Gemini]
+            ~/.claude   ~/.codex   ~/.gemini/config
+```
+
+### 1. Workflow
+1. **Bootstrap & Project Link:** Run `install.py --all --project /path/to/project`. This injects custom Git Hooks and instructions (`CLAUDE.md`, `ANTIGRAVITY.md`, `AGENTS.md`) into your workspace.
+2. **Synchronized Configuration:** Any changes made in the dashboard (enabling/disabling MCP servers, updating custom variables) write concurrently to `~/.claude/settings.json`, `~/.codex/config.toml`, and `~/.gemini/config/mcp_config.json`.
+3. **AST-driven Navigation:** When an AI assistant handles a request, Git-based pre-tool-use hooks redirect broad directory/grep searches to `rtk graphify query` to save up to 99.8% of context token budget.
+4. **Visual Monitoring:** Open `./run-web.sh` to check active configurations, edit rules inside modals, or visually inspect the module dependency trees, call flows, and 2D network graphs.
+
+### 2. Configuration Scope
+*   **Settings File Targets:**
+    *   `Claude Code`: JSON structure containing `PreToolUse` hooks and enabled MCP servers.
+    *   `Codex CLI`: TOML structure containing `[mcp_servers]` sections and local parameters.
+    *   `Antigravity CLI (agy)`: JSON structure containing `BeforeTool` hooks and custom Gemini MCP parameters.
+*   **Rules & Markdown instructions:** Sets up and synchronizes project-level rules (like target thresholds, testing requirements) within `CLAUDE.md`, `ANTIGRAVITY.md`, and `AGENTS.md`.
+*   **Background Hook Gate:** Automatically registers the `rtk` filter proxy. If the graph exists, it restricts assistants to 3 graph queries maximum per session, forcing context consolidation.
 
 ---
 
@@ -132,12 +181,41 @@ Manage your agents, configurations, and MCP servers visually.
 
 ## 🧪 Verification & Test Suite
 
-Verify syntax, templates, and hook-filtering behavior locally:
+Verify configurations, security controls, layout alignment, and E2E navigation flows:
 
+### 1. Python Unit Tests (Config & Security)
+Runs 68 unit tests verifying template generation, hook execution, and host/CORS security policies:
 ```bash
-python3 -m unittest tests/test_config.py
-python3 -m unittest tests/test_cal_diy_integration.py
+pytest
 ```
+
+### 2. Layout & Structural Alignment Checks
+Verifies that all three CLI configuration tabs (Claude, Codex, Gemini) maintain 100% identical settings layout structures:
+```bash
+node frontend/verify-layout.cjs
+```
+
+### 3. Playwright E2E Tests (Full User Flow & Observability)
+Verifies tab navigation, adding/removing custom MCP servers, staging changes, log streaming, and analytics detail views:
+```bash
+# Main E2E flow
+node frontend/test-e2e.cjs
+
+# Complex apply scenarios (Standard Apply vs Force Overwrite)
+node frontend/test-apply-scenarios.cjs
+
+# Observability dashboard analytics & conversation detail log viewer
+node frontend/test-analytics-e2e.cjs
+```
+
+---
+
+## 🔒 Security Hardening
+
+The Configuration API server includes built-in protection against cross-site exploitation:
+*   **Host Header Validation:** Rejects any requests where the `Host` header is not strictly `localhost` or `127.0.0.1` (protecting against DNS Rebinding and Host Header attacks).
+*   **Cross-Origin (CORS) Protection:** Rejects any `POST` requests containing cross-origin `Origin` or `Referer` headers.
+*   **Content-Type Enforcement:** Enforces strict `application/json` Content-Type check on all `/api/` endpoints. This forces browsers to perform a CORS preflight OPTIONS check for cross-origin scripts, which is automatically blocked since no wildcard origin headers are allowed.
 
 ---
 

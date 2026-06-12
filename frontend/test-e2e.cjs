@@ -3,6 +3,7 @@ const { chromium } = require('playwright');
 (async () => {
   console.log("Starting E2E tests using Microsoft Edge...");
   let browser;
+  let page;
   try {
     // Launch Chromium with channel: 'msedge' to use Microsoft Edge
     browser = await chromium.launch({
@@ -13,7 +14,7 @@ const { chromium } = require('playwright');
     const context = await browser.newContext({
       viewport: { width: 1280, height: 800 }
     });
-    const page = await context.newPage();
+    page = await context.newPage();
     
     // Log console messages from the page
     page.on('console', msg => {
@@ -32,11 +33,11 @@ const { chromium } = require('playwright');
     
     // 2. Tab Navigation
     const tabs = [
-      { name: 'MCP Settings', title: 'Configure parameters directly inside ~/.claude.json' },
-      { name: 'Claude Code', title: 'LLM & Environment Configuration' },
-      { name: 'Codex CLI', title: 'Security & Permission Policies' },
-      { name: 'Antigravity CLI', title: 'LLM & Environment Configuration' },
-      { name: 'Agents & Skills', title: 'Agents' }
+      { name: 'MCP', title: 'Select a server to configure' },
+      { name: 'Claude', title: 'LLM & Environment Configuration' },
+      { name: 'Codex', title: 'Security & Permissions' },
+      { name: 'Gemini', title: 'Security & Permissions' },
+      { name: 'Agents', title: 'Agents' }
     ];
 
     
@@ -55,12 +56,12 @@ const { chromium } = require('playwright');
     
     // 3. MCP Configuration Check & Custom MCP Add
     console.log("Verifying MCP Configuration Editor...");
-    await page.click('header >> text="MCP Settings"');
+    await page.click('header >> text="MCP"');
     await page.waitForTimeout(500);
     
     // Click playwright server in the sidebar
-    await page.click('aside >> text="playwright"');
-    await page.waitForTimeout(500);
+    await page.click('aside[class*="w-[280px]"] span.font-mono:has-text("playwright")');
+    await page.waitForTimeout(1000);
     
     // Verify it loaded command
     const commandVal = await page.inputValue('input[placeholder="npx"]');
@@ -80,13 +81,13 @@ const { chromium } = require('playwright');
     await page.fill('input[placeholder="e.g. npx"]', 'npx');
     await page.fill('textarea[placeholder*="postgres"]', '-y\nmcp-server-mysql');
     
-    // Click Add Server to Staging
-    console.log("Clicking Add Server to Staging...");
-    await page.click('button:has-text("Add Server to Staging")');
+    // Click Add Server
+    console.log("Clicking Add Server...");
+    await page.click('button:has-text("Add Server")');
     await page.waitForTimeout(500);
     
     // Verify "mysql-test" is added to staged changes
-    let stagedText = await page.locator('div.section-title:has-text("Staged Changes") + div').textContent();
+    let stagedText = await page.locator('section:has-text("Staged Changes") >> div.rounded-lg').textContent();
     console.log(`Staged changes after adding custom MCP: ${stagedText}`);
     if (!stagedText.includes("mysql-test")) {
       throw new Error("Staging custom MCP server failed: mysql-test not in Staged Changes.");
@@ -94,13 +95,13 @@ const { chromium } = require('playwright');
     
     // Discard changes to revert custom MCP
     console.log("Discarding custom MCP change...");
-    await page.click('button:has-text("Discard Changes")');
+    await page.click('button:has-text("Discard")');
     await page.waitForTimeout(500);
     await page.click('div.fixed >> button:has-text("Discard Changes")');
-    await page.waitForTimeout(500);
+    await page.waitForSelector('h2:has-text("Discard Changes?")', { state: 'hidden' });
     
     // Verify staged changes is now empty
-    stagedText = await page.locator('div.section-title:has-text("Staged Changes") + div').textContent();
+    stagedText = await page.locator('section:has-text("Staged Changes") >> div.rounded-lg').textContent();
     console.log(`Staged changes after discard: ${stagedText}`);
     if (stagedText.includes("mysql-test")) {
       throw new Error("Discard changes failed: mysql-test config is still staged.");
@@ -108,7 +109,7 @@ const { chromium } = require('playwright');
     
     // 4. Explorer sub-checks
     console.log("Verifying Agents & Skills Explorer lists...");
-    await page.click('header >> text="Agents & Skills"');
+    await page.click('header >> text="Agents"');
     await page.waitForTimeout(500);
     
     // Click on the first agent/skill under Agents (architect)
@@ -134,7 +135,7 @@ const { chromium } = require('playwright');
     await page.waitForTimeout(500);
     
     // Check staged changes panel
-    stagedText = await page.locator('div.section-title:has-text("Staged Changes") + div').textContent();
+    stagedText = await page.locator('section:has-text("Staged Changes") >> div.rounded-lg').textContent();
     console.log(`Staged changes text: ${stagedText}`);
     if (!stagedText.includes("Claude Code")) {
       throw new Error("Staging target change failed: target Claude Code not listed in Staged Changes.");
@@ -142,16 +143,16 @@ const { chromium } = require('playwright');
     
     // Click Discard Changes button
     console.log("Clicking Discard Changes button in sidebar...");
-    await page.click('button:has-text("Discard Changes")');
+    await page.click('button:has-text("Discard")');
     await page.waitForTimeout(500);
     
     // Confirm in discard modal
     console.log("Confirming discard in modal...");
     await page.click('div.fixed >> button:has-text("Discard Changes")');
-    await page.waitForTimeout(500);
+    await page.waitForSelector('h2:has-text("Discard Changes?")', { state: 'hidden' });
     
     // Verify staged changes is now empty
-    stagedText = await page.locator('div.section-title:has-text("Staged Changes") + div').textContent();
+    stagedText = await page.locator('section:has-text("Staged Changes") >> div.rounded-lg').textContent();
     console.log(`Staged changes after discard: ${stagedText}`);
     if (stagedText.includes("Claude Code")) {
       throw new Error("Discard changes failed: change is still staged.");
@@ -174,7 +175,7 @@ const { chromium } = require('playwright');
     let completed = false;
     for (let i = 0; i < 30; i++) {
       await page.waitForTimeout(1000);
-      logsText = await page.locator('div:has-text("Process Output Logs")').locator('xpath=following-sibling::div').textContent();
+      logsText = await page.locator('div:has-text("Process Output")').locator('xpath=following-sibling::div').textContent();
       if (logsText && !logsText.includes("No logs written")) {
         console.log(`[Logs Iteration ${i + 1}] Log output contains content. Length: ${logsText.length}`);
         if (logsText.includes("SUCCESS:") || logsText.includes("ERROR:") || logsText.includes("Apply failed") || logsText.includes("Done!")) {
@@ -201,6 +202,14 @@ const { chromium } = require('playwright');
     process.exit(0);
   } catch (error) {
     console.error("Test failed with error:", error);
+    if (page) {
+      try {
+        await page.screenshot({ path: '/home/huyhung/projects/personals/ai-coding-config/e2e-failure.png' });
+        console.log("Saved failure screenshot to e2e-failure.png");
+      } catch (screenshotError) {
+        console.error("Failed to capture failure screenshot:", screenshotError);
+      }
+    }
     process.exit(1);
   } finally {
     if (browser) {

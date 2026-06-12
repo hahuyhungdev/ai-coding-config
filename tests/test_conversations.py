@@ -54,5 +54,44 @@ class TestConversationsAPI(unittest.TestCase):
         except urllib.error.HTTPError as e:
             self.assertIn(e.code, (404, 500))
 
+    def test_invalid_host_header_blocked(self):
+        url = f"http://127.0.0.1:{self.port}/api/conversations"
+        req = urllib.request.Request(url)
+        req.add_header("Host", "attacker.com")
+        try:
+            urllib.request.urlopen(req)
+            self.fail("Should have blocked invalid Host header")
+        except urllib.error.HTTPError as e:
+            self.assertEqual(e.code, 400)
+
+    def test_cross_origin_referer_blocked(self):
+        url = f"http://127.0.0.1:{self.port}/api/mcp/test"
+        req = urllib.request.Request(
+            url, 
+            method="POST", 
+            data=json.dumps({"command": "node"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        req.add_header("Referer", "http://attacker.com")
+        try:
+            urllib.request.urlopen(req)
+            self.fail("Should have blocked cross-origin Referer")
+        except urllib.error.HTTPError as e:
+            self.assertEqual(e.code, 403)
+
+    def test_invalid_content_type_post_blocked(self):
+        url = f"http://127.0.0.1:{self.port}/api/mcp/test"
+        req = urllib.request.Request(
+            url, 
+            method="POST", 
+            data=json.dumps({"command": "node"}).encode("utf-8"),
+            headers={"Content-Type": "text/plain"}
+        )
+        try:
+            urllib.request.urlopen(req)
+            self.fail("Should have blocked non-JSON POST requests")
+        except urllib.error.HTTPError as e:
+            self.assertEqual(e.code, 415)
+
 if __name__ == "__main__":
     unittest.main()

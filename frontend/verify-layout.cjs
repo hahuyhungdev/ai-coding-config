@@ -9,11 +9,25 @@ const { chromium } = require('playwright');
   try {
     console.log("Navigating to http://127.0.0.1:8000...");
     await page.goto('http://127.0.0.1:8000', { waitUntil: 'networkidle' });
-
     const tabs = [
-      { name: 'Claude Code', expectedEditor: 'CLAUDE.md' },
-      { name: 'Codex CLI', expectedEditor: 'AGENTS.md' },
-      { name: 'Antigravity CLI', expectedEditor: 'ANTIGRAVITY.md' }
+      { 
+        name: 'Claude', 
+        expectedEditor: 'CLAUDE.md', 
+        expectedButton: 'Edit CLAUDE.md Instructions',
+        expectedCards: ['LLM & Environment Configuration', 'Security & Permission Policies'] 
+      },
+      { 
+        name: 'Codex', 
+        expectedEditor: 'AGENTS.md', 
+        expectedButton: 'Edit AGENTS.md',
+        expectedCards: ['LLM & Environment', 'Security & Permissions', 'Features & Warnings'] 
+      },
+      { 
+        name: 'Gemini', 
+        expectedEditor: 'ANTIGRAVITY.md', 
+        expectedButton: 'Edit ANTIGRAVITY.md',
+        expectedCards: ['LLM & Environment', 'Security & Permissions'] 
+      }
     ];
 
     for (const tab of tabs) {
@@ -23,23 +37,22 @@ const { chromium } = require('playwright');
 
       // 1. Verify Left Column Settings Card Names
       const cardHeaders = await page.evaluate(() => {
-        const cards = Array.from(document.querySelectorAll('.bg-mantle div.text-base'));
+        const cards = Array.from(document.querySelectorAll('.glass div.font-semibold'));
         return cards.map(c => c.textContent.trim());
       });
 
       console.log("  -> Left Settings Card Titles:", cardHeaders);
-      if (cardHeaders.length !== 2) {
-        throw new Error(`Expected exactly 2 settings cards, found ${cardHeaders.length}`);
+      if (cardHeaders.length !== tab.expectedCards.length) {
+        throw new Error(`Expected exactly ${tab.expectedCards.length} settings cards, found ${cardHeaders.length}`);
       }
-      if (cardHeaders[0] !== 'LLM & Environment Configuration') {
-        throw new Error(`Card 1 title mismatch: got "${cardHeaders[0]}"`);
-      }
-      if (cardHeaders[1] !== 'Security & Permission Policies') {
-        throw new Error(`Card 2 title mismatch: got "${cardHeaders[1]}"`);
+      for (let idx = 0; idx < tab.expectedCards.length; idx++) {
+        if (cardHeaders[idx] !== tab.expectedCards[idx]) {
+          throw new Error(`Card ${idx + 1} title mismatch: expected "${tab.expectedCards[idx]}", got "${cardHeaders[idx]}"`);
+        }
       }
 
       // 2. Verify Modal Editor Header File Label
-      const buttonText = `Edit ${tab.expectedEditor} Instructions`;
+      const buttonText = tab.expectedButton;
       console.log(`  -> Clicking button: "${buttonText}"`);
       await page.click(`button:has-text("${buttonText}")`);
       await page.waitForTimeout(300);
@@ -47,7 +60,7 @@ const { chromium } = require('playwright');
       const modalHeader = await page.evaluate(() => {
         const ta = document.querySelector('textarea[placeholder*="Instructions"]');
         if (!ta) return null;
-        const headerDiv = ta.parentElement.querySelector('.text-sm');
+        const headerDiv = ta.parentElement.querySelector('div.font-semibold');
         return headerDiv ? headerDiv.textContent.trim() : null;
       });
 
