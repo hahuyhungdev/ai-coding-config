@@ -240,6 +240,186 @@ def estimate_tokens(text: any, is_output=False) -> int:
     return int(est)
 
 
+ANALYTICS_CACHE = {}
+
+def get_model_rates(model_name: str) -> tuple[float, float]:
+    model_lower = model_name.lower()
+    if "pro" in model_lower:
+        return 1.25, 5.00
+    elif "flash" in model_lower:
+        return 0.075, 0.30
+    elif "sonnet" in model_lower or "claude-3-5" in model_lower or "claude-3.7" in model_lower:
+        return 3.00, 15.00
+    elif "opus" in model_lower:
+        return 15.00, 75.00
+    elif "haiku" in model_lower:
+        return 0.25, 1.25
+    elif "gpt-5" in model_lower or "openai" in model_lower:
+        return 5.00, 15.00
+    else:
+        return 1.25, 5.00
+
+def get_session_analytics_stats(source: str, log_file: Path, model_name: str) -> dict:
+    if not log_file.exists():
+        return None
+        
+    mtime = log_file.stat().st_mtime
+    cache_key = (source, str(log_file), mtime)
+    if cache_key in ANALYTICS_CACHE:
+        return ANALYTICS_CACHE[cache_key]
+        
+    steps = []
+    if source == "gemini":
+        steps = parse_gemini_jsonl(log_file)
+    elif source == "claude":
+        steps = parse_claude_jsonl(log_file)
+    elif source == "codex":
+        steps = parse_codex_jsonl(log_file)
+        
+    input_rate, output_rate = get_model_rates(model_name)
+    
+    total_steps = 0
+    user_messages = 0
+    tool_calls = 0
+    est_input_tokens = 0
+    est_output_tokens = 0
+    
+    for step in steps:
+        content = step.get("content") or ""
+        tokens = estimate_tokens(content)
+        
+        total_steps += 1
+        step_type = step.get("type")
+        if step_type == "USER_INPUT":
+            user_messages += 1
+            est_input_tokens += 25000 + tokens
+        elif step_type == "PLANNER_RESPONSE":
+            est_output_tokens += tokens
+        elif step_type in (
+            "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
+            "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
+            "ASK_QUESTION", "INVOKE_SUBAGENT", "CHECKPOINT", "ERROR_MESSAGE",
+            "LIST_RESOURCES", "GENERIC"
+        ):
+            if step_type != "CHECKPOINT":
+                tool_calls += 1
+            est_input_tokens += tokens
+            
+    input_cost = (est_input_tokens / 1_000_000.0) * input_rate
+    output_cost = (est_output_tokens / 1_000_000.0) * output_rate
+    est_cost = round(input_cost + output_cost, 4)
+    
+    stats = {
+        "steps": total_steps,
+        "turns": user_messages,
+        "tool_calls": tool_calls,
+        "input_tokens": est_input_tokens,
+        "output_tokens": est_output_tokens,
+        "total_tokens": est_input_tokens + est_output_tokens,
+        "cost": est_cost,
+        "model_name": model_name
+    }
+    
+    ANALYTICS_CACHE[cache_key] = stats
+    return stats
+
+def get_aggregate_analytics():
+    conversations = get_all_conversations()
+    session_stats = []
+    
+    total_sessions = 0
+    total_steps = 0
+    total_turns = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
+    total_cost = 0.0
+    
+    for conv in conversations:
+        conv_id = conv["id"]
+        parts = conv_id.split("__")
+        if len(parts) < 2:
+            continue
+        source = parts[0]
+        
+        log_file = None
+        model_name = "unknown"
+        
+        if source == "gemini":
+            gemini_id = parts[1]
+            log_file = BRAIN_DIR / gemini_id / ".system_generated" / "logs" / "transcript.jsonl"
+            model_name = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+        elif source == "claude":
+            project_dir_name = parts[1]
+            session_id = parts[2]
+            log_file = CLAUDE_DIR / project_dir_name / f"{session_id}.jsonl"
+            model_name = "claude-3-5-sonnet"
+            try:
+                with log_file.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        data = json.loads(line)
+                        if data.get("type") == "assistant" and "message" in data:
+                            model_name = data["message"].get("model", model_name)
+                            break
+            except Exception:
+                pass
+        elif source == "codex":
+            year_month_day = parts[1]
+            rollout_filename = parts[2]
+            y_m_d_parts = year_month_day.split("-")
+            if len(y_m_d_parts) == 3:
+                year, month, day = y_m_d_parts
+                log_file = CODEX_DIR / year / month / day / f"{rollout_filename}.jsonl"
+                model_name = "gpt-5"
+                try:
+                    with log_file.open("r", encoding="utf-8") as f:
+                        for line in f:
+                            data = json.loads(line)
+                            if data.get("type") == "session_meta" and "payload" in data:
+                                model_name = data["payload"].get("model_provider", model_name)
+                                break
+                except Exception:
+                    pass
+                    
+        if log_file and log_file.exists():
+            stats = get_session_analytics_stats(source, log_file, model_name)
+            if stats:
+                total_sessions += 1
+                total_steps += stats["steps"]
+                total_turns += stats["turns"]
+                total_input_tokens += stats["input_tokens"]
+                total_output_tokens += stats["output_tokens"]
+                total_cost += stats["cost"]
+                
+                session_stats.append({
+                    "id": conv_id,
+                    "title": conv["title"],
+                    "last_updated": conv["last_updated"],
+                    "size_bytes": conv["size_bytes"],
+                    "source": conv["source"],
+                    "project": conv["project"],
+                    "steps": stats["steps"],
+                    "turns": stats["turns"],
+                    "tool_calls": stats["tool_calls"],
+                    "input_tokens": stats["input_tokens"],
+                    "output_tokens": stats["output_tokens"],
+                    "total_tokens": stats["total_tokens"],
+                    "cost": stats["cost"],
+                    "model_name": stats["model_name"]
+                })
+                
+    session_stats.sort(key=lambda x: x["last_updated"], reverse=True)
+    
+    return {
+        "total_sessions": total_sessions,
+        "total_steps": total_steps,
+        "total_turns": total_turns,
+        "total_input_tokens": total_input_tokens,
+        "total_output_tokens": total_output_tokens,
+        "total_cost": round(total_cost, 4),
+        "sessions": session_stats
+    }
+
+
 def clean_project_name(folder_name: str) -> str:
     """Extract a clean project name from URL-encoded folder names."""
     if folder_name.startswith("-"):
@@ -755,6 +935,14 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.wfile.write(file_to_serve.read_bytes())
             return
             
+        # SPA Fallback: Serve index.html for any non-API routes that don't map to a static file
+        if not path.startswith("/api/") and dist_dir.exists() and (dist_dir / "index.html").exists():
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write((dist_dir / "index.html").read_bytes())
+            return
+            
         # Fallback to root index.html if dist doesn't exist and path is root
         if (path == "/" or path == "/index.html") and not dist_dir.exists():
             self.send_response(200)
@@ -838,6 +1026,16 @@ class ConfigHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(conversations, indent=2).encode("utf-8"))
+            except Exception as e:
+                self.send_error_json(500, str(e))
+                
+        elif path == "/api/analytics":
+            try:
+                analytics = get_aggregate_analytics()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(analytics, indent=2).encode("utf-8"))
             except Exception as e:
                 self.send_error_json(500, str(e))
                 

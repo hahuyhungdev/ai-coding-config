@@ -27,7 +27,7 @@ const TABS = [
   { id: 'codex', label: 'Codex', icon: TerminalIcon },
   { id: 'gemini', label: 'Gemini', icon: Sparkles },
   { id: 'explorer', label: 'Agents', icon: Compass },
-  { id: 'conversations', label: 'Conversations', icon: MessageSquare },
+  { id: 'conversations', label: 'Observability', icon: MessageSquare },
   { id: 'simulator', label: 'Simulator', icon: Play }
 ];
 

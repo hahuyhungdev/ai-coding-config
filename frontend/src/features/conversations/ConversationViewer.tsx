@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { MessageSquare, Search, Clock, HardDrive, Zap, DollarSign, Terminal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageSquare, Search, Clock, HardDrive, Zap, DollarSign, Terminal, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 import { formatDate, formatBytes, formatTokens, formatCost } from '../../utils/format';
 import { useConversations } from '../../hooks/useConversations';
 import { ChatView } from './ChatView';
 import { TokenStats } from './TokenStats';
 import { WorkspaceView } from './WorkspaceView';
+import { AnalyticsTab } from '../analytics/AnalyticsTab';
 
 
 export function ConversationViewer() {
@@ -41,6 +42,22 @@ export function ConversationViewer() {
           </div>
         </div>
 
+        <div className="px-2.5 pb-2">
+          <button
+            onClick={deselectConversation}
+            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-200 group border ${
+              activeConvId === null
+                ? 'bg-accent/[0.08] border-accent/20 shadow-[0_0_12px_rgba(201,165,92,0.06)] text-accent font-semibold'
+                : 'border-transparent text-text-secondary hover:bg-white/[0.04] hover:text-white'
+            }`}
+          >
+            <BarChart2 size={14} className={activeConvId === null ? 'text-accent' : 'text-text-muted group-hover:text-text-secondary'} />
+            <span className="font-display text-[13px]">Analytics Dashboard</span>
+          </button>
+        </div>
+
+        <div className="h-px bg-white/[0.08] mx-4 mb-2" />
+
         <div className="flex-1 overflow-y-auto px-2.5 pb-4 space-y-1">
           {filteredConversations.map(conv => (
             <button key={conv.id} onClick={() => selectConversation(conv.id)}
@@ -74,17 +91,11 @@ export function ConversationViewer() {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {!activeConvData ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted">
-            <div className="w-16 h-16 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-              <MessageSquare size={28} strokeWidth={1.5} className="opacity-20" />
-            </div>
-            <div className="text-center">
-              <div className="text-sm font-display font-semibold text-text-secondary mb-1">Select a conversation</div>
-              <div className="text-xs text-text-muted">Choose from the sidebar to view details</div>
-            </div>
+        {!activeConvId ? (
+          <div className="flex-1 overflow-y-auto main-content-scrollbar p-6">
+            <AnalyticsTab />
           </div>
-        ) : isLoading ? (
+        ) : isLoading || !activeConvData ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center gap-2 text-sm text-text-muted">
               <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />

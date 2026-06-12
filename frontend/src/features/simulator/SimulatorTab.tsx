@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Shield, Key, Eye, HelpCircle, Check, X, Terminal, Cpu, Info, RefreshCw, Zap } from 'lucide-react';
+import { Play, Shield, Key, HelpCircle, Check, X, Terminal, Cpu, Info, RefreshCw, Zap } from 'lucide-react';
 
 interface SimulationStep {
   title: string;

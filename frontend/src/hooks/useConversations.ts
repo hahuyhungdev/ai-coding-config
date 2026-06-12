@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { ConversationMeta, ConversationData, ConversationTurn } from '../types';
 import { parseTurns } from '../utils/format';
 
@@ -9,6 +10,12 @@ export function useConversations() {
   const [activeTurn, setActiveTurn] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const searchParams = new URLSearchParams(location.search);
+  const idFromUrl = searchParams.get('id');
 
   const loadConversations = useCallback(async () => {
     try {
@@ -23,7 +30,7 @@ export function useConversations() {
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
-  const selectConversation = useCallback(async (id: string) => {
+  const fetchConversationData = useCallback(async (id: string) => {
     setActiveConvId(id);
     setIsLoading(true);
     setActiveTurn(0);
@@ -40,10 +47,27 @@ export function useConversations() {
     }
   }, []);
 
+  const selectConversation = useCallback((id: string) => {
+    navigate(`/conversations?id=${id}`);
+  }, [navigate]);
+
   const deselectConversation = useCallback(() => {
     setActiveConvId(null);
     setActiveConvData(null);
-  }, []);
+    navigate('/conversations');
+  }, [navigate]);
+
+  // Handle URL change
+  useEffect(() => {
+    if (idFromUrl) {
+      if (activeConvId !== idFromUrl) {
+        fetchConversationData(idFromUrl);
+      }
+    } else {
+      setActiveConvId(null);
+      setActiveConvData(null);
+    }
+  }, [idFromUrl, activeConvId, fetchConversationData]);
 
   const filteredConversations = conversations.filter(c =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -60,3 +84,4 @@ export function useConversations() {
     turns, currentTurn
   };
 }
+

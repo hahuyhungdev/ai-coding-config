@@ -50,3 +50,11 @@ __pycache__/
 
 # Graphify
 graphify-out/
+
+# Local Token/Cost Reports & Scripts
+calculate_tokens.py
+conversation_token_breakdown.md
+current_session_token_breakdown.md
+security_audit_report.md
+
+
