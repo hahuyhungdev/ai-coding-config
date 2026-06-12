@@ -1,11 +1,44 @@
 import { useState } from 'react';
-import { Share2, GitFork, ExternalLink } from 'lucide-react';
+import { Share2, GitFork, ExternalLink, Activity, RefreshCw } from 'lucide-react';
 
 export function GraphTab() {
   const [project, setProject] = useState('mswcc-front-fe');
-  const [viewType, setViewType] = useState<'graph' | 'tree'>('graph');
+  const [viewType, setViewType] = useState<'graph' | 'tree' | 'callflow'>('graph');
+  const [isRebuilding, setIsRebuilding] = useState(false);
+  const [rebuildStatus, setRebuildStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
 
   const iframeSrc = `/api/graphify/view?project=${project}&type=${viewType}`;
+
+  const handleRebuild = async () => {
+    setIsRebuilding(true);
+    setRebuildStatus({ type: null, message: '' });
+    try {
+      const response = await fetch('/api/graphify/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project, force: false }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setRebuildStatus({ type: 'success', message: 'Codebase graph updated successfully (AST-only update).' });
+        // Force refresh iframe
+        const iframe = document.getElementById('graphify-iframe') as HTMLIFrameElement;
+        if (iframe) {
+          iframe.src = iframe.src;
+        }
+      } else {
+        setRebuildStatus({ type: 'error', message: `Update failed: ${data.stderr || data.stdout || 'Unknown error'}` });
+      }
+    } catch (err: any) {
+      setRebuildStatus({ type: 'error', message: `Network error: ${err.message}` });
+    } finally {
+      setIsRebuilding(false);
+      // Clear status after 6 seconds
+      setTimeout(() => {
+        setRebuildStatus({ type: null, message: '' });
+      }, 6000);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full w-full rounded-xl glass overflow-hidden animate-fade-in">
@@ -60,7 +93,29 @@ export function GraphTab() {
               <GitFork size={12} />
               Module Tree
             </button>
+            <button
+              onClick={() => setViewType('callflow')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${
+                viewType === 'callflow'
+                  ? 'bg-accent/15 text-accent border border-accent/20'
+                  : 'text-text-muted border border-transparent hover:text-text-secondary'
+              }`}
+            >
+              <Activity size={12} />
+              Call Flow
+            </button>
           </div>
+
+          {/* Update Graph Button */}
+          <button
+            onClick={handleRebuild}
+            disabled={isRebuilding}
+            className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-white/[0.10] bg-white/[0.04] text-xs text-text-primary hover:bg-white/[0.08] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+            title="Fast update graph from source files AST (No LLM)"
+          >
+            <RefreshCw size={12} className={isRebuilding ? 'animate-spin text-accent' : ''} />
+            <span>{isRebuilding ? 'Updating...' : 'Update Graph'}</span>
+          </button>
 
           {/* Open in new tab link */}
           <a
@@ -75,9 +130,21 @@ export function GraphTab() {
         </div>
       </div>
 
+      {/* Status banner */}
+      {rebuildStatus.type && (
+        <div className={`px-6 py-2 text-xs font-medium text-center border-b transition-all duration-300 animate-fade-in ${
+          rebuildStatus.type === 'success' 
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+            : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+        }`}>
+          {rebuildStatus.message}
+        </div>
+      )}
+
       {/* Interactive Graph Iframe Container */}
       <div className="flex-1 w-full h-full bg-[#1b1c23]/60 relative">
         <iframe
+          id="graphify-iframe"
           src={iframeSrc}
           className="w-full h-full border-none"
           title="Graphify Visualization"

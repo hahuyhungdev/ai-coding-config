@@ -1052,7 +1052,23 @@ class ConfigHandler(BaseHTTPRequestHandler):
                     self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
                     return
                     
-                filename = "graph.html" if view_type == "graph" else "GRAPH_TREE.html"
+                if view_type == "graph":
+                    filename = "graph.html"
+                elif view_type == "tree":
+                    filename = "GRAPH_TREE.html"
+                    file_path = project_dir / "graphify-out" / filename
+                    if not file_path.exists():
+                        import subprocess
+                        subprocess.run(["graphify", "tree"], cwd=str(project_dir), capture_output=True)
+                elif view_type == "callflow":
+                    filename = f"{project_name}-callflow.html"
+                    file_path = project_dir / "graphify-out" / filename
+                    if not file_path.exists():
+                        import subprocess
+                        subprocess.run(["graphify", "export", "callflow-html"], cwd=str(project_dir), capture_output=True)
+                else:
+                    filename = "graph.html"
+                
                 file_path = project_dir / "graphify-out" / filename
                 
                 if not file_path.exists():
@@ -1331,6 +1347,51 @@ class ConfigHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"status": "success", "message": "Settings saved to templates"}).encode("utf-8"))
+            except Exception as e:
+                self.send_error_json(500, str(e))
+        elif path == "/api/graphify/update":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length).decode("utf-8")
+            try:
+                payload = json.loads(body)
+                project_name = payload.get("project", "mswcc-front-fe")
+                force = payload.get("force", False)
+                
+                # Find project directory dynamically
+                project_dir = None
+                search_paths = [
+                    Path.home() / "projects" / "company" / project_name,
+                    Path.home() / "projects" / "personals" / project_name,
+                    Path.home() / "projects" / project_name
+                ]
+                for p in search_paths:
+                    if p.exists() and p.is_dir():
+                        project_dir = p
+                        break
+                        
+                if not project_dir:
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
+                    return
+                
+                # Run graphify update
+                cmd = ["graphify", "update", "."]
+                if force:
+                    cmd.append("--force")
+                
+                import subprocess
+                result = subprocess.run(cmd, cwd=str(project_dir), capture_output=True, text=True)
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success" if result.returncode == 0 else "error",
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                }).encode("utf-8"))
             except Exception as e:
                 self.send_error_json(500, str(e))
         elif path == "/api/simulator/execute":

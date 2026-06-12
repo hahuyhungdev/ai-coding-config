@@ -26,6 +26,7 @@ GRAPHIFY_GUIDANCE = (
     "- Architecture questions → rtk graphify query \"question\"\n"
     "- Code relationships → rtk graphify path \"A\" \"B\"\n"
     "- Deep-dive concepts → rtk graphify explain \"concept\"\n"
+    "- Impact analysis / reverse dependencies → rtk graphify affected \"SymbolName\"\n"
     "- Direct reads are ONLY for editing specific files."
 )
 GRAPHIFY_INSTRUCTIONS = f"""## graphify
@@ -34,7 +35,7 @@ GRAPHIFY_INSTRUCTIONS = f"""## graphify
 
 Rules:
 - For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
-- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, or `explain` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
+- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, `explain` or `affected` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
@@ -151,7 +152,7 @@ elif exists and TOOL=="Bash":
   ex.append(word);expect=False
  words=[pathlib.Path(token).name.lower() for token in tokens]
  probe=("graphify-out/graph.json" in low and any(word in {"test","[","ls","stat"} for word in words))
- graph_call="graphify" in ex and any(("graphify "+sub) in low for sub in ("query","path","explain"))
+ graph_call="graphify" in ex and any(("graphify "+sub) in low for sub in ("query","path","explain","affected"))
  over_quota=False
  if graph_call and session:
   safe="".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
