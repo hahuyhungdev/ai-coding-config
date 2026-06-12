@@ -167,7 +167,7 @@ Manage your agents, configurations, and MCP servers visually.
 | **Global Path** | `~/.claude` | `~/.codex` | `~/.gemini/config` |
 | **Config File** | `settings.json` | `config.toml` | `settings.json` |
 | **Custom Agents** | 15 MD agents | 15 TOML agents | 15 MD agents |
-| **Advanced Skills** | 25 packages | 25 packages | 25 packages |
+| **Advanced Skills** | 26 packages | 26 packages | 26 packages |
 | **Rules (ECC)** | 12 rules | — | — |
 | **Browser Isolation** | Yes | Yes | Yes |
 
