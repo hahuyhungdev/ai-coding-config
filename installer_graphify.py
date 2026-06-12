@@ -139,7 +139,7 @@ exists=pathlib.Path("graphify-out/graph.json").exists()
 if exists and TOOL=="Grep":
  decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists and TOOL=="Bash":
- raw=str(t.get("command", ""));low=raw.lower().replace(chr(92),"/")
+ raw=str(t.get("command") or t.get("CommandLine") or "");low=raw.lower().replace(chr(92),"/")
  try:
   lx=shlex.shlex(raw,posix=True,punctuation_chars="|&;()");lx.whitespace_split=True;tokens=list(lx)
  except ValueError: tokens=[]
@@ -177,7 +177,7 @@ elif exists and TOOL=="Bash":
  if over_quota: decision="deny";context="BLOCKED by graphify hook: Maximum 3 Graphify discovery calls reached for this session. Synthesize the answer from available context."
  elif any(word in B for word in ex): decision="deny";context="BLOCKED by graphify hook: "+G
 elif exists:
- values=[t.get("file_path"),t.get("path"),t.get("pattern")]
+ values=[t.get("file_path"),t.get("path"),t.get("pattern"),t.get("AbsolutePath"),t.get("DirectoryPath"),t.get("SearchPath")]
  for value in values:
   if not value: continue
   p=str(value).lower().replace(chr(92),"/");parts=set(pathlib.Path(p).parts)
@@ -217,8 +217,9 @@ def managed_claude_hooks() -> list[dict]:
 
 def managed_gemini_hooks() -> list[dict]:
     return [
-        {"matcher": "run_shell_command", "hooks": [{"type": "command", "command": _python_hook_command("Bash", False)}]},
-        {"matcher": "read_file|list_directory", "hooks": [{"type": "command", "command": _python_hook_command("Read", False)}]},
+        {"matcher": "run_command|run_shell_command", "hooks": [{"type": "command", "command": _python_hook_command("Bash", False)}]},
+        {"matcher": "view_file|list_dir|read_file|list_directory", "hooks": [{"type": "command", "command": _python_hook_command("Read", False)}]},
+        {"matcher": "grep_search", "hooks": [{"type": "command", "command": _python_hook_command("Grep", False)}]},
     ]
 
 
@@ -290,6 +291,8 @@ def configure_claude_project(project_dir: Path) -> None:
 
 
 def configure_gemini_project(project_dir: Path) -> None:
+    global_settings = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+    _merge_managed_hooks(global_settings, "BeforeTool", managed_gemini_hooks())
     _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "BeforeTool", managed_gemini_hooks())
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "ANTIGRAVITY.md")

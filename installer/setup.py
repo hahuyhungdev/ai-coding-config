@@ -444,28 +444,32 @@ def uninstall_project(project_dir: Path) -> None:
             warn(f"Failed to clean .claude/settings.json: {e}")
 
     # Gemini
-    gemini_settings = project_dir / ".gemini" / "settings.json"
-    if gemini_settings.exists():
-        try:
-            data = json.loads(gemini_settings.read_text(encoding="utf-8"))
-            if "hooks" in data and "BeforeTool" in data["hooks"]:
-                data["hooks"]["BeforeTool"] = [
-                    h for h in data["hooks"]["BeforeTool"]
-                    if not is_managed_graphify_hook(h)
-                ]
-                if not data["hooks"]["BeforeTool"]:
-                    del data["hooks"]["BeforeTool"]
-                if not data["hooks"]:
-                    del data["hooks"]
+    gemini_global_settings = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+    for settings_path in [gemini_global_settings, project_dir / ".gemini" / "settings.json"]:
+        if settings_path.exists():
+            try:
+                data = json.loads(settings_path.read_text(encoding="utf-8"))
+                if "hooks" in data and "BeforeTool" in data["hooks"]:
+                    data["hooks"]["BeforeTool"] = [
+                        h for h in data["hooks"]["BeforeTool"]
+                        if not is_managed_graphify_hook(h)
+                    ]
+                    if not data["hooks"]["BeforeTool"]:
+                        del data["hooks"]["BeforeTool"]
+                    if not data["hooks"]:
+                        del data["hooks"]
 
-                if data:
-                    gemini_settings.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-                    ok("Cleaned managed hooks from .gemini/settings.json")
-                else:
-                    shutil.rmtree(gemini_settings.parent, ignore_errors=True)
-                    ok("Removed empty .gemini directory")
-        except Exception as e:
-            warn(f"Failed to clean .gemini/settings.json: {e}")
+                    if data:
+                        settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+                        ok(f"Cleaned managed hooks from {settings_path}")
+                    else:
+                        if settings_path == gemini_global_settings:
+                            settings_path.unlink()
+                        else:
+                            shutil.rmtree(settings_path.parent, ignore_errors=True)
+                        ok(f"Removed empty settings file {settings_path}")
+            except Exception as e:
+                warn(f"Failed to clean {settings_path}: {e}")
 
     # Codex
     codex_hooks = project_dir / ".codex" / "hooks.json"

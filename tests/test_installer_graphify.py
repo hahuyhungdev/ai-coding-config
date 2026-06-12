@@ -94,8 +94,11 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.project = Path(self.tmp.name)
         (self.project / "graphify-out").mkdir()
         (self.project / "graphify-out" / "graph.json").write_text("{}")
+        self.home_patcher = mock.patch.object(Path, "home", return_value=self.project)
+        self.home_patcher.start()
 
     def tearDown(self):
+        self.home_patcher.stop()
         self.tmp.cleanup()
 
     def test_preserves_existing_hooks_and_replaces_managed_hooks(self):
@@ -197,10 +200,10 @@ class TestGraphifySettingsMerge(unittest.TestCase):
 
         self.assertEqual(first, settings_path.read_text())
         self.assertEqual(data["theme"], "dark")
-        self.assertEqual(len(data["hooks"]["BeforeTool"]), 3)
+        self.assertEqual(len(data["hooks"]["BeforeTool"]), 4)
         self.assertEqual(
             sum(install.is_managed_graphify_hook(h) for h in data["hooks"]["BeforeTool"]),
-            2,
+            3,
         )
 
     def test_invalid_json_is_backed_up(self):
