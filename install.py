@@ -137,6 +137,23 @@ Examples:
                 warn(f"Failed to install Graphify: {e}. Skipping Graphify setup.")
 
     if shutil.which("graphify"):
+        # Install/upgrade the optimized Graphify CLI wrapper to ~/.local/bin/graphify
+        try:
+            graphify_bin = Path(shutil.which("graphify")).resolve()
+            original_content = graphify_bin.read_text(encoding="utf-8")
+            shebang = "#!/usr/bin/env python3"
+            if original_content.startswith("#!"):
+                shebang = original_content.splitlines()[0]
+            
+            wrapper_src = REPO_DIR / "scripts" / "graphify-wrapper.py"
+            if wrapper_src.exists():
+                wrapper_code = shebang + "\n" + wrapper_src.read_text(encoding="utf-8")
+                graphify_bin.write_text(wrapper_code, encoding="utf-8")
+                graphify_bin.chmod(0o755)
+                ok("Graphify CLI wrapper optimized with call chains & recommendations")
+        except Exception as wrapper_exc:
+            warn(f"Failed to optimize Graphify CLI wrapper: {wrapper_exc}")
+
         info(f"Initializing Graphify knowledge graph in {target_project_dir}...")
         try:
             subprocess.run(["graphify", "update", "."], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(target_project_dir))

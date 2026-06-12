@@ -179,3 +179,34 @@ docs: add improvement plan based on project evaluation (9.15/10)
 **Value Delivered:** Comprehensive evaluation, validation, and roadmap
 
 **Status:** ✅ READY FOR NEXT PHASE
+
+---
+
+# Session Summary - 2026-06-12
+
+## 🎯 Objectives Completed
+
+### 1. ✅ Resolved Command Parsing Bypass
+- **Problem**: CLI serializers wrapping commands in double/single quotes (`"\"command ...\""`) bypassed the hook parser.
+- **Fix**: Added a robust boundary-only quote-stripping helper `sq()` in [installer_graphify.py](file:///home/huyhung/projects/personals/ai-coding-config/installer_graphify.py) to correctly extract the raw command tokens.
+
+### 2. ✅ Graphify Output Optimization
+- **Wrapper**: Implemented [scripts/graphify-wrapper.py](file:///home/huyhung/projects/personals/ai-coding-config/scripts/graphify-wrapper.py) to wrap `graphify` commands.
+- **Features**:
+  - Automatically isolates peripheral files (tests, hooks, setups) into a `[Peripheral]` section.
+  - Builds a tree-like `Linear Call Chain` based on caller-callee edges from entrypoints.
+  - Outputs a "Recommended Files to Read Next" checklist containing `file://` absolute markdown links with line anchors.
+- **Installer Integration**: Updated [install.py](file:///home/huyhung/projects/personals/ai-coding-config/install.py) to compile and install this wrapper to `~/.local/bin/graphify` automatically.
+
+### 3. ✅ Verification & E2E Testing
+- **Suite Execution**: Ran all 68 pytest unit tests (100% success).
+- **Playwright Integration**: Executed E2E scenarios via [scripts/run_e2e_tests.py](file:///home/huyhung/projects/personals/ai-coding-config/scripts/run_e2e_tests.py) testing layout matches, agent status, conflict management, force overwriting, and the Observability tab dashboard. (All passed successfully).
+
+### 4. ✅ Repository Sync
+- Staged all changes and committed locally using Conventional Commits.
+- Pushed local branch to remote repository.
+
+---
+
+**Session Duration:** ~1 hour
+**Status:** ✅ ALL TASKS COMPLETED AND REPOSITORY SYNCHRONIZED
