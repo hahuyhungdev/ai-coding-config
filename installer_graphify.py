@@ -338,3 +338,97 @@ def configure_codex_project(project_dir: Path) -> None:
     _merge_managed_hooks(codex_dir / "hooks.json", "PreToolUse", managed_codex_hooks())
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "AGENTS.md")
+
+
+def configure_copilot_project(project_dir: Path) -> None:
+    # 1. VS Code settings
+    vscode_dir = project_dir / ".vscode"
+    vscode_dir.mkdir(parents=True, exist_ok=True)
+    settings_path = vscode_dir / "settings.json"
+    
+    repo_dir = Path(__file__).resolve().parent
+    template_settings_path = repo_dir / "copilot" / "settings.json"
+    
+    if template_settings_path.exists():
+        try:
+            with template_settings_path.open("r", encoding="utf-8") as f:
+                default_settings = json.load(f)
+        except Exception:
+            default_settings = {}
+    else:
+        default_settings = {}
+        
+    if settings_path.exists():
+        try:
+            with settings_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                data = {}
+        except Exception:
+            data = {}
+            
+        instructions = data.setdefault("github.copilot.chat.codeGeneration.instructions", [])
+        if not isinstance(instructions, list):
+            instructions = []
+            data["github.copilot.chat.codeGeneration.instructions"] = instructions
+            
+        file_path_exists = False
+        for item in instructions:
+            if isinstance(item, dict) and item.get("filePath") == ".github/copilot-instructions.md":
+                file_path_exists = True
+                break
+        if not file_path_exists:
+            instructions.append({"filePath": ".github/copilot-instructions.md"})
+            
+        search_ex = data.setdefault("search.exclude", {})
+        if not isinstance(search_ex, dict):
+            search_ex = {}
+            data["search.exclude"] = search_ex
+        if "search.exclude" in default_settings:
+            for k, v in default_settings["search.exclude"].items():
+                search_ex[k] = v
+                
+        watcher_ex = data.setdefault("files.watcherExclude", {})
+        if not isinstance(watcher_ex, dict):
+            watcher_ex = {}
+            data["files.watcherExclude"] = watcher_ex
+        if "files.watcherExclude" in default_settings:
+            for k, v in default_settings["files.watcherExclude"].items():
+                watcher_ex[k] = v
+                
+        try:
+            with settings_path.open("w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+                f.write("\n")
+        except Exception as exc:
+            sys.stderr.write(f"[WARN] Failed to write to {settings_path}: {exc}\n")
+    else:
+        if template_settings_path.exists():
+            try:
+                shutil.copy(str(template_settings_path), str(settings_path))
+            except Exception as exc:
+                sys.stderr.write(f"[WARN] Failed to copy {template_settings_path} to {settings_path}: {exc}\n")
+        else:
+            try:
+                with settings_path.open("w", encoding="utf-8") as f:
+                    json.dump(default_settings, f, indent=2)
+                    f.write("\n")
+            except Exception as exc:
+                sys.stderr.write(f"[WARN] Failed to write {settings_path}: {exc}\n")
+                
+    # 2. Copilot instructions.md merge
+    github_dir = project_dir / ".github"
+    github_dir.mkdir(parents=True, exist_ok=True)
+    copilot_instructions_path = github_dir / "copilot-instructions.md"
+    
+    if not copilot_instructions_path.exists():
+        template_instructions = repo_dir / "copilot" / "copilot-instructions.md"
+        if template_instructions.exists():
+            try:
+                shutil.copy(str(template_instructions), str(copilot_instructions_path))
+            except Exception as exc:
+                sys.stderr.write(f"[WARN] Failed to copy {template_instructions} to {copilot_instructions_path}: {exc}\n")
+                
+    if (project_dir / "graphify-out" / "graph.json").exists():
+        _merge_project_instructions(copilot_instructions_path)
+

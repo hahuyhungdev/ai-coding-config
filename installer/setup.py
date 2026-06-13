@@ -22,7 +22,7 @@ def configure_project_assistants(project_dir: Path, assistants: list[str]) -> di
     install_module = sys.modules.get('install')
     
     configurators = {}
-    for assistant in ["claude", "gemini", "codex"]:
+    for assistant in ["claude", "gemini", "codex", "copilot"]:
         func_name = f"configure_{assistant if assistant != 'gemini' else 'gemini'}_project"
         if install_module and hasattr(install_module, func_name):
             configurators[assistant] = getattr(install_module, func_name)
@@ -34,10 +34,11 @@ def configure_project_assistants(project_dir: Path, assistants: list[str]) -> di
     for assistant in assistants:
         try:
             configurators[assistant](project_dir)
-            ok(f"{assistant.title()} project-level hook configured")
+            display_name = "Copilot" if assistant == "copilot" else assistant.title()
+            ok(f"{display_name} project-level config configured")
             results[assistant] = True
         except Exception as exc:
-            warn(f"Failed to configure {assistant} project hooks: {exc}")
+            warn(f"Failed to configure {assistant} project config: {exc}")
             results[assistant] = False
     return results
 

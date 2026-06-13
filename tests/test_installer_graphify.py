@@ -258,14 +258,42 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             install, "configure_claude_project", side_effect=PermissionError("read-only")
         ):
             results = install.configure_project_assistants(
-                self.project, ["claude", "gemini", "codex"]
+                self.project, ["claude", "gemini", "codex", "copilot"]
             )
 
         self.assertFalse(results["claude"])
         self.assertTrue(results["gemini"])
         self.assertTrue(results["codex"])
+        self.assertTrue(results["copilot"])
         self.assertTrue((self.project / ".gemini" / "settings.json").exists())
         self.assertTrue((self.project / ".codex" / "hooks.json").exists())
+        self.assertTrue((self.project / ".vscode" / "settings.json").exists())
+
+    def test_copilot_config_creates_settings_and_merges_instructions(self):
+        # Setup mock templates in mock repo directory
+        copilot_dir = self.project / "copilot"
+        copilot_dir.mkdir()
+        (copilot_dir / "settings.json").write_text(json.dumps({
+            "github.copilot.chat.codeGeneration.instructions": [{"filePath": ".github/copilot-instructions.md"}],
+            "search.exclude": {"**/node_modules": True, "**/graphify-out": True},
+            "files.watcherExclude": {"**/node_modules/**": True, "**/graphify-out/**": True}
+        }))
+        (copilot_dir / "copilot-instructions.md").write_text("# Mock Copilot Instructions\n")
+
+        # Mock __file__ to point inside our mock repo
+        with mock.patch("installer_graphify.__file__", str(self.project / "installer_graphify.py")):
+            install.configure_copilot_project(self.project)
+
+        settings_path = self.project / ".vscode" / "settings.json"
+        self.assertTrue(settings_path.exists())
+        settings = json.loads(settings_path.read_text())
+        self.assertEqual(settings["github.copilot.chat.codeGeneration.instructions"][0]["filePath"], ".github/copilot-instructions.md")
+
+        instructions_path = self.project / ".github" / "copilot-instructions.md"
+        self.assertTrue(instructions_path.exists())
+        self.assertIn("# Mock Copilot Instructions", instructions_path.read_text())
+        self.assertIn("ai-coding-config:graphify-start", instructions_path.read_text())
+
 
 
 class TestGraphifyInstructions(unittest.TestCase):

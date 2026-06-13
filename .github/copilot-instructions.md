@@ -36,3 +36,23 @@ If `graphify-out/graph.json` exists in the project, **always recommend/use graph
 - **Concept deep-dive** → `rtk graphify explain "<concept>"`
 - **File relationships** → `rtk graphify path "<A>" "<B>"`
 - **Impact analysis / reverse dependencies** → `rtk graphify affected "<SymbolName>"`
+
+<!-- ai-coding-config:graphify-start -->
+## graphify
+
+⚠️ GRAPHIFY WORKFLOW RULES:
+- Architecture questions → rtk graphify query "question"
+- Code relationships → rtk graphify path "A" "B"
+- Deep-dive concepts → rtk graphify explain "concept"
+- Impact analysis / reverse dependencies → rtk graphify affected "SymbolName"
+- Direct reads are ONLY for editing specific files.
+
+Rules:
+- For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
+- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, `explain` or `affected` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
+- Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
+- If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
+- Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
+- After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
+- After modifying code, run `graphify update .`.
+<!-- ai-coding-config:graphify-end -->
