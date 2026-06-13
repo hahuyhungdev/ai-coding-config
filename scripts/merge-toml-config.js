@@ -98,6 +98,13 @@ try {
         }
     }
 
+    // Clean up agents in user config that are no longer registered in repo config
+    for (const key of Object.keys(mergedObj)) {
+        if (key.startsWith("agents.") && !repoObj[key]) {
+            delete mergedObj[key];
+        }
+    }
+
     for (const key of Object.keys(repoObj)) {
         if (typeof repoObj[key] === "object") {
             if (!mergedObj[key]) {

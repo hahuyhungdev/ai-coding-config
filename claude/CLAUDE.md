@@ -28,7 +28,6 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/` 
 
 | Agent | Purpose | When to Use |
 |-------|---------|-------------|
-| explorer | Read-only codebase exploration | Gather evidence before changes |
 | reviewer | PR review (correctness + security) | After writing code |
 | docs-researcher | API/docs verification | Before implementing APIs |
 | planner | Implementation planning | Complex features, refactoring |
@@ -41,7 +40,6 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/` 
 | e2e-runner | Playwright E2E testing | Critical user flows |
 | performance-optimizer | Performance analysis | Slow code, bundle size |
 | refactor-cleaner | Dead code cleanup | Code maintenance |
-| code-explorer | Codebase analysis | Trace execution paths |
 | architect | System design | Architecture decisions |
 
 @RTK.md
