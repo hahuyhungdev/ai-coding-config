@@ -387,7 +387,74 @@ def get_session_analytics_stats(source: str, log_file: Path, model_name: str) ->
     }
     
     ANALYTICS_CACHE[cache_key] = stats
-    return stats
+def get_graphify_build_commit():
+    report_path = REPO_DIR / "graphify-out" / "GRAPH_REPORT.md"
+    if not report_path.exists():
+        return None
+    try:
+        with report_path.open(encoding="utf-8") as f:
+            for line in f:
+                if "Built from commit:" in line:
+                    parts = line.split("Built from commit:")
+                    if len(parts) > 1:
+                        return parts[1].replace("`", "").strip()
+    except Exception:
+        pass
+    return None
+
+def get_git_commit():
+    try:
+        res = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=str(REPO_DIR))
+        if res.returncode == 0:
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+def get_graphify_health():
+    graph_json = REPO_DIR / "graphify-out" / "graph.json"
+    graph_exists = graph_json.exists()
+    
+    graph_size_kb = 0.0
+    last_built = "N/A"
+    if graph_exists:
+        try:
+            graph_size_kb = round(graph_json.stat().st_size / 1024.0, 2)
+            mtime = graph_json.stat().st_mtime
+            last_built = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+            
+    commit_hook = REPO_DIR / ".git" / "hooks" / "post-commit"
+    checkout_hook = REPO_DIR / ".git" / "hooks" / "post-checkout"
+    git_hooks_installed = commit_hook.exists() and checkout_hook.exists()
+    
+    build_commit = get_graphify_build_commit()
+    current_commit = get_git_commit()
+    
+    is_stale = False
+    stale_reason = None
+    if graph_exists:
+        if build_commit and current_commit:
+            b_comm = build_commit.lower()
+            c_comm = current_commit.lower()
+            if not (b_comm.startswith(c_comm) or c_comm.startswith(b_comm)):
+                is_stale = True
+                stale_reason = f"Graph built from commit {build_commit}, but active workspace commit is {current_commit}."
+        elif not build_commit:
+            is_stale = True
+            stale_reason = "No build commit found in GRAPH_REPORT.md."
+            
+    return {
+        "graph_exists": graph_exists,
+        "graph_size_kb": graph_size_kb,
+        "git_hooks_installed": git_hooks_installed,
+        "build_commit": build_commit or "N/A",
+        "current_commit": current_commit or "N/A",
+        "is_stale": is_stale,
+        "stale_reason": stale_reason or "",
+        "last_built": last_built
+    }
 
 def get_aggregate_analytics():
     conversations = get_all_conversations()
@@ -1067,7 +1134,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
                     "codex_instructions": (REPO_DIR / "codex" / "AGENTS.md").read_text() if (REPO_DIR / "codex" / "AGENTS.md").exists() else "",
                     "targets": get_targets_state(),
                     "agents": list_agents(),
-                    "skills": list_skills()
+                    "skills": list_skills(),
+                    "graphify_health": get_graphify_health()
                 }
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -1191,6 +1259,16 @@ class ConfigHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(analytics, indent=2).encode("utf-8"))
+            except Exception as e:
+                self.send_error_json(500, str(e))
+                
+        elif path == "/api/graphify/health":
+            try:
+                health = get_graphify_health()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(health, indent=2).encode("utf-8"))
             except Exception as e:
                 self.send_error_json(500, str(e))
                 
@@ -1500,6 +1578,25 @@ class ConfigHandler(BaseHTTPRequestHandler):
                     "stdout": result.stdout,
                     "stderr": result.stderr,
                     "returncode": result.returncode
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_error_json(500, str(e))
+        elif path == "/api/graphify/rebuild":
+            try:
+                # Run graphify update on current config repo
+                cmd = ["graphify", "update", "."]
+                result = subprocess.run(cmd, cwd=str(REPO_DIR), capture_output=True, text=True)
+                health = get_graphify_health()
+                
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success" if result.returncode == 0 else "error",
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode,
+                    "health": health
                 }).encode("utf-8"))
             except Exception as e:
                 self.send_error_json(500, str(e))

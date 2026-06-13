@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import type { FullConfig } from '../../types';
 import {
   MessageSquareCode, Terminal as TerminalIcon, Sparkles,
-  Bot, Wrench, Cpu, Trash
+  Bot, Wrench, Cpu, Trash, AlertTriangle, CheckCircle2, RefreshCw
 } from 'lucide-react';
 
 interface DashboardTabProps {
@@ -12,6 +12,7 @@ interface DashboardTabProps {
   setActiveTab: (tab: string) => void;
   setExplorerFilter: (filter: 'all' | 'agents' | 'skills') => void;
   setSelectedExplorer: (val: { type: 'agent' | 'skill'; name: string } | null) => void;
+  fetchConfig?: () => Promise<void>;
 }
 
 const CLI_CONFIGS: Record<string, { name: string; icon: string }> = {
@@ -26,15 +27,51 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   setLogs,
   setActiveTab,
   setExplorerFilter,
-  setSelectedExplorer
+  setSelectedExplorer,
+  fetchConfig
 }) => {
   const terminalEndRef = useRef<HTMLDivElement>(null);
+  const [rebuilding, setRebuilding] = React.useState(false);
 
   useEffect(() => {
     if (terminalEndRef.current) {
       terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [logs]);
+
+  const handleRebuildGraph = async () => {
+    setRebuilding(true);
+    setLogs(prev => [...prev, "🔄 Triggering Graphify rebuild for active repository..."]);
+    try {
+      const res = await fetch('/api/graphify/rebuild', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setLogs(prev => [
+          ...prev, 
+          "✓ Graphify index successfully updated!", 
+          `Output: ${data.stdout || ''}`,
+          `Graph Size: ${data.health?.graph_size_kb || 0} KB`,
+          `Commit: ${data.health?.build_commit || 'N/A'}`
+        ]);
+        if (fetchConfig) {
+          await fetchConfig();
+        }
+      } else {
+        setLogs(prev => [
+          ...prev, 
+          `✘ Rebuild failed!`, 
+          `Error: ${data.stderr || data.detail || 'Unknown error'}`
+        ]);
+      }
+    } catch (err: any) {
+      setLogs(prev => [...prev, `✘ Network error: ${err.message}`]);
+    } finally {
+      setRebuilding(false);
+    }
+  };
 
   const ansiToHtml = (text: string) => {
     const ansiMap: Record<string, string> = {
@@ -91,6 +128,69 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <h2 className="font-display text-3xl text-text-primary mb-1">Dashboard</h2>
         <p className="text-sm text-text-muted">Manage your AI coding configuration across CLI targets</p>
       </div>
+
+      {/* Graphify Health Status Alert */}
+      {tempConfig.graphify_health && (
+        <div className={`rounded-xl p-4 border animate-fade-up flex items-start justify-between gap-4 ${
+          !tempConfig.graphify_health.graph_exists
+            ? 'bg-error/10 border-error/20 text-error'
+            : tempConfig.graphify_health.is_stale
+              ? 'bg-warning/10 border-warning/20 text-warning'
+              : 'bg-success/5 border-success/15 text-success'
+        }`}>
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5">
+              {!tempConfig.graphify_health.graph_exists ? (
+                <AlertTriangle size={18} className="text-error animate-pulse" />
+              ) : tempConfig.graphify_health.is_stale ? (
+                <AlertTriangle size={18} className="text-warning" />
+              ) : (
+                <CheckCircle2 size={18} className="text-success" />
+              )}
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold mb-1 flex items-center gap-2">
+                {!tempConfig.graphify_health.graph_exists
+                  ? 'Graphify Index Missing'
+                  : tempConfig.graphify_health.is_stale
+                    ? 'Graphify Index Stale'
+                    : 'Graphify Index Healthy'}
+                <span className="text-[10px] opacity-75 font-mono">
+                  {tempConfig.graphify_health.graph_exists ? `(${tempConfig.graphify_health.graph_size_kb} KB)` : ''}
+                </span>
+              </h4>
+              <p className="text-[12px] opacity-80 leading-relaxed">
+                {!tempConfig.graphify_health.graph_exists
+                  ? 'Your codebase has not been semantic-indexed yet. Run the installer or trigger a rebuild to initialize the Graphify index.'
+                  : tempConfig.graphify_health.is_stale
+                    ? `${tempConfig.graphify_health.stale_reason} Trigger a rebuild to refresh the index.`
+                    : `Active Graphify index is synchronized with commit ${tempConfig.graphify_health.current_commit}. Last built: ${tempConfig.graphify_health.last_built}`}
+              </p>
+              {tempConfig.graphify_health.graph_exists && !tempConfig.graphify_health.git_hooks_installed && (
+                <div className="mt-2 text-[11px] font-medium text-warning flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> Git hooks are not fully configured. Background auto-updates will not trigger.
+                </div>
+              )}
+            </div>
+          </div>
+          {tempConfig.graphify_health.graph_exists && (
+            <button
+              disabled={rebuilding}
+              onClick={handleRebuildGraph}
+              className={`px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border shrink-0 ${
+                rebuilding
+                  ? 'bg-text-muted/10 border-text-muted/20 text-text-muted cursor-not-allowed'
+                  : tempConfig.graphify_health.is_stale
+                    ? 'bg-warning/20 border-warning/30 hover:bg-warning/30 text-warning'
+                    : 'bg-success/10 border-success/20 hover:bg-success/20 text-success'
+              }`}
+            >
+              <RefreshCw size={12} className={rebuilding ? "animate-spin" : ""} />
+              {rebuilding ? 'Rebuilding...' : 'Rebuild Graph'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Target status cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-fade-up stagger-1">

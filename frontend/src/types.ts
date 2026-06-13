@@ -59,6 +59,16 @@ export interface FullConfig {
   targets: Targets;
   agents: string[];
   skills: string[];
+  graphify_health?: {
+    graph_exists: boolean;
+    graph_size_kb: number;
+    git_hooks_installed: boolean;
+    build_commit: string;
+    current_commit: string;
+    is_stale: boolean;
+    stale_reason: string;
+    last_built: string;
+  };
 }
 
 

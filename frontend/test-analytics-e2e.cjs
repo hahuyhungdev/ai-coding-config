@@ -4,6 +4,7 @@ const path = require('path');
 (async () => {
   console.log("Starting E2E test for Analytics Tab...");
   let browser;
+  let page;
   try {
     browser = await chromium.launch({
       channel: 'msedge',
@@ -13,7 +14,7 @@ const path = require('path');
     const context = await browser.newContext({
       viewport: { width: 1280, height: 800 }
     });
-    const page = await context.newPage();
+    page = await context.newPage();
     
     page.on('console', msg => {
       console.log(`[PAGE CONSOLE] ${msg.type().toUpperCase()}: ${msg.text()}`);
@@ -72,6 +73,14 @@ const path = require('path');
     process.exit(0);
   } catch (error) {
     console.error("Analytics E2E test failed with error:", error);
+    try {
+      if (page) {
+        console.log("Current URL:", page.url());
+        console.log("Page body text:", await page.textContent('body'));
+      }
+    } catch (e) {
+      console.error("Failed to print page debug info:", e);
+    }
     process.exit(1);
   } finally {
     if (browser) {

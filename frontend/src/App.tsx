@@ -163,7 +163,7 @@ export default function App() {
           <div className="flex-1 overflow-y-auto main-content-scrollbar">
             <div className="p-6 sm:p-8 animate-fade-up w-full max-w-[1000px] mx-auto">
               {activeTab === 'dashboard' && (
-                <DashboardTab tempConfig={config.tempConfig} logs={config.logs} setLogs={config.setLogs} setActiveTab={setActiveTab} setExplorerFilter={setExplorerFilter} setSelectedExplorer={setSelectedExplorer} />
+                <DashboardTab tempConfig={config.tempConfig} logs={config.logs} setLogs={config.setLogs} setActiveTab={setActiveTab} setExplorerFilter={setExplorerFilter} setSelectedExplorer={setSelectedExplorer} fetchConfig={config.fetchConfig} />
               )}
               {activeTab === 'mcp' && (
                 <McpTab tempConfig={config.tempConfig} setTempConfig={config.setTempConfig} selectedMcpServer={selectedMcpServer} setSelectedMcpServer={setSelectedMcpServer} filteredMcp={filteredMcp} mcpSearch={mcpSearch} setMcpSearch={setMcpSearch} handleMcpToggle={config.handleMcpToggle} deleteCustomMcp={mcpForm.deleteCustomMcp} setShowAddMcpModal={mcpForm.setShowAddMcpModal} showToast={showToast} />

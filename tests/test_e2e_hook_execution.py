@@ -23,7 +23,7 @@ class TestE2EGitHooks(unittest.TestCase):
         self.repo_path = Path(self.temp_dir.name)
         
         # Initialize Git repo
-        self._run_git(["init"])
+        self._run_git(["init", "-b", "master"])
         self._run_git(["config", "user.name", "Test User"])
         self._run_git(["config", "user.email", "test@example.com"])
         
