@@ -19,7 +19,7 @@
 
 ## 4. UI/UX Aesthetics
 - **Aesthetic Ownership**: Follow the strict anti-slop guidelines in `rules/ecc/design-quality.md`.
-- **Premium Interfaces**: Use the `frontend-design` and `design-system` skills to build high-contrast, bento-grid, glassmorphic layouts with distinctive typography pairing and smooth hover transitions.
+- **Premium Interfaces**: Use clean, modern high-contrast design systems (e.g., bento-grid, glassmorphism, responsive layouts) with distinct, clean typography.
 
 ## 5. Specialized Agents
 Load and delegate complex tasks to specialized agents under `~/.claude/agents/` (or `~/.codex/agents/`) using the `/agent` command with these practical guidelines:
@@ -44,12 +44,5 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/` 
 
 ## 6. Graphify — Knowledge Graph Navigation
 
-If `graphify-out/graph.json` exists in the project, **always recommend/use graphify before doing broad directory searches or file-reading**:
-
-- **Codebase / Architecture questions** → `rtk graphify query "<question>"` (scoped subgraph, faster than file-by-file reading)
-- **Concept deep-dive** → `rtk graphify explain "<concept>"`
-- **File relationships** → `rtk graphify path "<A>" "<B>"`
-- **Impact analysis / reverse dependencies** → `rtk graphify affected "<SymbolName>"`
-- **Modify/debug specific code** → then read the raw file directly
-
-> ⚠️ Do NOT start with `find`, `grep`, `rg`, `ls`, or raw `Read` on source files to understand architecture or feature organization. Check for `graphify-out/graph.json` first and use graphify commands.
+<!-- ai-coding-config:graphify-start -->
+<!-- ai-coding-config:graphify-end -->
