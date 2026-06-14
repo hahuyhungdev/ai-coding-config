@@ -18,13 +18,18 @@ cd ~/projects/ai-coding-config
 
 ### 2. Initialize a Project in 1-Second
 Navigate to any project directory and run:
-```bash
-ai-config init
-```
-This automatically:
-*   Scans and links your active AI assistants (`claude`, `agy`, `codex`).
-*   Sets up project-level guidelines (`CLAUDE.md`, `ANTIGRAVITY.md`, `AGENTS.md`).
-*   Configures background Git hooks to auto-update the Graphify codebase index on commit/checkout.
+
+*   **Offline AST Mode (Default):**
+    ```bash
+    ai-config init
+    ```
+    Links active AI assistants (`claude`, `agy`, `codex`), sets up project guidelines (`CLAUDE.md`, etc.), and configures background git hooks for offline AST updates.
+
+*   **AI Semantic Mode (Deep Extraction):**
+    ```bash
+    ai-config init-ai [--backend <gemini|openai|claude>]
+    ```
+    Performs deep semantic indexing using LLM API keys. It automatically scans active environment variables or prompts for temporary input if keys are not set.
 
 ---
 

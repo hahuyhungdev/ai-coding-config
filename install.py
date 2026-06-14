@@ -67,11 +67,75 @@ Examples:
     parser.add_argument("--project", type=str, help="Target project directory to configure project-level hooks (defaults to current repo)")
     parser.add_argument("--uninstall", action="store_true", help="Uninstall all global and/or project-level configurations and hooks")
     parser.add_argument("--status", action="store_true", help="Show configuration status, active account, and token usage")
+    parser.add_argument("--init-ai", action="store_true", help="Initialize Graphify graph with AI semantic extraction")
+    parser.add_argument("--backend", type=str, default="gemini", help="LLM backend for AI extraction (default: gemini)")
 
     args = parser.parse_args()
 
     if args.status:
         show_status()
+        return
+
+    if args.init_ai:
+        import json
+        # Determine target directory
+        target_project_dir = Path(args.project).resolve() if args.project else Path.cwd()
+        
+        # Check for API keys
+        backend = args.backend.lower()
+        key_var = {
+            "gemini": "GEMINI_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "claude": "ANTHROPIC_API_KEY"
+        }.get(backend, "GEMINI_API_KEY")
+        
+        alt_key_var = "GOOGLE_API_KEY" if backend == "gemini" else None
+        
+        api_key = os.environ.get(key_var)
+        if not api_key and alt_key_var:
+            api_key = os.environ.get(alt_key_var)
+            
+        # Try loading from ~/.gemini/antigravity-cli/settings.json
+        if not api_key:
+            try:
+                f_agy = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+                if f_agy.exists():
+                    with open(f_agy, "r") as f:
+                        data = json.load(f)
+                        env = data.get("env", {})
+                        api_key = env.get(key_var) or (env.get(alt_key_var) if alt_key_var else None)
+            except Exception:
+                pass
+                
+        # Try prompting the user if we are in an interactive terminal
+        if not api_key and sys.stdin.isatty():
+            print(f"\n[WARN] {key_var} is not set in your environment.")
+            try:
+                val = input(f"Enter your API key for {backend.upper()} (will not be stored on disk): ").strip()
+                if val:
+                    api_key = val
+            except (KeyboardInterrupt, EOFError):
+                pass
+                
+        if not api_key:
+            print(f"\n[ERROR] API key for {backend.upper()} is required. Set {key_var} and try again.")
+            sys.exit(1)
+            
+        # Set the environment variable for the subprocess
+        env = os.environ.copy()
+        env[key_var] = api_key
+        if alt_key_var:
+            env[alt_key_var] = api_key
+            
+        # Run graphify extract
+        print(f"\n🚀 Running Graphify AI Semantic Extraction using {backend.upper()} in {target_project_dir}...")
+        cmd = ["graphify", "extract", ".", "--mode", "deep", "--backend", backend]
+        try:
+            subprocess.run(cmd, cwd=str(target_project_dir), env=env, check=True)
+            print("\n[OK] Graphify AI semantic graph initialized successfully!")
+        except subprocess.CalledProcessError as e:
+            print(f"\n[ERROR] Graphify AI extraction failed with exit code {e.returncode}")
+            sys.exit(e.returncode)
         return
 
     if args.uninstall:

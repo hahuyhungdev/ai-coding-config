@@ -250,6 +250,8 @@ REPO_DIR="{repo_dir.resolve()}"
 
 if [ "$1" = "init" ]; then
     python3 "$REPO_DIR/install.py" --all --project "$PWD" --force
+elif [ "$1" = "init-ai" ]; then
+    python3 "$REPO_DIR/install.py" --init-ai --project "$PWD" "${{@:2}}"
 elif [ "$1" = "uninstall" ]; then
     python3 "$REPO_DIR/install.py" --uninstall --project "$PWD"
 elif [ "$1" = "status" ]; then
@@ -281,6 +283,9 @@ if %ERRORLEVEL% neq 0 (
 
 if "%1"=="init" (
     %PYTHON_BIN% "%REPO_DIR%\\install.py" --all --project "%CD%" --force
+) else if "%1"=="init-ai" (
+    shift
+    %PYTHON_BIN% "%REPO_DIR%\\install.py" --init-ai --project "%CD%" %1 %2 %3 %4 %5 %6 %7 %8 %9
 ) else if "%1"=="uninstall" (
     %PYTHON_BIN% "%REPO_DIR%\\install.py" --uninstall --project "%CD%"
 ) else if "%1"=="status" (
