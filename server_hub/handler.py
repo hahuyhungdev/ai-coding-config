@@ -41,7 +41,6 @@ class ConfigHandler(BaseHTTPRequestHandler):
 
     def validate_host_and_origin(self, check_origin=True):
         host = self.headers.get("Host", "")
-        # Allow localhost and 127.0.0.1 with any port or without port
         host_name = host.split(":")[0] if ":" in host else host
         if host_name not in ("localhost", "127.0.0.1"):
             self.send_response(400)
@@ -75,19 +74,490 @@ class ConfigHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.validate_host_and_origin(check_origin=False):
             return
+            
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
         query = urllib.parse.parse_qs(parsed_url.query)
         
-        # Serve transcript screenshots/media if requested
+        # 1. Handle API Endpoints
+        if path.startswith("/api/"):
+            if path == "/api/config":
+                self._handle_api_config()
+            elif path.startswith("/api/agent/"):
+                name = path.replace("/api/agent/", "")
+                self._handle_api_agent(name)
+            elif path.startswith("/api/skill/"):
+                name = path.replace("/api/skill/", "")
+                self._handle_api_skill(name)
+            elif path == "/api/conversations":
+                self._handle_api_conversations()
+            elif path == "/api/graphify/view":
+                self._handle_api_graphify_view(query)
+            elif path == "/api/analytics":
+                self._handle_api_analytics()
+            elif path == "/api/graphify/health":
+                self._handle_api_graphify_health()
+            elif path.startswith("/api/conversation/"):
+                conv_id = path.replace("/api/conversation/", "")
+                self._handle_api_conversation(conv_id)
+            elif path == "/api/apply/stream":
+                self._handle_api_apply_stream(query)
+            else:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"API Endpoint Not Found")
+            return
+
+        # 2. Serve Static Resources (screenshots/media, Vite React app, or Root fallback)
+        self._serve_static_resources(path)
+
+    def do_POST(self):
+        if not self.validate_host_and_origin(check_origin=True):
+            return
+            
+        parsed_url = urllib.parse.urlparse(self.path)
+        path = parsed_url.path
+        
+        if path.startswith("/api/"):
+            content_type = self.headers.get("Content-Type", "")
+            if not content_type.split(";")[0].strip().lower() == "application/json":
+                self.send_response(415)
+                self.end_headers()
+                self.wfile.write(b"Unsupported Media Type: Content-Type must be application/json")
+                return
+                
+        # Parse JSON body
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
+        try:
+            payload = json.loads(body) if body else {}
+        except Exception as e:
+            self.send_error_json(400, f"Invalid JSON payload: {e}")
+            return
+
+        # POST Route Dispatching
+        if path == "/api/save-temp":
+            self._handle_post_save_temp(payload)
+        elif path == "/api/graphify/update":
+            self._handle_post_graphify_update(payload)
+        elif path == "/api/graphify/rebuild":
+            self._handle_post_graphify_rebuild()
+        elif path == "/api/simulator/execute":
+            self._handle_post_simulator_execute(payload)
+        elif path == "/api/mcp/test":
+            self._handle_post_mcp_test(payload)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    # --- GET API Route Handlers ---
+
+    def _handle_api_config(self):
+        try:
+            config_data = {
+                "claude": load_claude_settings(),
+                "codex": load_codex_settings(),
+                "gemini": load_gemini_settings(),
+                "mcp_servers": get_mcp_servers(),
+                "all_mcp": get_all_mcp_servers(),
+                "disabled_mcp": load_disabled(),
+                "gemini_instructions": (REPO_DIR / "gemini" / "ANTIGRAVITY.md").read_text() if (REPO_DIR / "gemini" / "ANTIGRAVITY.md").exists() else "",
+                "claude_instructions": (REPO_DIR / "claude" / "CLAUDE.md").read_text() if (REPO_DIR / "claude" / "CLAUDE.md").exists() else "",
+                "codex_instructions": (REPO_DIR / "codex" / "AGENTS.md").read_text() if (REPO_DIR / "codex" / "AGENTS.md").exists() else "",
+                "targets": get_targets_state(),
+                "agents": list_agents(),
+                "skills": list_skills(),
+                "graphify_health": get_graphify_health()
+            }
+            self.send_json(200, config_data)
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_agent(self, name):
+        agent_file = AGENTS_DIR / f"{name}.md"
+        if not agent_file.exists():
+            self.send_error_json(404, "Agent not found")
+            return
+        try:
+            content = agent_file.read_text()
+            metadata = parse_markdown_frontmatter(agent_file)
+            prompt = content
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    prompt = parts[2].strip()
+            res = {"name": name, "metadata": metadata, "prompt": prompt}
+            self.send_json(200, res)
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_skill(self, name):
+        skill_file = SKILLS_DIR / name / "SKILL.md"
+        if not skill_file.exists():
+            self.send_error_json(404, "Skill not found")
+            return
+        try:
+            content = skill_file.read_text()
+            metadata = parse_markdown_frontmatter(skill_file)
+            prompt = content
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    prompt = parts[2].strip()
+            res = {"name": name, "metadata": metadata, "prompt": prompt}
+            self.send_json(200, res)
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_conversations(self):
+        try:
+            conversations = get_all_conversations()
+            self.send_json(200, conversations)
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_graphify_view(self, query):
+        try:
+            project_name = query.get("project", ["mswcc-front-fe"])[0]
+            view_type = query.get("type", ["graph"])[0]  # 'graph', 'tree', or 'callflow'
+            
+            project_dir = None
+            search_paths = [
+                Path.home() / "projects" / "company" / project_name,
+                Path.home() / "projects" / "personals" / project_name,
+                Path.home() / "projects" / project_name
+            ]
+            for p in search_paths:
+                if p.exists() and p.is_dir():
+                    project_dir = p
+                    break
+                    
+            if not project_dir:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
+                return
+                
+            if view_type == "graph":
+                filename = "graph.html"
+            elif view_type == "tree":
+                filename = "GRAPH_TREE.html"
+                file_path = project_dir / "graphify-out" / filename
+                if not file_path.exists():
+                    subprocess.run(["graphify", "tree"], cwd=str(project_dir), capture_output=True)
+            elif view_type == "callflow":
+                filename = f"{project_name}-callflow.html"
+                file_path = project_dir / "graphify-out" / filename
+                if not file_path.exists():
+                    subprocess.run(["graphify", "export", "callflow-html"], cwd=str(project_dir), capture_output=True)
+            else:
+                filename = "graph.html"
+            
+            file_path = project_dir / "graphify-out" / filename
+            
+            if not file_path.exists():
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(f"Graph visualization file '{filename}' not found in project '{project_name}'".encode("utf-8"))
+                return
+                
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(file_path.stat().st_size))
+            self.end_headers()
+            self.wfile.write(file_path.read_bytes())
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_analytics(self):
+        try:
+            analytics = get_aggregate_analytics()
+            self.send_json(200, analytics)
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_graphify_health(self):
+        try:
+            health = get_graphify_health()
+            self.send_json(200, health)
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_conversation(self, conv_id):
+        try:
+            self.handle_get_conversation(conv_id)
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_api_apply_stream(self, query):
+        force = query.get("force", ["false"])[0] == "true"
+        claude = query.get("claude", ["true"])[0] == "true"
+        codex = query.get("codex", ["true"])[0] == "true"
+        agy = query.get("agy", ["true"])[0] == "true"
+        
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+        
+        self.send_sse_line("🚀 Starting installation process...")
+        args = [sys.executable, "-u", str(REPO_DIR / "install.py")]
+        targets = []
+        if claude: targets.append("--claude")
+        if codex: targets.append("--codex")
+        if agy: targets.append("--agy")
+        
+        if targets:
+            args.extend(targets)
+        else:
+            args.append("--none")
+            
+        if force:
+            args.append("--force")
+            
+        self.send_sse_line(f"Command: {' '.join(args)}")
+        try:
+            p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            for line in iter(p.stdout.readline, ""):
+                self.send_sse_line(line.rstrip())
+            p.wait()
+            if p.returncode == 0:
+                self.send_sse_line("SUCCESS: ✓ Done! All changes saved and applied successfully.")
+            else:
+                self.send_sse_line(f"ERROR: ✘ Apply failed with exit code {p.returncode}. Changes remain staged.")
+        except Exception as e:
+            self.send_sse_line(f"ERROR: ✘ Error running installer: {e}")
+
+    # --- POST API Route Handlers ---
+
+    def _handle_post_save_temp(self, payload):
+        try:
+            # 1. Save Claude
+            save_claude_settings(payload.get("claude", {}))
+
+            # 1.5. Save Gemini
+            save_gemini_settings(payload.get("gemini", {}))
+
+            # 2. Save Codex
+            template_path = REPO_DIR / "codex" / "config.toml"
+            codex_data = payload.get("codex", {})
+            update_toml_value(template_path, None, "approval_policy", codex_data.get("approval_policy", "on-request"))
+            update_toml_value(template_path, None, "sandbox_mode", codex_data.get("sandbox_mode", "workspace-write"))
+            update_toml_value(template_path, None, "web_search", codex_data.get("web_search", "live"))
+            update_toml_value(template_path, None, "approvals_reviewer", codex_data.get("approvals_reviewer", "user"))
+            update_toml_value(template_path, None, "model", codex_data.get("model", "gpt-5.5"))
+            update_toml_value(template_path, None, "model_reasoning_effort", codex_data.get("model_reasoning_effort", "medium"))
+            update_toml_value(template_path, None, "persistent_instructions", codex_data.get("persistent_instructions", ""))
+            
+            features = codex_data.get("features", {})
+            update_toml_value(template_path, "features", "memories", features.get("memories", True))
+            update_toml_value(template_path, "features", "multi_agent", features.get("multi_agent", True))
+            
+            notice = codex_data.get("notice", {})
+            update_toml_value(template_path, "notice", "hide_full_access_warning", notice.get("hide_full_access_warning", True))
+            update_toml_value(template_path, "notice", "fast_default_opt_out", notice.get("fast_default_opt_out", True))
+
+            # 3. Save disabled MCPs
+            save_disabled(payload.get("disabled_mcp", []))
+
+            # 4. Save Gemini, Claude, and Codex instructions
+            (REPO_DIR / "gemini" / "ANTIGRAVITY.md").write_text(payload.get("gemini_instructions", ""))
+            (REPO_DIR / "claude" / "CLAUDE.md").write_text(payload.get("claude_instructions", ""))
+            (REPO_DIR / "codex" / "AGENTS.md").write_text(payload.get("codex_instructions", ""))
+
+            # 5. Save MCP configurations directly to ~/.claude.json
+            save_mcp_configs(payload.get("mcp_servers", {}), payload.get("disabled_mcp", []))
+
+            self.send_json(200, {"status": "success", "message": "Settings saved to templates"})
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_post_graphify_update(self, payload):
+        try:
+            project_name = payload.get("project", "mswcc-front-fe")
+            force = payload.get("force", False)
+            
+            project_dir = None
+            search_paths = [
+                Path.home() / "projects" / "company" / project_name,
+                Path.home() / "projects" / "personals" / project_name,
+                Path.home() / "projects" / project_name
+            ]
+            for p in search_paths:
+                if p.exists() and p.is_dir():
+                    project_dir = p
+                    break
+                    
+            if not project_dir:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
+                return
+            
+            cmd = ["graphify", "update", "."]
+            if force:
+                cmd.append("--force")
+            
+            result = subprocess.run(cmd, cwd=str(project_dir), capture_output=True, text=True)
+            
+            self.send_json(200, {
+                "status": "success" if result.returncode == 0 else "error",
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode
+            })
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_post_graphify_rebuild(self):
+        try:
+            cmd = ["graphify", "update", "."]
+            result = subprocess.run(cmd, cwd=str(REPO_DIR), capture_output=True, text=True)
+            health = get_graphify_health()
+            
+            self.send_json(200, {
+                "status": "success" if result.returncode == 0 else "error",
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
+                "health": health
+            })
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_post_simulator_execute(self, payload):
+        try:
+            action = payload.get("action")
+            args = payload.get("args", {})
+            
+            if action == "view_file":
+                file_path = args.get("AbsolutePath", "")
+                resolved_path = Path(file_path).resolve()
+                if not resolved_path.exists() or not resolved_path.is_file():
+                    self.send_json(200, {"status": "error", "message": f"File '{file_path}' does not exist or is not a file."})
+                    return
+                
+                try:
+                    with open(resolved_path, "r", encoding="utf-8") as f:
+                        lines = [f.readline() for _ in range(15)]
+                        content = "".join(lines)
+                        if f.readline():
+                            content += "\n... (truncated)"
+                    self.send_json(200, {"status": "success", "output": content})
+                except Exception as e:
+                    self.send_json(200, {"status": "error", "message": str(e)})
+            
+            elif action == "run_command":
+                cmd_line = args.get("CommandLine", "")
+                if not cmd_line:
+                    self.send_json(200, {"status": "error", "message": "Command is empty."})
+                    return
+                
+                try:
+                    proc = subprocess.run(
+                        cmd_line,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        timeout=5.0,
+                        cwd=str(REPO_DIR)
+                    )
+                    stdout_str = proc.stdout.decode("utf-8", errors="replace")
+                    stderr_str = proc.stderr.decode("utf-8", errors="replace")
+                    output = stdout_str + stderr_str
+                    
+                    self.send_json(200, {
+                        "status": "success" if proc.returncode == 0 else "error",
+                        "output": output or "[No output generated]"
+                    })
+                except subprocess.TimeoutExpired:
+                    self.send_json(200, {"status": "error", "message": "Command execution timed out (5s limit)."})
+                except Exception as e:
+                    self.send_json(200, {"status": "error", "message": str(e)})
+            else:
+                self.send_response(400)
+                self.end_headers()
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    def _handle_post_mcp_test(self, payload):
+        try:
+            name = payload.get("name", "unknown")
+            mcp_type = payload.get("type", "stdio")
+            
+            if mcp_type == "sse":
+                url = payload.get("url", "").strip()
+                if not url:
+                    self.send_json(200, {"status": "error", "message": "Error: SSE URL is empty."})
+                    return
+                
+                try:
+                    req = urllib.request.Request(url, method="GET")
+                    req.add_header("User-Agent", "Mozilla/5.0 (AI Config Dashboard)")
+                    with urllib.request.urlopen(req, timeout=3.0) as r:
+                        self.send_json(200, {
+                            "status": "success", 
+                            "message": f"Successfully connected to SSE URL (HTTP {r.status})"
+                        })
+                except Exception as conn_err:
+                    self.send_json(200, {
+                        "status": "error", 
+                        "message": f"Connection failed: {conn_err}"
+                    })
+            else:
+                command = payload.get("command", "").strip()
+                if not command:
+                    self.send_json(200, {"status": "error", "message": "Error: Command is empty."})
+                    return
+                
+                resolved_cmd = shutil.which(command)
+                if not resolved_cmd:
+                    self.send_json(200, {
+                        "status": "error", 
+                        "message": f"Command '{command}' not found in system PATH."
+                    })
+                else:
+                    try:
+                        test_args = [command]
+                        if command in ["npx", "uvx", "node", "python", "python3", "pip", "npm"]:
+                            test_args.append("--version")
+                        
+                        proc = subprocess.run(
+                            test_args, 
+                            stdout=subprocess.PIPE, 
+                            stderr=subprocess.PIPE, 
+                            timeout=2.0
+                        )
+                        version_info = proc.stdout.decode("utf-8").strip() or proc.stderr.decode("utf-8").strip()
+                        version_str = f" ({version_info[:30]}...)" if version_info else ""
+                        
+                        self.send_json(200, {
+                            "status": "success",
+                            "message": f"Command '{command}' is available and executable!{version_str}"
+                        })
+                    except subprocess.TimeoutExpired:
+                        self.send_json(200, {
+                            "status": "success",
+                            "message": f"Command '{command}' is available (launch test timed out)."
+                        })
+                    except Exception as exec_err:
+                        self.send_json(200, {
+                            "status": "warning",
+                            "message": f"Command found at {resolved_cmd}, but execution test failed: {exec_err}"
+                        })
+        except Exception as e:
+            self.send_error_json(500, str(e))
+
+    # --- Static File Serving Helper ---
+
+    def _serve_static_resources(self, path):
+        # 1. Check for transcript screenshots/media (e.g. .gemini, .claude, etc.)
         unquoted_path = urllib.parse.unquote(path).strip("/")
         if any(x in unquoted_path for x in (".playwright-mcp", ".gemini", ".claude", ".codex")):
-            if unquoted_path.startswith("home/"):
-                file_path = Path("/") / unquoted_path
-            else:
-                file_path = Path.home() / unquoted_path
-                if not file_path.exists():
-                    file_path = REPO_DIR / unquoted_path
+            file_path = Path("/") / unquoted_path if unquoted_path.startswith("home/") else Path.home() / unquoted_path
+            if not file_path.exists():
+                file_path = REPO_DIR / unquoted_path
 
             if file_path.exists() and file_path.is_file():
                 content_type = "image/png" if file_path.suffix == ".png" else "application/octet-stream"
@@ -102,18 +572,12 @@ class ConfigHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"File not found")
                 return
-        
-        # Static files serving for compiled Vite React app (frontend/dist/)
+
+        # 2. Serve static files from compiled Vite React app (frontend/dist/)
         dist_dir = REPO_DIR / "frontend" / "dist"
-        
-        # Resolve target file path inside dist
         rel_path = path.lstrip("/")
-        if not rel_path or rel_path == "index.html":
-            file_to_serve = dist_dir / "index.html"
-        else:
-            file_to_serve = dist_dir / rel_path
-            
-        # If the file exists in dist, serve it
+        file_to_serve = dist_dir / "index.html" if not rel_path or rel_path == "index.html" else dist_dir / rel_path
+        
         if dist_dir.exists() and file_to_serve.exists() and file_to_serve.is_file() and dist_dir in file_to_serve.resolve().parents:
             self.send_response(200)
             if file_to_serve.suffix == ".html":
@@ -134,7 +598,7 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.wfile.write(file_to_serve.read_bytes())
             return
             
-        # SPA Fallback: Serve index.html for any non-API routes that don't map to a static file
+        # 3. SPA Fallback: Serve dist/index.html for routing
         if not path.startswith("/api/") and dist_dir.exists() and (dist_dir / "index.html").exists():
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
@@ -142,217 +606,20 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.wfile.write((dist_dir / "index.html").read_bytes())
             return
             
-        # Fallback to root index.html if dist doesn't exist and path is root
+        # 4. Fallback to repository root index.html if dist doesn't exist and path is root
         if (path == "/" or path == "/index.html") and not dist_dir.exists():
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write((REPO_DIR / "index.html").read_bytes())
             return
-            
-        if path == "/api/config":
-            try:
-                config_data = {
-                    "claude": load_claude_settings(),
-                    "codex": load_codex_settings(),
-                    "gemini": load_gemini_settings(),
-                    "mcp_servers": get_mcp_servers(),
 
-                    "all_mcp": get_all_mcp_servers(),
-                    "disabled_mcp": load_disabled(),
-                    "gemini_instructions": (REPO_DIR / "gemini" / "ANTIGRAVITY.md").read_text() if (REPO_DIR / "gemini" / "ANTIGRAVITY.md").exists() else "",
-                    "claude_instructions": (REPO_DIR / "claude" / "CLAUDE.md").read_text() if (REPO_DIR / "claude" / "CLAUDE.md").exists() else "",
-                    "codex_instructions": (REPO_DIR / "codex" / "AGENTS.md").read_text() if (REPO_DIR / "codex" / "AGENTS.md").exists() else "",
-                    "targets": get_targets_state(),
-                    "agents": list_agents(),
-                    "skills": list_skills(),
-                    "graphify_health": get_graphify_health()
-                }
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(config_data).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-                
-        elif path.startswith("/api/agent/"):
-            name = path.replace("/api/agent/", "")
-            agent_file = AGENTS_DIR / f"{name}.md"
-            if not agent_file.exists():
-                self.send_error_json(404, "Agent not found")
-                return
-            try:
-                content = agent_file.read_text()
-                metadata = parse_markdown_frontmatter(agent_file)
-                prompt = content
-                if content.startswith("---"):
-                    parts = content.split("---", 2)
-                    if len(parts) >= 3:
-                        prompt = parts[2].strip()
-                res = {"name": name, "metadata": metadata, "prompt": prompt}
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(res).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-                
-        elif path.startswith("/api/skill/"):
-            name = path.replace("/api/skill/", "")
-            skill_file = SKILLS_DIR / name / "SKILL.md"
-            if not skill_file.exists():
-                self.send_error_json(404, "Skill not found")
-                return
-            try:
-                content = skill_file.read_text()
-                metadata = parse_markdown_frontmatter(skill_file)
-                prompt = content
-                if content.startswith("---"):
-                    parts = content.split("---", 2)
-                    if len(parts) >= 3:
-                        prompt = parts[2].strip()
-                res = {"name": name, "metadata": metadata, "prompt": prompt}
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(res).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-                
-        elif path == "/api/conversations":
-            try:
-                conversations = get_all_conversations()
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(conversations, indent=2).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-                
-        elif path == "/api/graphify/view":
-            try:
-                project_name = query.get("project", ["mswcc-front-fe"])[0]
-                view_type = query.get("type", ["graph"])[0] # 'graph' or 'tree'
-                
-                # Find the project directory dynamically
-                project_dir = None
-                search_paths = [
-                    Path.home() / "projects" / "company" / project_name,
-                    Path.home() / "projects" / "personals" / project_name,
-                    Path.home() / "projects" / project_name
-                ]
-                for p in search_paths:
-                    if p.exists() and p.is_dir():
-                        project_dir = p
-                        break
-                        
-                if not project_dir:
-                    self.send_response(404)
-                    self.end_headers()
-                    self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
-                    return
-                    
-                if view_type == "graph":
-                    filename = "graph.html"
-                elif view_type == "tree":
-                    filename = "GRAPH_TREE.html"
-                    file_path = project_dir / "graphify-out" / filename
-                    if not file_path.exists():
-                        subprocess.run(["graphify", "tree"], cwd=str(project_dir), capture_output=True)
-                elif view_type == "callflow":
-                    filename = f"{project_name}-callflow.html"
-                    file_path = project_dir / "graphify-out" / filename
-                    if not file_path.exists():
-                        subprocess.run(["graphify", "export", "callflow-html"], cwd=str(project_dir), capture_output=True)
-                else:
-                    filename = "graph.html"
-                
-                file_path = project_dir / "graphify-out" / filename
-                
-                if not file_path.exists():
-                    self.send_response(404)
-                    self.end_headers()
-                    self.wfile.write(f"Graph visualization file '{filename}' not found in project '{project_name}'".encode("utf-8"))
-                    return
-                    
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html")
-                self.send_header("Content-Length", str(file_path.stat().st_size))
-                self.end_headers()
-                self.wfile.write(file_path.read_bytes())
-            except Exception as e:
-                self.send_error_json(500, str(e))
-                
-        elif path == "/api/analytics":
-            try:
-                analytics = get_aggregate_analytics()
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(analytics, indent=2).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-                
-        elif path == "/api/graphify/health":
-            try:
-                health = get_graphify_health()
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(health, indent=2).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-                
-        elif path.startswith("/api/conversation/"):
-            conv_id = path.replace("/api/conversation/", "")
-            try:
-                self.handle_get_conversation(conv_id)
-            except Exception as e:
-                self.send_error_json(500, str(e))
+        # 5. Default Not Found
+        self.send_response(404)
+        self.end_headers()
+        self.wfile.write(b"Not Found")
 
-        elif path == "/api/apply/stream":
-            force = query.get("force", ["false"])[0] == "true"
-            claude = query.get("claude", ["true"])[0] == "true"
-            codex = query.get("codex", ["true"])[0] == "true"
-            agy = query.get("agy", ["true"])[0] == "true"
-            
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("Connection", "keep-alive")
-            self.end_headers()
-            
-            self.send_sse_line("🚀 Starting installation process...")
-            args = [sys.executable, "-u", str(REPO_DIR / "install.py")]
-            targets = []
-            if claude: targets.append("--claude")
-            if codex: targets.append("--codex")
-            if agy: targets.append("--agy")
-            
-            if targets:
-                args.extend(targets)
-            else:
-                args.append("--none")
-                
-            if force:
-                args.append("--force")
-                
-            self.send_sse_line(f"Command: {' '.join(args)}")
-            try:
-                p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
-                for line in iter(p.stdout.readline, ""):
-                    self.send_sse_line(line.rstrip())
-                p.wait()
-                if p.returncode == 0:
-                    self.send_sse_line("SUCCESS: ✓ Done! All changes saved and applied successfully.")
-                else:
-                    self.send_sse_line(f"ERROR: ✘ Apply failed with exit code {p.returncode}. Changes remain staged.")
-            except Exception as e:
-                self.send_sse_line(f"ERROR: ✘ Error running installer: {e}")
-        else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b"Not Found")
+    # --- Core Log Parsing Method (Dependent for Tests) ---
 
     def handle_get_conversation(self, conv_id):
         clean_id = "".join(c for c in conv_id if c.isalnum() or c in "-_")
@@ -498,313 +765,12 @@ class ConfigHandler(BaseHTTPRequestHandler):
             "stats": stats,
             "steps": steps
         }
-        
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
+        self.wfile.write(json.dumps(payload).encode("utf-8"))
 
-    def do_POST(self):
-        if not self.validate_host_and_origin(check_origin=True):
-            return
-            
-        parsed_url = urllib.parse.urlparse(self.path)
-        path = parsed_url.path
-        
-        if path.startswith("/api/"):
-            content_type = self.headers.get("Content-Type", "")
-            if not content_type.split(";")[0].strip().lower() == "application/json":
-                self.send_response(415)
-                self.end_headers()
-                self.wfile.write(b"Unsupported Media Type: Content-Type must be application/json")
-                return
-        
-        if path == "/api/save-temp":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
-            try:
-                payload = json.loads(body)
-                
-                # 1. Save Claude
-                save_claude_settings(payload.get("claude", {}))
-
-                # 1.5. Save Gemini
-                save_gemini_settings(payload.get("gemini", {}))
-
-                # 2. Save Codex
-                template_path = REPO_DIR / "codex" / "config.toml"
-                codex_data = payload.get("codex", {})
-                update_toml_value(template_path, None, "approval_policy", codex_data.get("approval_policy", "on-request"))
-                update_toml_value(template_path, None, "sandbox_mode", codex_data.get("sandbox_mode", "workspace-write"))
-                update_toml_value(template_path, None, "web_search", codex_data.get("web_search", "live"))
-                update_toml_value(template_path, None, "approvals_reviewer", codex_data.get("approvals_reviewer", "user"))
-                update_toml_value(template_path, None, "model", codex_data.get("model", "gpt-5.5"))
-                update_toml_value(template_path, None, "model_reasoning_effort", codex_data.get("model_reasoning_effort", "medium"))
-                update_toml_value(template_path, None, "persistent_instructions", codex_data.get("persistent_instructions", ""))
-                
-                features = codex_data.get("features", {})
-                update_toml_value(template_path, "features", "memories", features.get("memories", True))
-                update_toml_value(template_path, "features", "multi_agent", features.get("multi_agent", True))
-                
-                notice = codex_data.get("notice", {})
-                update_toml_value(template_path, "notice", "hide_full_access_warning", notice.get("hide_full_access_warning", True))
-                update_toml_value(template_path, "notice", "fast_default_opt_out", notice.get("fast_default_opt_out", True))
-
-                # 3. Save disabled MCPs
-                save_disabled(payload.get("disabled_mcp", []))
-
-                # 4. Save Gemini, Claude, and Codex instructions
-                (REPO_DIR / "gemini" / "ANTIGRAVITY.md").write_text(payload.get("gemini_instructions", ""))
-                (REPO_DIR / "claude" / "CLAUDE.md").write_text(payload.get("claude_instructions", ""))
-                (REPO_DIR / "codex" / "AGENTS.md").write_text(payload.get("codex_instructions", ""))
-
-                # 5. Save MCP configurations directly to ~/.claude.json
-                save_mcp_configs(payload.get("mcp_servers", {}), payload.get("disabled_mcp", []))
-
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "success", "message": "Settings saved to templates"}).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-        elif path == "/api/graphify/update":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
-            try:
-                payload = json.loads(body)
-                project_name = payload.get("project", "mswcc-front-fe")
-                force = payload.get("force", False)
-                
-                # Find project directory dynamically
-                project_dir = None
-                search_paths = [
-                    Path.home() / "projects" / "company" / project_name,
-                    Path.home() / "projects" / "personals" / project_name,
-                    Path.home() / "projects" / project_name
-                ]
-                for p in search_paths:
-                    if p.exists() and p.is_dir():
-                        project_dir = p
-                        break
-                        
-                if not project_dir:
-                    self.send_response(404)
-                    self.end_headers()
-                    self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
-                    return
-                
-                # Run graphify update
-                cmd = ["graphify", "update", "."]
-                if force:
-                    cmd.append("--force")
-                
-                result = subprocess.run(cmd, cwd=str(project_dir), capture_output=True, text=True)
-                
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "success" if result.returncode == 0 else "error",
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "returncode": result.returncode
-                }).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-        elif path == "/api/graphify/rebuild":
-            try:
-                # Run graphify update on current config repo
-                cmd = ["graphify", "update", "."]
-                result = subprocess.run(cmd, cwd=str(REPO_DIR), capture_output=True, text=True)
-                health = get_graphify_health()
-                
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "success" if result.returncode == 0 else "error",
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "returncode": result.returncode,
-                    "health": health
-                }).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-        elif path == "/api/simulator/execute":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
-            try:
-                payload = json.loads(body)
-                action = payload.get("action")
-                args = payload.get("args", {})
-                
-                if action == "view_file":
-                    file_path = args.get("AbsolutePath", "")
-                    resolved_path = Path(file_path).resolve()
-                    if not resolved_path.exists() or not resolved_path.is_file():
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "message": f"File '{file_path}' does not exist or is not a file."}).encode("utf-8"))
-                        return
-                    
-                    try:
-                        with open(resolved_path, "r", encoding="utf-8") as f:
-                            lines = [f.readline() for _ in range(15)]
-                            content = "".join(lines)
-                            if f.readline():
-                                content += "\n... (truncated)"
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "success", "output": content}).encode("utf-8"))
-                    except Exception as e:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
-                
-                elif action == "run_command":
-                    cmd_line = args.get("CommandLine", "")
-                    if not cmd_line:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "message": "Command is empty."}).encode("utf-8"))
-                        return
-                    
-                    try:
-                        proc = subprocess.run(
-                            cmd_line,
-                            shell=True,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            timeout=5.0,
-                            cwd=str(REPO_DIR)
-                        )
-                        stdout_str = proc.stdout.decode("utf-8", errors="replace")
-                        stderr_str = proc.stderr.decode("utf-8", errors="replace")
-                        output = stdout_str + stderr_str
-                        
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({
-                            "status": "success" if proc.returncode == 0 else "error",
-                            "output": output or "[No output generated]"
-                        }).encode("utf-8"))
-                    except subprocess.TimeoutExpired:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "message": "Command execution timed out (5s limit)."}).encode("utf-8"))
-                    except Exception as e:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
-                else:
-                    self.send_response(400)
-                    self.end_headers()
-            except Exception as e:
-                self.send_error_json(500, str(e))
-        elif path == "/api/mcp/test":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
-            try:
-                payload = json.loads(body)
-                name = payload.get("name", "unknown")
-                mcp_type = payload.get("type", "stdio")
-                
-                if mcp_type == "sse":
-                    url = payload.get("url", "").strip()
-                    if not url:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "message": "Error: SSE URL is empty."}).encode("utf-8"))
-                        return
-                    
-                    try:
-                        req = urllib.request.Request(url, method="GET")
-                        req.add_header("User-Agent", "Mozilla/5.0 (AI Config Dashboard)")
-                        with urllib.request.urlopen(req, timeout=3.0) as r:
-                            self.send_response(200)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({
-                                "status": "success", 
-                                "message": f"Successfully connected to SSE URL (HTTP {r.status})"
-                            }).encode("utf-8"))
-                    except Exception as conn_err:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({
-                            "status": "error", 
-                            "message": f"Connection failed: {conn_err}"
-                        }).encode("utf-8"))
-                else:
-                    command = payload.get("command", "").strip()
-                    if not command:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "message": "Error: Command is empty."}).encode("utf-8"))
-                        return
-                    
-                    resolved_cmd = shutil.which(command)
-                    if not resolved_cmd:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({
-                            "status": "error", 
-                            "message": f"Command '{command}' not found in system PATH."
-                        }).encode("utf-8"))
-                    else:
-                        try:
-                            test_args = [command]
-                            if command in ["npx", "uvx", "node", "python", "python3", "pip", "npm"]:
-                                test_args.append("--version")
-                            
-                            proc = subprocess.run(
-                                test_args, 
-                                stdout=subprocess.PIPE, 
-                                stderr=subprocess.PIPE, 
-                                timeout=2.0
-                            )
-                            version_info = proc.stdout.decode("utf-8").strip() or proc.stderr.decode("utf-8").strip()
-                            version_str = f" ({version_info[:30]}...)" if version_info else ""
-                            
-                            self.send_response(200)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({
-                                "status": "success",
-                                "message": f"Command '{command}' is available and executable!{version_str}"
-                            }).encode("utf-8"))
-                        except subprocess.TimeoutExpired:
-                            self.send_response(200)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({
-                                "status": "success",
-                                "message": f"Command '{command}' is available (launch test timed out)."
-                            }).encode("utf-8"))
-                        except Exception as exec_err:
-                            self.send_response(200)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({
-                                "status": "warning",
-                                "message": f"Command found at {resolved_cmd}, but execution test failed: {exec_err}"
-                            }).encode("utf-8"))
-            except Exception as e:
-                self.send_error_json(500, str(e))
-        else:
-            self.send_response(404)
-            self.end_headers()
+    # --- Core SSE and JSON Helper Methods ---
 
     def send_sse_line(self, data: str):
         try:
@@ -812,6 +778,12 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.wfile.flush()
         except (ConnectionResetError, BrokenPipeError):
             pass
+
+    def send_json(self, status_code: int, data: dict):
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode("utf-8"))
 
     def send_error_json(self, code: int, message: str):
         self.send_response(code)
