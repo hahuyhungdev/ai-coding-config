@@ -81,35 +81,72 @@ Examples:
         # Determine target directory
         target_project_dir = Path(args.project).resolve() if args.project else Path.cwd()
         
-        # Check for API keys
-        backend = args.backend.lower()
-        key_var = {
-            "gemini": "GEMINI_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "claude": "ANTHROPIC_API_KEY"
-        }.get(backend, "GEMINI_API_KEY")
+        # Initialize key/model variables
+        gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        claude_key = os.environ.get("ANTHROPIC_API_KEY")
+        claude_base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        claude_model = os.environ.get("ANTHROPIC_MODEL")
+        gemini_model = None
         
-        alt_key_var = "GOOGLE_API_KEY" if backend == "gemini" else None
-        
-        api_key = os.environ.get(key_var)
-        if not api_key and alt_key_var:
-            api_key = os.environ.get(alt_key_var)
-            
-        # Try loading from ~/.gemini/antigravity-cli/settings.json
-        if not api_key:
+        # Load from ~/.gemini/antigravity-cli/settings.json
+        if not gemini_key or not gemini_model:
             try:
                 f_agy = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
                 if f_agy.exists():
                     with open(f_agy, "r") as f:
                         data = json.load(f)
-                        env = data.get("env", {})
-                        api_key = env.get(key_var) or (env.get(alt_key_var) if alt_key_var else None)
+                        env_data = data.get("env", {})
+                        if not gemini_key:
+                            gemini_key = env_data.get("GEMINI_API_KEY") or env_data.get("GOOGLE_API_KEY")
+                        if not gemini_model and "model" in data:
+                            gemini_model = data["model"]
             except Exception:
                 pass
                 
+        # Load from ~/.claude/settings.json
+        if not claude_key or not claude_model:
+            try:
+                f_claude = Path.home() / ".claude" / "settings.json"
+                if f_claude.exists():
+                    with open(f_claude, "r") as f:
+                        data = json.load(f)
+                        env_data = data.get("env", {})
+                        if not claude_key:
+                            claude_key = env_data.get("ANTHROPIC_API_KEY")
+                        if not claude_base_url and "ANTHROPIC_BASE_URL" in env_data:
+                            claude_base_url = env_data["ANTHROPIC_BASE_URL"]
+                        if not claude_model:
+                            claude_model = env_data.get("ANTHROPIC_MODEL") or data.get("model")
+            except Exception:
+                pass
+                
+        # Auto-detect backend based on available keys
+        has_explicit_backend = "--backend" in sys.argv
+        backend = args.backend.lower()
+        
+        if not has_explicit_backend:
+            if claude_key and not gemini_key:
+                backend = "claude"
+            elif gemini_key:
+                backend = "gemini"
+                
+        # Validate and configure keys based on selected backend
+        api_key = None
+        selected_model = None
+        if backend == "claude":
+            api_key = claude_key
+            selected_model = claude_model
+            key_var = "ANTHROPIC_API_KEY"
+            alt_key_var = None
+        else:
+            api_key = gemini_key
+            selected_model = gemini_model
+            key_var = "GEMINI_API_KEY"
+            alt_key_var = "GOOGLE_API_KEY"
+            
         # Try prompting the user if we are in an interactive terminal
         if not api_key and sys.stdin.isatty():
-            print(f"\n[WARN] {key_var} is not set in your environment.")
+            print(f"\n[WARN] API key for {backend.upper()} is not set in your environment or configs.")
             try:
                 val = input(f"Enter your API key for {backend.upper()} (will not be stored on disk): ").strip()
                 if val:
@@ -121,15 +158,26 @@ Examples:
             print(f"\n[ERROR] API key for {backend.upper()} is required. Set {key_var} and try again.")
             sys.exit(1)
             
-        # Set the environment variable for the subprocess
+        # Set the environment variables for the subprocess
         env = os.environ.copy()
-        env[key_var] = api_key
-        if alt_key_var:
-            env[alt_key_var] = api_key
+        if backend == "claude":
+            env["ANTHROPIC_API_KEY"] = api_key
+            if claude_base_url:
+                env["ANTHROPIC_BASE_URL"] = claude_base_url
+            if claude_model:
+                env["ANTHROPIC_MODEL"] = claude_model
+        else:
+            env["GEMINI_API_KEY"] = api_key
+            env["GOOGLE_API_KEY"] = api_key
+            if gemini_model:
+                env["GEMINI_MODEL"] = gemini_model
             
         # Run graphify extract
         print(f"\n🚀 Running Graphify AI Semantic Extraction using {backend.upper()} in {target_project_dir}...")
         cmd = ["graphify", "extract", ".", "--mode", "deep", "--backend", backend]
+        if selected_model:
+            cmd.extend(["--model", selected_model])
+            
         try:
             subprocess.run(cmd, cwd=str(target_project_dir), env=env, check=True)
             print("\n[OK] Graphify AI semantic graph initialized successfully!")
