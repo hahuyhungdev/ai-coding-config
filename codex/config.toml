@@ -10,7 +10,7 @@ web_search = "live"
 approvals_reviewer = "user"
 
 # Model
-model = "gpt-5.5"
+model = "gpt-6.0-ultra"
 model_reasoning_effort = "medium"
 
 # Persistent instructions

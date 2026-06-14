@@ -1,6 +1,6 @@
 {
   "enableTelemetry": false,
-  "model": "Gemini 3.5 Flash (High)",
+  "model": "Gemini 4.0 Pro",
   "toolPermission": "always-proceed",
   "trustedWorkspaces": [],
   "hooks": {

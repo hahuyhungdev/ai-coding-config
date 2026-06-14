@@ -55,3 +55,5 @@ If `graphify-out/graph.json` exists in the project, **always use graphify before
 - **Modify/debug specific code** → then read the raw file directly
 
 > ⚠️ Do NOT start with `find`, `grep`, `rg`, `ls`, or raw `Read` on `.ts`/`.tsx` files to understand architecture or feature organization. Check for `graphify-out/graph.json` first and use graphify commands.
+
+## Custom Test Rules Added
