@@ -14,17 +14,17 @@ git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/projects/ai-coding-
 cd ~/projects/ai-coding-config
 ./install.py
 ```
-*Tip: Re-run `./install.py` at any time to refresh the shared configurations and tools.*
+*Tip: This automatically installs the global `ai-config` CLI wrapper in `~/.local/bin/` (make sure this is in your `PATH`). You can re-run `ai-config` at any time to refresh configurations.*
 
 ### 2. Initialize a Project in 1-Second
-Navigate to any new project directory and run:
+Navigate to any project directory and run:
 ```bash
-~/projects/ai-coding-config/install.py --all --project "$PWD"
+ai-config init
 ```
-This script automatically:
+This automatically:
 *   Scans and links your active AI assistants (`claude`, `agy`, `codex`).
 *   Sets up project-level guidelines (`CLAUDE.md`, `ANTIGRAVITY.md`, `AGENTS.md`).
-*   Configures background Git hooks to auto-update Graphify codebase index on commit/checkout.
+*   Configures background Git hooks to auto-update the Graphify codebase index on commit/checkout.
 
 ---
 
