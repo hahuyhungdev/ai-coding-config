@@ -312,12 +312,14 @@ def uninstall_global() -> None:
                 (GEMINI_DIR / "agents" / f.name).unlink(missing_ok=True)
             ok("Cleaned Gemini/agy agents")
 
-    # Remove agy wrapper and antigravity-cli directory
+    # Remove agy wrapper and installed modules while preserving user data.
     (Path.home() / ".local" / "bin" / "agy").unlink(missing_ok=True)
     (Path.home() / ".local" / "bin" / "agy.bat").unlink(missing_ok=True)
     agy_cli_dir = Path.home() / ".gemini" / "antigravity-cli"
-    if agy_cli_dir.exists():
-        shutil.rmtree(agy_cli_dir, ignore_errors=True)
+    agy_src_dir = REPO_DIR / "tools" / "agy"
+    if agy_cli_dir.exists() and agy_src_dir.exists():
+        for item in agy_src_dir.glob("*.py"):
+            (agy_cli_dir / item.name).unlink(missing_ok=True)
     ok("Cleaned agy wrapper and status scripts")
 
     ok("Global uninstallation complete.")

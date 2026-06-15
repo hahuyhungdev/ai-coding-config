@@ -60,13 +60,16 @@ def uninstall():
                 except Exception as e:
                     print(f"⚠️ Warning: Failed to remove agent {item.name}: {e}")
 
-    # 5. Clean up antigravity-cli directory
-    if agy_cli_dir.exists():
-        try:
-            shutil.rmtree(agy_cli_dir)
-            print(f"   Removed directory {agy_cli_dir}")
-        except Exception as e:
-            print(f"⚠️ Warning: Failed to remove directory {agy_cli_dir}: {e}")
+    # 5. Remove only installed modules; preserve credentials and runtime data.
+    src_dir = repo_dir / "tools" / "agy"
+    if agy_cli_dir.exists() and src_dir.exists():
+        for item in src_dir.glob("*.py"):
+            installed_item = agy_cli_dir / item.name
+            try:
+                installed_item.unlink(missing_ok=True)
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to remove {installed_item}: {e}")
+        print(f"   Removed installed modules from {agy_cli_dir}")
 
     print("\n🎉 Standalone Antigravity CLI (agy) uninstallation completed successfully!")
 
