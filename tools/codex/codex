@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ACCOUNT_HELPER="$SCRIPT_DIR/../codex-account/codex-account.py"
+
+if [ ! -f "$ACCOUNT_HELPER" ]; then
+    ACCOUNT_HELPER="$HOME/projects/personals/ai-coding-config/tools/codex-account/codex-account.py"
+fi
+
+REAL_CODEX="${CODEX_REAL_BIN:-$HOME/.local/bin/codex-bin}"
+
+run_account_helper() {
+    if [ ! -f "$ACCOUNT_HELPER" ]; then
+        echo "Error: codex-account helper not found at $ACCOUNT_HELPER" >&2
+        exit 1
+    fi
+    exec python3 "$ACCOUNT_HELPER" "$@"
+}
+
+run_real_codex() {
+    if [ ! -x "$REAL_CODEX" ]; then
+        echo "Error: real codex binary not found or not executable at $REAL_CODEX" >&2
+        echo "Set CODEX_REAL_BIN to the original Codex executable." >&2
+        exit 1
+    fi
+    exec "$REAL_CODEX" "$@"
+}
+
+case "${1:-}" in
+    account)
+        shift
+        if [ "$#" -eq 0 ]; then
+            run_account_helper list
+        fi
+        run_account_helper "$@"
+        ;;
+    accounts)
+        shift
+        if [ "$#" -eq 0 ]; then
+            run_account_helper list
+        fi
+        run_account_helper "$@"
+        ;;
+    current)
+        shift
+        run_account_helper current "$@"
+        ;;
+    use)
+        shift
+        run_account_helper use "$@"
+        ;;
+    add-current|add-current-account)
+        shift
+        run_account_helper add "$@"
+        ;;
+    relabel-accounts)
+        shift
+        run_account_helper relabel "$@"
+        ;;
+    help)
+        case "${2:-}" in
+            account|accounts)
+                run_account_helper --help
+                ;;
+        esac
+        ;;
+esac
+
+run_real_codex "$@"
