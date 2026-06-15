@@ -59,6 +59,7 @@ Examples:
     parser.add_argument("--claude", action="store_true", help="Only install/configure Claude Code")
     parser.add_argument("--codex", action="store_true", help="Only install/configure Codex CLI")
     parser.add_argument("--copilot", action="store_true", help="Only install/configure GitHub Copilot (VS Code)")
+    parser.add_argument("--gemini", action="store_true", help="Only install/configure Gemini (Antigravity CLI)")
     parser.add_argument("--all", action="store_true", help="Install/configure all assistants (default)")
     parser.add_argument("--none", action="store_true", help="Do not install/configure any CLI targets (sync only)")
     parser.add_argument("--force", action="store_true", help="Overwrite all without asking")
@@ -193,12 +194,13 @@ Examples:
         return
 
     # Default: install all if no specific flag and not --none
-    if not (args.claude or args.codex or args.copilot or args.none):
+    if not (args.claude or args.codex or args.copilot or args.gemini or args.none):
         args.all = True
 
     install_claude = (args.all or args.claude) and not args.none
     install_codex = (args.all or args.codex) and not args.none
     install_copilot = (args.all or args.copilot) and not args.none
+    install_gemini = (args.all or args.gemini) and not args.none
 
     # Compile agents
     compile_agents(install_claude, install_codex)
@@ -285,9 +287,11 @@ Examples:
             avail_assistants.append("codex")
         if install_copilot:
             avail_assistants.append("copilot")
+        if install_gemini and (shutil.which("agy") or shutil.which("agyswap")):
+            avail_assistants.append("gemini")
 
         if not avail_assistants:
-            warn("No AI assistants (claude, codex, copilot) detected. Skipping project-level hooks.")
+            warn("No AI assistants (claude, codex, copilot, gemini) detected. Skipping project-level hooks.")
             return
 
         to_configure = list(avail_assistants)  # default: configure all available
@@ -300,7 +304,8 @@ Examples:
                 name = {
                     "claude": "Claude Code (claude)",
                     "codex": "Codex CLI (codex)",
-                    "copilot": "GitHub Copilot (VS Code)"
+                    "copilot": "GitHub Copilot (VS Code)",
+                    "gemini": "Gemini / Antigravity CLI (gemini)"
                 }.get(assistant, assistant)
                 print(f"  [{i}] {name}")
             print("  [A] All of the above (default)")
