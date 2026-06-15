@@ -122,6 +122,47 @@ exit /b 0
             check=False,
         )
 
+    def _run_installed_agy(self, *args, stdin=None):
+        env = os.environ.copy()
+        env["HOME"] = str(self.home)
+        if sys.platform == "win32":
+            env["USERPROFILE"] = str(self.home)
+        env["PATH"] = str(self.home / ".local" / "bin") + os.pathsep + str(self.bin) + os.pathsep + os.environ.get("PATH", "")
+        return subprocess.run(
+            [str(self.home / ".local" / "bin" / "agy"), *args],
+            cwd=self.project,
+            env=env,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def _seed_agy_accounts(self):
+        agy_dir = self.home / ".gemini" / "antigravity-cli"
+        accounts = [
+            {
+                "email": "first@example.com",
+                "label": "first",
+                "auth_method": "consumer",
+                "token": {"refresh_token": "rt-1"},
+                "status": "🟢 Ready",
+                "quota": "5H:90%/W:80%",
+                "reset_info": "5H:Ready/W:Fri 10:00",
+            },
+            {
+                "email": "second@example.com",
+                "auth_method": "consumer",
+                "token": {"refresh_token": "rt-2"},
+                "status": "🟢 Ready",
+                "quota": "5H:100%/W:90%",
+                "reset_info": "5H:Ready/W:Sun 09:00",
+            },
+        ]
+        (agy_dir / "accounts.json").write_text(json.dumps(accounts))
+        (agy_dir / "antigravity-oauth-token").write_text(json.dumps(accounts[0]))
+        return agy_dir, accounts
+
     def test_all_force_is_idempotent(self):
         first = self._run("--all", "--force")
         self.assertEqual(first.returncode, 0, first.stderr)
@@ -231,6 +272,86 @@ exit /b 0
         accounts = json.loads((agy_dir / "accounts.json").read_text())
         self.assertEqual(accounts[0]["email"], "first")
         self.assertEqual(accounts[0]["token"]["refresh_token"], "refresh-token")
+
+    def test_agy_account_commands_and_cached_status(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        agy_dir, _ = self._seed_agy_accounts()
+
+        status = self._run_installed_agy("status")
+        current = self._run_installed_agy("account", "current")
+        use = self._run_installed_agy("account", "use", "2")
+        rename = self._run_installed_agy("account", "rename", "2", "work")
+
+        self.assertEqual(status.returncode, 0, status.stderr)
+        self.assertIn("5H:90%/W:80%", status.stdout)
+        self.assertNotIn("Checking status", status.stdout)
+        self.assertEqual(current.returncode, 0, current.stderr)
+        self.assertIn("first@example.com", current.stdout)
+        self.assertEqual(use.returncode, 0, use.stderr)
+        self.assertEqual(rename.returncode, 0, rename.stderr)
+        accounts = json.loads((agy_dir / "accounts.json").read_text())
+        self.assertEqual(accounts[1]["email"], "second@example.com")
+        self.assertEqual(accounts[1]["label"], "work")
+        self.assertTrue(list((agy_dir / "backups").glob("accounts-*.json")))
+
+    def test_agy_remove_requires_confirmation_and_creates_backup(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        agy_dir, _ = self._seed_agy_accounts()
+
+        refused = self._run_installed_agy("account", "remove", "2")
+        removed = self._run_installed_agy("account", "remove", "2", "--yes")
+
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("--yes", refused.stderr + refused.stdout)
+        self.assertEqual(removed.returncode, 0, removed.stderr)
+        accounts = json.loads((agy_dir / "accounts.json").read_text())
+        self.assertEqual(len(accounts), 1)
+        self.assertTrue(list((agy_dir / "backups").glob("accounts-*.json")))
+
+    def test_agy_json_doctor_and_account_list_redact_tokens(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        self._seed_agy_accounts()
+
+        doctor = self._run_installed_agy("--json", "doctor")
+        listed = self._run_installed_agy("--json", "account", "list")
+
+        self.assertEqual(doctor.returncode, 0, doctor.stderr)
+        doctor_data = json.loads(doctor.stdout)
+        self.assertTrue(doctor_data["ok"])
+        self.assertEqual(doctor_data["account_count"], 2)
+        self.assertNotIn("rt-1", doctor.stdout)
+        self.assertEqual(listed.returncode, 0, listed.stderr)
+        list_data = json.loads(listed.stdout)
+        self.assertEqual(list_data["accounts"][0]["email"], "first@example.com")
+        self.assertNotIn("refresh_token", listed.stdout)
+        self.assertNotIn("rt-1", listed.stdout)
+
+    def test_agy_backup_and_restore_round_trip(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        agy_dir, original = self._seed_agy_accounts()
+
+        backup = self._run_installed_agy("--json", "backup")
+        backup_data = json.loads(backup.stdout)
+        (agy_dir / "accounts.json").write_text("[]")
+        restore = self._run_installed_agy("restore", backup_data["path"], "--yes")
+
+        self.assertEqual(backup.returncode, 0, backup.stderr)
+        self.assertEqual(restore.returncode, 0, restore.stderr)
+        self.assertEqual(json.loads((agy_dir / "accounts.json").read_text()), original)
+
+    def test_agy_help_documents_new_command_surface(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+
+        result = self._run_installed_agy("--help")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for command in ("account", "status", "doctor", "backup", "restore"):
+            self.assertIn(command, result.stdout)
 
     def test_agy_uninstall_preserves_user_account_data(self):
         install = self._run_agy()
