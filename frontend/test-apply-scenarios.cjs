@@ -1,9 +1,10 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const REPO_DIR = path.resolve(__dirname, '..');
-const HOME = process.env.HOME || '/home/huyhung';
+const HOME = process.env.HOME || os.homedir();
 
 // Global destinations to backup/restore
 const BACKUP_FILES = {

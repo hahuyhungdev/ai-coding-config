@@ -204,7 +204,8 @@ const { chromium } = require('playwright');
     console.error("Test failed with error:", error);
     if (page) {
       try {
-        await page.screenshot({ path: '/home/huyhung/projects/personals/ai-coding-config/e2e-failure.png' });
+        const path = require('path');
+        await page.screenshot({ path: path.resolve(__dirname, '..', 'e2e-failure.png') });
         console.log("Saved failure screenshot to e2e-failure.png");
       } catch (screenshotError) {
         console.error("Failed to capture failure screenshot:", screenshotError);

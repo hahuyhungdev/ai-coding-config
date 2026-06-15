@@ -15,7 +15,7 @@ const PRESETS = [
     name: 'Đọc file App.tsx (An toàn)',
     prompt: 'Xem nội dung file App.tsx để kiểm tra import',
     toolName: 'view_file',
-    args: { AbsolutePath: '/home/huyhung/projects/personals/ai-coding-config/frontend/src/App.tsx' },
+    args: { AbsolutePath: '/absolute/path/to/project/frontend/src/App.tsx' },
     risk: 'low',
     riskDesc: 'Đọc file (Read-only) - Tự động thực thi mà không cần duyệt.',
     output: "import React from 'react';\nimport { useState } from 'react';\n..."
