@@ -26,7 +26,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # Clear debug file
 > "$PROJECT_DIR/hook-debug-claude.json" 2>/dev/null || true
 
-timeout 120 env GRAPHIFY_DEBUG=1 agy -p "$PROMPT" < /dev/null > "$RESULTS_DIR/agy_stdout.txt" 2> "$RESULTS_DIR/agy_stderr.txt" || true
+timeout 300 env GRAPHIFY_DEBUG=1 agy -p "$PROMPT" < /dev/null > "$RESULTS_DIR/agy_stdout.txt" 2> "$RESULTS_DIR/agy_stderr.txt" || true
 
 echo "  Exit: $?"
 echo "  Hook debug log:"
@@ -48,7 +48,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 > "$PROJECT_DIR/hook-debug-claude.json" 2>/dev/null || true
 
-timeout 120 env GRAPHIFY_DEBUG=1 claude -p "$PROMPT" --no-input 2> "$RESULTS_DIR/claude_stderr.txt" > "$RESULTS_DIR/claude_stdout.txt" || true
+timeout 300 env GRAPHIFY_DEBUG=1 claude -p "$PROMPT" 2> "$RESULTS_DIR/claude_stderr.txt" > "$RESULTS_DIR/claude_stdout.txt" || true
 
 echo "  Exit: $?"
 echo "  STDOUT (first 50 lines):"
@@ -65,7 +65,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 > "$PROJECT_DIR/hook-debug-claude.json" 2>/dev/null || true
 
-timeout 120 env GRAPHIFY_DEBUG=1 codex -p "$PROMPT" --no-input 2> "$RESULTS_DIR/codex_stderr.txt" > "$RESULTS_DIR/codex_stdout.txt" || true
+timeout 300 env GRAPHIFY_DEBUG=1 codex exec "$PROMPT" 2> "$RESULTS_DIR/codex_stderr.txt" > "$RESULTS_DIR/codex_stdout.txt" || true
 
 echo "  Exit: $?"
 echo "  STDOUT (first 50 lines):"
