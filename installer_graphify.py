@@ -127,131 +127,44 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
 
 
 def _hook_classifier_script(tool_name: str, claude: bool) -> str:
-    constants = (
-        f"B={tuple(sorted(BROAD_DISCOVERY_COMMANDS))!r};"
-        f"E={tuple(sorted(SOURCE_EXTENSIONS))!r};"
-        f"I={tuple(sorted(IGNORED_SOURCE_PARTS))!r};"
-        f"G={GRAPHIFY_GUIDANCE!r};"
-    )
-    logic = r'''import json,pathlib,shlex,sys,tempfile,os
-data=json.load(sys.stdin); t=data.get("tool_input",data); decision="allow"; context=None;session=str(data.get("session_id") or "")
-exists=pathlib.Path("graphify-out/graph.json").exists()
-debug=os.environ.get("GRAPHIFY_DEBUG","0")=="1"
-bypass=os.environ.get("GRAPHIFY_BYPASS","0")=="1"
-def log(m):
- if debug: sys.stderr.write("[GRAPHIFY_HOOK_DEBUG] "+m+"\n")
-if bypass:
- log("Bypass enabled"); sys.exit(0)
-if exists:
- def sq(s):
-  s=s.strip()
-  while len(s)>=2 and s[0]==s[-1] and s[0] in ('"',"'"): s=s[1:-1].strip()
-  return s
- tool_ctx="exploration"
- if TOOL=="Edit": tool_ctx="editing"
- else:
-  fp=str(t.get("file_path") or t.get("AbsolutePath") or t.get("path") or "")
-  if fp and any(m in fp for m in ["IMPROVEMENT","PLAN","TODO","CHANGELOG"]): tool_ctx="planning"
-  cmd=sq(str(t.get("command") or t.get("CommandLine") or ""))
-  if cmd:
-   low_cmd=cmd.lower()
-   if any(w in low_cmd for w in ["error","debug","test","fix","bug"]): tool_ctx="debugging"
-   elif any(w in low_cmd for w in ["build","compile","make","install"]): tool_ctx="building"
- log("Context: "+tool_ctx)
- if TOOL=="Grep":
-  decision="deny"
-  context="❌ BLOCKED: Grep is blocked for codebase exploration\n💡 TIP: Use `graphify query \"your question\"` for codebase exploration"
- elif TOOL=="Bash":
-  raw=sq(str(t.get("command") or t.get("CommandLine") or ""));low=raw.lower().replace(chr(92),"/")
-  try:
-   lx=shlex.shlex(raw,posix=True,punctuation_chars="|&;()");lx.whitespace_split=True;tokens=list(lx)
-  except ValueError: tokens=[]
-  ex=[];expect=True
-  for token in tokens:
-   if token in {"|","||","&&",";","(",")","&"}: expect=True;continue
-   if not expect or ("=" in token and not token.startswith(("/","./"))): continue
-   word=pathlib.Path(token).name
-   if word in {"rtk","sudo","command","builtin","env","nohup"}: continue
-   ex.append(word);expect=False
-  words=[pathlib.Path(token).name.lower() for token in tokens]
-  probe=("graphify-out/graph.json" in low and any(word in {"test","[","ls","stat"} for word in words))
-  graph_call="graphify" in ex and any(("graphify "+sub) in low for sub in ("query","path","explain","affected"))
-  over_quota=False
-  if graph_call and session:
-   safe="".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
-   state=pathlib.Path(tempfile.gettempdir())/("ai-coding-config-graphify-"+safe+".count")
-   with state.open("a+") as handle:
-    try:
-     import fcntl;fcntl.flock(handle,fcntl.LOCK_EX)
-    except (ImportError,AttributeError,PermissionError,OSError):
-     try:import msvcrt;msvcrt.locking(handle.fileno(),1,1)
-     except (ImportError,PermissionError,OSError):pass
-    handle.seek(0)
-    try: count=int(handle.read().strip() or "0")
-    except ValueError: count=0
-    over_quota=count>=3
-    if not over_quota:
-     handle.seek(0);handle.truncate();handle.write(str(count+1));handle.flush()
-    try:
-     import fcntl;fcntl.flock(handle,fcntl.LOCK_UN)
-    except (ImportError,AttributeError,PermissionError,OSError):
-     try:import msvcrt;msvcrt.locking(handle.fileno(),0,1)
-     except (ImportError,PermissionError,OSError):pass
-  if over_quota:
-   decision="deny"
-   context="❌ BLOCKED: Maximum 3 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context."
-  elif probe:
-   log("Probe allowed")
-  elif any(word in B for word in ex):
-   if tool_ctx not in {"debugging","building"}:
-    decision="deny"
-    context="❌ BLOCKED: Search tools are blocked for codebase exploration\n💡 TIP: Use `graphify query \"your question\"` for codebase exploration"
- elif TOOL in {"Read","Glob"}:
-  fp=str(t.get("file_path") or t.get("AbsolutePath") or t.get("path") or "")
-  if fp:
-   p=fp.lower().replace(chr(92),"/");parts=set(pathlib.Path(p).parts)
-   if not parts.intersection(I) and pathlib.Path(p).suffix in E:
-    if tool_ctx not in {"editing","planning"}:
-     decision="deny"
-     context="❌ BLOCKED: Reading source files for exploration is blocked\n💡 TIP: Use `graphify query \"what you want to know\"` instead of reading "+pathlib.Path(fp).name
-'''
-    if claude:
-        output = r'''out={}
-if context:
- out={"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":context,"permissionDecision":decision}}
- if decision=="deny": out["hookSpecificOutput"].update({"permissionDecisionReason":context})
-sys.stdout.write(json.dumps(out) if out else "")
-'''
+    repo_dir = Path(__file__).resolve().parent
+    hook_file = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
+    if hook_file.exists():
+        content = hook_file.read_text(encoding="utf-8")
     else:
-        output = r'''out={"decision":decision}
-if context: out["additionalContext"]=context
-sys.stdout.write(json.dumps(out))
-'''
-    return constants + f"TOOL={tool_name!r};" + logic + output
+        raise FileNotFoundError(f"graphify_pre_tool.py not found at {hook_file}")
+    client = "claude" if claude else "gemini"
+    header = f"import sys\nsys.argv = [sys.executable, '--tool', {tool_name!r}, '--client', {client!r}]\n"
+    return header + content
 
 
-def _python_hook_command(tool_name: str, claude: bool) -> str:
-    script = _hook_classifier_script(tool_name, claude)
-    # Claude Code uses bash on all platforms (including Windows via Git Bash).
-    # Use # comment and shlex.quote (bash-compatible). On Windows, python3
-    # may not exist in PATH — use "python" instead.
+def _python_hook_command(tool_name: str, claude: bool, project_level: bool = False) -> str:
     py = "python3" if sys.platform != "win32" else "python"
-    return f"# {MANAGED_GRAPHIFY_MARKER}\n{py} -c {shlex.quote(script)}"
+    client = "claude" if claude else "gemini"
+    if project_level:
+        hook_path = f".{client}/hooks/graphify_pre_tool.py"
+    else:
+        # Global path
+        if claude:
+            hook_path = "~/.claude/hooks/graphify_pre_tool.py"
+        else:
+            hook_path = "~/.gemini/antigravity-cli/hooks/graphify_pre_tool.py"
+    return f"# {MANAGED_GRAPHIFY_MARKER}\n{py} {hook_path} --tool {tool_name} --client {client}"
 
 
-def managed_claude_hooks() -> list[dict]:
+def managed_claude_hooks(project_level: bool = False) -> list[dict]:
     return [
-        {"matcher": "Bash", "hooks": [{"type": "command", "command": _python_hook_command("Bash", True)}]},
-        {"matcher": "Grep", "hooks": [{"type": "command", "command": _python_hook_command("Grep", True)}]},
-        {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": _python_hook_command("Read", True)}]},
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": _python_hook_command("Bash", True, project_level)}]},
+        {"matcher": "Grep", "hooks": [{"type": "command", "command": _python_hook_command("Grep", True, project_level)}]},
+        {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": _python_hook_command("Read", True, project_level)}]},
     ]
 
 
-def managed_gemini_hooks() -> list[dict]:
+def managed_gemini_hooks(project_level: bool = False) -> list[dict]:
     return [
-        {"matcher": "run_command|run_shell_command", "hooks": [{"type": "command", "command": _python_hook_command("Bash", False)}]},
-        {"matcher": "view_file|list_dir|read_file|list_directory", "hooks": [{"type": "command", "command": _python_hook_command("Read", False)}]},
-        {"matcher": "grep_search", "hooks": [{"type": "command", "command": _python_hook_command("Grep", False)}]},
+        {"matcher": "run_command|run_shell_command", "hooks": [{"type": "command", "command": _python_hook_command("Bash", False, project_level)}]},
+        {"matcher": "view_file|list_dir|read_file|list_directory", "hooks": [{"type": "command", "command": _python_hook_command("Read", False, project_level)}]},
+        {"matcher": "grep_search", "hooks": [{"type": "command", "command": _python_hook_command("Grep", False, project_level)}]},
     ]
 
 
@@ -316,16 +229,47 @@ def _merge_project_instructions(path: Path) -> None:
     path.write_text(merged, encoding="utf-8")
 
 
+def _safe_copy(src: Path, dst: Path) -> None:
+    if src.exists() and src.resolve() != dst.resolve():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+
+
 def configure_claude_project(project_dir: Path) -> None:
-    _merge_managed_hooks(project_dir / ".claude" / "settings.json", "PreToolUse", managed_claude_hooks())
+    # Ensure project-level hooks directory exists and copy the script
+    local_hook_dir = project_dir / ".claude" / "hooks"
+    local_hook_dir.mkdir(parents=True, exist_ok=True)
+    global_hook_path = Path.home() / ".claude" / "hooks" / "graphify_pre_tool.py"
+    if global_hook_path.exists() and global_hook_path.resolve() != (local_hook_dir / "graphify_pre_tool.py").resolve():
+        _safe_copy(global_hook_path, local_hook_dir / "graphify_pre_tool.py")
+    else:
+        # Fallback to repo path
+        repo_dir = Path(__file__).resolve().parent
+        repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
+        _safe_copy(repo_hook, local_hook_dir / "graphify_pre_tool.py")
+
+    _merge_managed_hooks(project_dir / ".claude" / "settings.json", "PreToolUse", managed_claude_hooks(project_level=True))
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "CLAUDE.md")
 
 
 def configure_gemini_project(project_dir: Path) -> None:
-    global_settings = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
-    _merge_managed_hooks(global_settings, "BeforeTool", managed_gemini_hooks())
-    _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "BeforeTool", managed_gemini_hooks())
+    global_dir = Path.home() / ".gemini" / "antigravity-cli"
+    global_hooks_dir = global_dir / "hooks"
+    global_hooks_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Ensure global script exists
+    repo_dir = Path(__file__).resolve().parent
+    repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
+    _safe_copy(repo_hook, global_hooks_dir / "graphify_pre_tool.py")
+    
+    # Ensure project-level script exists
+    local_hook_dir = project_dir / ".gemini" / "hooks"
+    _safe_copy(repo_hook, local_hook_dir / "graphify_pre_tool.py")
+
+    global_settings = global_dir / "settings.json"
+    _merge_managed_hooks(global_settings, "BeforeTool", managed_gemini_hooks(project_level=False))
+    _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "BeforeTool", managed_gemini_hooks(project_level=True))
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "ANTIGRAVITY.md")
 
