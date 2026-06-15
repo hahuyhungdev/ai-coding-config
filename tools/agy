@@ -1,0 +1,130 @@
+#!/bin/bash
+
+AGY_DIR="$HOME/.gemini/antigravity-cli"
+REAL_AGY="$HOME/.local/bin/agy-bin"
+MAX_RETRIES=2  # Up to 2 retries: 1 model-switch + 1 account-switch
+
+set_model_arg() {
+    local model="$1"
+    shift
+    MODEL_ARGS=()
+    local skip_next=false
+
+    for arg in "$@"; do
+        if [ "$skip_next" = true ]; then
+            skip_next=false
+            continue
+        fi
+
+        if [ "$arg" = "--model" ]; then
+            skip_next=true
+            continue
+        fi
+
+        if [[ "$arg" == --model=* ]]; then
+            continue
+        fi
+
+        MODEL_ARGS+=("$arg")
+    done
+
+    MODEL_ARGS+=("--model" "$model")
+}
+
+# If the command is a management command, delegate to agy-status.py and exit
+if [[ "$1" == "status" || "$1" == "current" || "$1" == "info" || "$1" == "show" || "$1" == "list" || "$1" == "ls" || "$1" == "accounts" || "$1" == "weekly" || "$1" == "week" || "$1" == "usage-week" || "$1" == "weekly-usage" || "$1" == "select" || "$1" == "choose" || "$1" == "use" || "$1" == "add-current" || "$1" == "import" || "$1" == "save" || "$1" == "help" || "$1" == "guide" || "$1" == "-h" || "$1" == "--help" || "$1" == "clean" || "$1" == "cleanup" || "$1" == "prune" || "$1" == "delete" || "$1" == "remove" || "$1" == "rm" || "$1" == "remove-account" || "$1" == "rm-account" || "$1" == "delete-account" || "$1" == "import-file" || "$1" == "add-file" || "$1" == "load" || "$1" == "add-token" || "$1" == "paste" || "$1" == "new-token" || "$1" == "rotate" || "$1" == "next" ]]; then
+    if [ -f "$AGY_DIR/agy-status.py" ]; then
+        exec python3 "$AGY_DIR/agy-status.py" "$@"
+    fi
+fi
+
+# Proactive: auto-switch to ensure active account has quota before running
+# Captures output — last line may be a suggested model if account was switched
+SUGGESTED_MODEL=""
+if [ -f "$AGY_DIR/agy-status.py" ]; then
+    switch_output=$(python3 "$AGY_DIR/agy-status.py" auto-switch 2>&1)
+    echo "$switch_output"
+    # If auto-switch printed a model suggestion (non-empty return), use it
+    last_line=$(echo "$switch_output" | tail -1)
+    if [[ "$last_line" == MODEL:* ]]; then
+        SUGGESTED_MODEL="${last_line#MODEL:}"
+    fi
+fi
+
+# Run agy-bin with retry-on-quota-error logic
+if [ ! -f "$REAL_AGY" ]; then
+    echo "❌ Error: Real agy binary not found at $REAL_AGY"
+    exit 1
+fi
+
+# Detect if this is a print-mode (non-interactive) command
+is_print_mode=false
+for arg in "$@"; do
+    if [ "$arg" = "-p" ]; then
+        is_print_mode=true
+        break
+    fi
+done
+
+attempt=0
+while [ $attempt -le $MAX_RETRIES ]; do
+    # Build args — inject --model if suggested by auto-switch or post-check
+    if [ -n "$SUGGESTED_MODEL" ]; then
+        set_model_arg "$SUGGESTED_MODEL" "$@"
+        set -- "${MODEL_ARGS[@]}"
+        SUGGESTED_MODEL=""  # Only inject once
+    fi
+
+    if [ "$is_print_mode" = true ]; then
+        # Print mode: capture output to detect silent failures
+        agy_output=$("$REAL_AGY" "$@" 2>&1)
+        exit_code=$?
+        if [ -n "$agy_output" ]; then
+            echo "$agy_output"
+        fi
+        # Empty output + exit 0 = silent quota failure
+        needs_check=false
+        if [ $exit_code -ne 0 ] || [ -z "$agy_output" ]; then
+            needs_check=true
+        fi
+    else
+        # Interactive mode: run directly (no capture)
+        "$REAL_AGY" "$@"
+        exit_code=$?
+        needs_check=false
+        if [ $exit_code -ne 0 ]; then
+            needs_check=true
+        fi
+    fi
+
+    if [ "$needs_check" = true ] && [ -f "$AGY_DIR/agy-status.py" ]; then
+        post_output=$(python3 "$AGY_DIR/agy-status.py" post-check 2>&1)
+        switch_code=$?
+
+        if [ $switch_code -eq 0 ]; then
+            if echo "$post_output" | grep -q "SWITCH_MODEL:"; then
+                new_model=$(echo "$post_output" | grep "SWITCH_MODEL:" | sed 's/.*SWITCH_MODEL://')
+                echo "$post_output" | grep -v "SWITCH_MODEL:"
+                attempt=$((attempt + 1))
+                if [ $attempt -le $MAX_RETRIES ]; then
+                    set_model_arg "$new_model" "$@"
+                    set -- "${MODEL_ARGS[@]}"
+                    continue
+                fi
+            elif echo "$post_output" | grep -q "SWITCH_ACCOUNT"; then
+                echo "$post_output" | grep -v "SWITCH_ACCOUNT"
+                attempt=$((attempt + 1))
+                if [ $attempt -le $MAX_RETRIES ]; then
+                    continue
+                fi
+            fi
+        elif [ $switch_code -eq 2 ]; then
+            echo "$post_output"
+            exit 1
+        fi
+    fi
+
+    exit $exit_code
+done
+
+exit 1

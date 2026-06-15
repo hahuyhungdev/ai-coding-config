@@ -234,6 +234,28 @@ def setup_agy(force: bool) -> None:
             pass
     ok("settings.json")
 
+    # Copy agy-status.py and agy wrapper script from tools directory
+    tools_dir = REPO_DIR / "tools"
+    if tools_dir.exists():
+        # Copy agy-status.py
+        src_status = tools_dir / "agy-status.py"
+        if src_status.exists():
+            copy_config(src_status, agy_cli_dir / "agy-status.py", force)
+            ok("agy-status.py installed")
+        
+        # Copy agy bash wrapper to ~/.local/bin/
+        src_wrapper = tools_dir / "agy"
+        if src_wrapper.exists():
+            bin_dir = Path.home() / ".local" / "bin"
+            bin_dir.mkdir(parents=True, exist_ok=True)
+            dst_wrapper = bin_dir / "agy"
+            copy_config(src_wrapper, dst_wrapper, force)
+            try:
+                dst_wrapper.chmod(0o755)
+            except Exception as e:
+                warn(f"Failed to set executable permission on agy wrapper: {e}")
+            ok("agy wrapper installed to ~/.local/bin/")
+
 
 def setup_cli_wrapper(repo_dir: Path) -> None:
     """Create a global cli wrapper named ai-config in ~/.local/bin/."""
@@ -380,6 +402,11 @@ def uninstall_global() -> None:
                 if d.is_dir():
                     shutil.rmtree(GEMINI_DIR / "skills" / d.name, ignore_errors=True)
             ok("Cleaned Gemini/agy skills")
+
+    # Remove agy wrapper and agy-status.py
+    (Path.home() / ".local" / "bin" / "agy").unlink(missing_ok=True)
+    (Path.home() / ".gemini" / "antigravity-cli" / "agy-status.py").unlink(missing_ok=True)
+    ok("Cleaned agy wrapper and status scripts")
 
     ok("Global uninstallation complete.")
 

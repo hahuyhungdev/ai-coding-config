@@ -160,6 +160,19 @@ exit /b 0
         self.assertIn("install.py", bat_path.read_text())
         self.assertIn("init", bat_path.read_text())
 
+    def test_setup_agy_installs_wrappers(self):
+        result = self._run("--agy", "--force")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        
+        # Check that agy wrapper script is installed to ~/.local/bin/agy
+        agy_wrapper = self.home / ".local" / "bin" / "agy"
+        self.assertTrue(agy_wrapper.is_file())
+        self.assertTrue(os.access(agy_wrapper, os.X_OK))
+        
+        # Check that agy-status.py is installed to ~/.gemini/antigravity-cli/agy-status.py
+        agy_status = self.home / ".gemini" / "antigravity-cli" / "agy-status.py"
+        self.assertTrue(agy_status.is_file())
+
 
 if __name__ == "__main__":
     unittest.main()
