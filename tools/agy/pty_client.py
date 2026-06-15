@@ -4,7 +4,7 @@ import select
 import signal
 from utils import REAL_AGY, strip_ansi
 
-def get_quota_via_pty(email):
+def get_quota_via_pty(email, sandbox_dir=None):
     import pty
     import fcntl
     import termios
@@ -25,8 +25,13 @@ def get_quota_via_pty(email):
         os.dup2(slave, 2)
         os.close(master)
         os.close(slave)
+        
+        env = os.environ.copy()
+        if sandbox_dir:
+            env["HOME"] = sandbox_dir
+            
         try:
-            os.execv(REAL_AGY, [REAL_AGY])
+            os.execve(REAL_AGY, [REAL_AGY], env)
         except:
             os._exit(127)
     else:

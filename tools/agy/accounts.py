@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from utils import (
     JSON_FILE, TOKEN_FILE, LOG_DIR, AGY_DIR, REAL_AGY,
     GEMINI_FALLBACK_MODEL, CLAUDE_FALLBACK_MODEL,
@@ -56,136 +57,189 @@ def get_account_status():
         except:
             pass
 
-    status_report = []
     duplicate_tokens = find_duplicate_refresh_tokens(accounts)
 
-    try:
-        for idx, acc in enumerate(accounts):
-            email = acc.get("email") or acc.get("name") or f"Account {idx}"
+    def check_single_account(idx, acc):
+        email = acc.get("email") or acc.get("name") or f"Account {idx}"
 
-            if idx in duplicate_tokens:
-                original_idx = duplicate_tokens[idx]
-                status_report.append({
-                    "index": idx,
-                    "email": email,
-                    "status": "🟡 Dup",
-                    "quota": f"Same as #{original_idx + 1}",
-                    "reset_info": ""
-                })
-                continue
-            
-            # Print in-place progress update
-            print(f"⏳ [{idx+1}/{len(accounts)}] Checking status for {email}...", end="\r", flush=True)
-            
-            test_dir = os.path.join(AGY_DIR, f"scratch/test_dir_{idx}")
-            os.makedirs(test_dir, exist_ok=True)
+        if idx in duplicate_tokens:
+            original_idx = duplicate_tokens[idx]
+            return {
+                "idx": idx,
+                "email": email,
+                "status": "🟡 Dup",
+                "quota": f"Same as #{original_idx + 1}",
+                "reset_info": "",
+                "refreshed_token": None,
+                "model_quotas": {},
+                "blocked_until": None
+            }
 
-            # Temporarily write this account token
-            with open(TOKEN_FILE, "w") as f:
-                json.dump(acc, f)
+        # Print progress update
+        print(f"⏳ Checking status for {email}...", flush=True)
 
-            # Run interactive PTY to fetch the real quota
-            output = get_quota_via_pty(email)
+        # Create sandbox directory
+        sandbox_dir = os.path.join(AGY_DIR, f"scratch/sandbox_{idx}")
+        sandbox_gemini_dir = os.path.join(sandbox_dir, ".gemini/antigravity-cli")
+        os.makedirs(sandbox_gemini_dir, exist_ok=True)
 
-            # Read refreshed token JSON and update accounts list
-            try:
-                with open(TOKEN_FILE, "r") as f:
-                    refreshed_acc = json.load(f)
-                    accounts[idx]["token"] = refreshed_acc["token"]
-            except Exception:
-                pass
+        # Temporarily write this account token to sandbox
+        sandbox_token_file = os.path.join(sandbox_gemini_dir, "antigravity-oauth-token")
+        with open(sandbox_token_file, "w") as f:
+            json.dump(acc, f)
 
-            status = "🔴 Blocked"
-            reset_time_str = ""
-            quota_str = "0%"
+        # Run interactive PTY to fetch the real quota
+        output = get_quota_via_pty(email, sandbox_dir=sandbox_dir)
 
-            if "Model Quota" in output or "Model Usage" in output or "Quota" in output or "GEMINI MODELS" in output or "CLAUDE AND GPT MODELS" in output:
-                status = "🟢 Ready"
-                quota_str = "100%"
+        # Read refreshed token JSON from sandbox
+        refreshed_token = None
+        try:
+            with open(sandbox_token_file, "r") as f:
+                refreshed_acc = json.load(f)
+                refreshed_token = refreshed_acc.get("token")
+        except Exception:
+            pass
 
-                model_quotas = parse_quota_output(output)
+        # Clean up sandbox directory
+        try:
+            shutil.rmtree(sandbox_dir)
+        except Exception:
+            pass
 
-                # Determine overall status from model_quotas
-                if model_quotas:
-                    # Pick a representative model for the summary
-                    for rep_model in ["Gemini 3.5 Flash (Medium)", "Gemini 3.5 Flash (High)"]:
-                        if rep_model in model_quotas:
-                            q = model_quotas[rep_model]
-                            if "weekly_pct" in q and "five_hour_pct" in q:
-                                w_pct = q["weekly_pct"]
-                                f_pct = q["five_hour_pct"]
-                                quota_str = f"5H:{f_pct}%/W:{w_pct}%"
-                                
-                                w_ref = q.get("weekly_refresh", "")
-                                f_ref = q.get("five_hour_refresh", "")
-                                f_clean = format_exact_reset_time(f_ref) if f_ref else "Ready"
-                                w_clean = format_exact_reset_time(w_ref) if w_ref else "Ready"
-                                reset_time_str = f"5H:{f_clean}/W:{w_clean}"
-                            else:
-                                quota_str = f"{q['pct']}%"
-                                if q['refresh']:
-                                    reset_time_str = format_exact_reset_time(q['refresh'])
-                            break
+        status = "🔴 Blocked"
+        reset_time_str = ""
+        quota_str = "0%"
+        model_quotas = {}
 
-                    # Check if ALL models are at 0%
-                    all_zero = all(m["pct"] == 0 for m in model_quotas.values())
-                    if all_zero:
-                        status = "🔴 Blocked"
-                        quota_str = "0%"
-            else:
-                raw_reset = get_remaining_reset_from_logs(email, accounts)
-                if raw_reset:
+        if "Model Quota" in output or "Model Usage" in output or "Quota" in output or "GEMINI MODELS" in output or "CLAUDE AND GPT MODELS" in output:
+            status = "🟢 Ready"
+            quota_str = "100%"
+
+            model_quotas = parse_quota_output(output)
+
+            # Determine overall status from model_quotas
+            if model_quotas:
+                # Pick a representative model for the summary
+                for rep_model in ["Gemini 3.5 Flash (Medium)", "Gemini 3.5 Flash (High)"]:
+                    if rep_model in model_quotas:
+                        q = model_quotas[rep_model]
+                        if "weekly_pct" in q and "five_hour_pct" in q:
+                            w_pct = q["weekly_pct"]
+                            f_pct = q["five_hour_pct"]
+                            quota_str = f"5H:{f_pct}%/W:{w_pct}%"
+                            
+                            w_ref = q.get("weekly_refresh", "")
+                            f_ref = q.get("five_hour_refresh", "")
+                            f_clean = format_exact_reset_time(f_ref) if f_ref else "Ready"
+                            w_clean = format_exact_reset_time(w_ref) if w_ref else "Ready"
+                            reset_time_str = f"5H:{f_clean}/W:{w_clean}"
+                        else:
+                            quota_str = f"{q['pct']}%"
+                            if q['refresh']:
+                                reset_time_str = format_exact_reset_time(q['refresh'])
+                        break
+
+                # Check if ALL models are at 0%
+                all_zero = all(m["pct"] == 0 for m in model_quotas.values())
+                if all_zero:
                     status = "🔴 Blocked"
-                    quota_str = "🔴 0% (Blocked)"
-                    reset_time_str = f"5H:{format_exact_reset_time(raw_reset)}/W:Ready"
-                else:
-                    # Assume it was ready but timed out / didn't show menu
-                    status = "🟢 Ready"
-                    quota_str = "100%" 
+                    quota_str = "0%"
+        else:
+            raw_reset = get_remaining_reset_from_logs(email, accounts)
+            if raw_reset:
+                status = "🔴 Blocked"
+                quota_str = "🔴 0% (Blocked)"
+                reset_time_str = f"5H:{format_exact_reset_time(raw_reset)}/W:Ready"
+            else:
+                # Assume it was ready but timed out / didn't show menu
+                status = "🟢 Ready"
+                quota_str = "100%" 
 
-            # Calculate blocked_until timestamp
-            from datetime import timedelta
-            blocked_until_dt = None
-            if status == "🔴 Blocked":
-                if model_quotas:
-                    max_delta = timedelta(0)
-                    for q_item in model_quotas.values():
-                        for ref_key in ["refresh", "weekly_refresh", "five_hour_refresh"]:
-                            ref_val = q_item.get(ref_key, "")
-                            if ref_val and ref_val.startswith("In "):
-                                try:
-                                    d = parse_duration(ref_val.replace("In ", ""))
-                                    if d > max_delta:
-                                        max_delta = d
-                                except:
-                                    pass
-                    if max_delta.total_seconds() > 0:
-                        blocked_until_dt = datetime.now() + max_delta
-                elif 'raw_reset' in locals() and raw_reset:
-                    try:
-                        d = parse_duration(raw_reset.replace("In ", ""))
-                        if d.total_seconds() > 0:
-                            blocked_until_dt = datetime.now() + d
-                    except:
-                        pass
+        # Calculate blocked_until timestamp
+        from datetime import timedelta
+        blocked_until_dt = None
+        if status == "🔴 Blocked":
+            if model_quotas:
+                max_delta = timedelta(0)
+                for q_item in model_quotas.values():
+                    for ref_key in ["refresh", "weekly_refresh", "five_hour_refresh"]:
+                        ref_val = q_item.get(ref_key, "")
+                        if ref_val and ref_val.startswith("In "):
+                            try:
+                                d = parse_duration(ref_val.replace("In ", ""))
+                                if d > max_delta:
+                                    max_delta = d
+                            except:
+                                pass
+                if max_delta.total_seconds() > 0:
+                    blocked_until_dt = datetime.now() + max_delta
+            elif 'raw_reset' in locals() and raw_reset:
+                try:
+                    d = parse_duration(raw_reset.replace("In ", ""))
+                    if d.total_seconds() > 0:
+                        blocked_until_dt = datetime.now() + d
+                except:
+                    pass
 
-            # Cache the status and quota check results
+        is_active_label = " ⭐" if active_email and get_username(email) == get_username(active_email) else ""
+        return {
+            "idx": idx,
+            "email": email + is_active_label,
+            "status": status,
+            "quota": quota_str,
+            "reset_info": reset_time_str,
+            "refreshed_token": refreshed_token,
+            "model_quotas": model_quotas,
+            "blocked_until": blocked_until_dt.isoformat() if blocked_until_dt else None
+        }
+
+    status_report = []
+
+    try:
+        # Run checks in parallel
+        results = []
+        workers = min(max(1, len(accounts) - len(duplicate_tokens)), 8)
+        if workers > 0:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = [
+                    executor.submit(check_single_account, idx, acc)
+                    for idx, acc in enumerate(accounts)
+                ]
+                for fut in futures:
+                    results.append(fut.result())
+        else:
+            for idx, acc in enumerate(accounts):
+                results.append(check_single_account(idx, acc))
+
+        # Sort results by index to preserve original order
+        results.sort(key=lambda x: x["idx"])
+
+        for res in results:
+            idx = res["idx"]
+            status = res["status"]
+            quota_str = res["quota"]
+            reset_time_str = res["reset_info"]
+            refreshed_token = res["refreshed_token"]
+            model_quotas = res["model_quotas"]
+            blocked_until_iso = res["blocked_until"]
+
+            if refreshed_token:
+                accounts[idx]["token"] = refreshed_token
+
             accounts[idx]["status"] = status
             accounts[idx]["quota"] = quota_str
             accounts[idx]["reset_info"] = reset_time_str
             accounts[idx]["last_checked"] = datetime.now().isoformat()
-            if blocked_until_dt:
-                accounts[idx]["blocked_until"] = blocked_until_dt.isoformat()
+            if blocked_until_iso:
+                accounts[idx]["blocked_until"] = blocked_until_iso
             elif "blocked_until" in accounts[idx]:
                 del accounts[idx]["blocked_until"]
-            
-            # Store per-model quota for smart model selection
-            accounts[idx]["model_quotas"] = model_quotas if 'model_quotas' in locals() and model_quotas else {}
 
-            is_active_label = " ⭐" if active_email and get_username(email) == get_username(active_email) else ""
+            accounts[idx]["model_quotas"] = model_quotas
+
             status_report.append({
                 "index": idx,
-                "email": email + is_active_label,
+                "email": res["email"],
                 "status": status,
                 "quota": quota_str,
                 "reset_info": reset_time_str
