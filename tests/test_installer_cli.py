@@ -417,6 +417,18 @@ exit /b 0
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("REAL_AGY_CALLED:-p hello", result.stdout)
 
+    def test_bare_agy_still_launches_interactive_cli(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        real_agy = self.home / ".local" / "bin" / "agy-bin"
+        real_agy.write_text("#!/bin/sh\nprintf 'REAL_AGY_CALLED:%s\\n' \"$*\"\n")
+        real_agy.chmod(0o755)
+
+        result = self._run_installed_agy()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("REAL_AGY_CALLED:", result.stdout)
+
     def test_agy_uninstall_preserves_user_account_data(self):
         install = self._run_agy()
         self.assertEqual(install.returncode, 0, install.stderr)

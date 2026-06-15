@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import contextlib
+import difflib
 import json
 import os
 import sys
@@ -29,8 +30,42 @@ from switch import auto_switch_account, post_check_and_switch, rotate_account
 from utils import AGY_DIR, TOKEN_FILE
 
 
+TOP_LEVEL_COMMANDS = ["status", "account", "doctor", "backup", "restore", "weekly"]
+ACCOUNT_COMMANDS = ["list", "add", "current", "use", "rename", "remove"]
+
+
 def emit_json(payload):
     print(json.dumps(payload, indent=2))
+
+
+def print_unknown_command(args):
+    if not args:
+        print("Unknown command.", file=sys.stderr)
+        print("Run 'agy --help' to see available commands.", file=sys.stderr)
+        return 2
+
+    if args[0] == "account" and len(args) > 1:
+        unknown = args[1]
+        matches = difflib.get_close_matches(unknown, ACCOUNT_COMMANDS, n=3, cutoff=0.25)
+        print(f"Unknown account command: {unknown}", file=sys.stderr)
+        if matches:
+            print("Did you mean:", file=sys.stderr)
+            for match in matches:
+                print(f"  agy account {match}", file=sys.stderr)
+        else:
+            print("Run 'agy account --help' to see available account commands.", file=sys.stderr)
+        return 2
+
+    unknown = args[0]
+    matches = difflib.get_close_matches(unknown, TOP_LEVEL_COMMANDS, n=3, cutoff=0.15)
+    print(f"Unknown command: {unknown}", file=sys.stderr)
+    if matches:
+        print("Did you mean:", file=sys.stderr)
+        for match in matches:
+            print(f"  agy {match}", file=sys.stderr)
+    else:
+        print("Run 'agy --help' to see available commands.", file=sys.stderr)
+    return 2
 
 
 def print_cached_status(rows):
@@ -256,6 +291,8 @@ def run_legacy_internal(args):
 
 def main(argv=None):
     raw_args = list(sys.argv[1:] if argv is None else argv)
+    if raw_args and raw_args[0] == "_suggest":
+        return print_unknown_command(raw_args[1:])
     if "--json" in raw_args and raw_args[0] != "--json":
         raw_args.remove("--json")
         raw_args.insert(0, "--json")
@@ -265,7 +302,11 @@ def main(argv=None):
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
-    args = build_parser().parse_args(translate_legacy_args(raw_args))
+    translated_args = translate_legacy_args(raw_args)
+    if translated_args and translated_args[0] == "account" and len(translated_args) > 1:
+        if translated_args[1] not in ACCOUNT_COMMANDS:
+            return print_unknown_command(translated_args)
+    args = build_parser().parse_args(translated_args)
     try:
         if args.command == "status":
             run_status(args.refresh, args.json)

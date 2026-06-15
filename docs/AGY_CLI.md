@@ -10,6 +10,24 @@ agy account list
 agy status
 ```
 
+Run `agy` with no arguments to open the interactive Antigravity CLI. Use its normal flags for direct prompts:
+
+```bash
+agy -p "summarize this project"
+agy --model "Gemini 3.5 Flash (High)"
+```
+
+Unknown bare words are treated as command typos and never launch the AI CLI:
+
+```text
+$ agy s
+Unknown command: s
+Did you mean:
+  agy status
+```
+
+Nested account-command typos receive the same treatment, for example `agy account lits` suggests `agy account list`.
+
 `agy status` reads cached quota data immediately. Run a live provider check only when needed:
 
 ```bash

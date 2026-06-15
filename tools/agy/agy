@@ -38,6 +38,12 @@ if [[ "$1" == "--json" || "$1" == "status" || "$1" == "account" || "$1" == "doct
     fi
 fi
 
+# A bare unknown word is most likely a mistyped management command. Do not
+# launch the interactive AI CLI unless the user passed no arguments or flags.
+if [[ $# -gt 0 && "$1" != -* ]]; then
+    exec python3 "$AGY_DIR/agy-status.py" _suggest "$@"
+fi
+
 # Proactive: auto-switch to ensure active account has quota before running
 # Captures output — last line may be a suggested model if account was switched
 SUGGESTED_MODEL=""
