@@ -432,6 +432,27 @@ exit /b 0
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("REAL_AGY_CALLED:", result.stdout)
 
+    def test_native_agy_subcommands_still_pass_through(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        real_agy = self.home / ".local" / "bin" / "agy-bin"
+        real_agy.write_text("#!/bin/sh\nprintf 'REAL_AGY_CALLED:%s\\n' \"$*\"\n")
+        real_agy.chmod(0o755)
+
+        for args in (
+            ("changelog",),
+            ("install",),
+            ("models",),
+            ("plugin", "list"),
+            ("plugins", "list"),
+            ("update",),
+            ("help", "models"),
+        ):
+            with self.subTest(args=args):
+                result = self._run_installed_agy(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f"REAL_AGY_CALLED:{' '.join(args)}", result.stdout)
+
     def test_agy_uninstall_preserves_user_account_data(self):
         install = self._run_agy()
         self.assertEqual(install.returncode, 0, install.stderr)

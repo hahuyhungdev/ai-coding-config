@@ -28,6 +28,16 @@ Did you mean:
 
 Nested account-command typos receive the same treatment, for example `agy account lits` suggests `agy account list`.
 
+Native Antigravity commands still pass directly to the original binary:
+
+```bash
+agy changelog
+agy models
+agy plugin list
+agy update
+agy help models
+```
+
 `agy status` reads cached quota data immediately. Run a live provider check only when needed:
 
 ```bash

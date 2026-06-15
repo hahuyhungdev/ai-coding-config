@@ -30,7 +30,10 @@ from switch import auto_switch_account, post_check_and_switch, rotate_account
 from utils import AGY_DIR, TOKEN_FILE
 
 
-TOP_LEVEL_COMMANDS = ["status", "account", "doctor", "backup", "restore", "weekly"]
+TOP_LEVEL_COMMANDS = [
+    "status", "account", "doctor", "backup", "restore", "weekly",
+    "changelog", "install", "models", "plugin", "plugins", "update",
+]
 ACCOUNT_COMMANDS = ["list", "add", "current", "use", "rename", "remove"]
 
 

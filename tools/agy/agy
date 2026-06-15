@@ -31,8 +31,16 @@ set_model_arg() {
     MODEL_ARGS+=("--model" "$model")
 }
 
+# Native agy-bin subcommands must bypass the account-management router.
+native_command=false
+if [[ "$1" == "changelog" || "$1" == "install" || "$1" == "models" || "$1" == "plugin" || "$1" == "plugins" || "$1" == "update" ]]; then
+    native_command=true
+elif [[ "$1" == "help" && $# -gt 1 ]]; then
+    native_command=true
+fi
+
 # Management commands are handled by the Python CLI; everything else launches agy-bin.
-if [[ "$1" == "--json" || "$1" == "status" || "$1" == "account" || "$1" == "doctor" || "$1" == "backup" || "$1" == "restore" || "$1" == "current" || "$1" == "info" || "$1" == "show" || "$1" == "list" || "$1" == "ls" || "$1" == "accounts" || "$1" == "weekly" || "$1" == "week" || "$1" == "usage-week" || "$1" == "weekly-usage" || "$1" == "select" || "$1" == "choose" || "$1" == "use" || "$1" == "add-current" || "$1" == "add-current-account" || "$1" == "import" || "$1" == "save" || "$1" == "help" || "$1" == "guide" || "$1" == "-h" || "$1" == "--help" || "$1" == "clean" || "$1" == "cleanup" || "$1" == "prune" || "$1" == "delete" || "$1" == "remove" || "$1" == "rm" || "$1" == "remove-account" || "$1" == "rm-account" || "$1" == "delete-account" || "$1" == "import-file" || "$1" == "add-file" || "$1" == "load" || "$1" == "add-token" || "$1" == "paste" || "$1" == "new-token" || "$1" == "rotate" || "$1" == "next" ]]; then
+if [[ "$native_command" == false && ( "$1" == "--json" || "$1" == "status" || "$1" == "account" || "$1" == "doctor" || "$1" == "backup" || "$1" == "restore" || "$1" == "current" || "$1" == "info" || "$1" == "show" || "$1" == "list" || "$1" == "ls" || "$1" == "accounts" || "$1" == "weekly" || "$1" == "week" || "$1" == "usage-week" || "$1" == "weekly-usage" || "$1" == "select" || "$1" == "choose" || "$1" == "use" || "$1" == "add-current" || "$1" == "add-current-account" || "$1" == "import" || "$1" == "save" || "$1" == "help" || "$1" == "guide" || "$1" == "-h" || "$1" == "--help" || "$1" == "clean" || "$1" == "cleanup" || "$1" == "prune" || "$1" == "delete" || "$1" == "remove" || "$1" == "rm" || "$1" == "remove-account" || "$1" == "rm-account" || "$1" == "delete-account" || "$1" == "import-file" || "$1" == "add-file" || "$1" == "load" || "$1" == "add-token" || "$1" == "paste" || "$1" == "new-token" || "$1" == "rotate" || "$1" == "next" ) ]]; then
     if [ -f "$AGY_DIR/agy-status.py" ]; then
         exec python3 "$AGY_DIR/agy-status.py" "$@"
     fi
@@ -40,8 +48,16 @@ fi
 
 # A bare unknown word is most likely a mistyped management command. Do not
 # launch the interactive AI CLI unless the user passed no arguments or flags.
-if [[ $# -gt 0 && "$1" != -* ]]; then
+if [[ "$native_command" == false && $# -gt 0 && "$1" != -* ]]; then
     exec python3 "$AGY_DIR/agy-status.py" _suggest "$@"
+fi
+
+if [[ "$native_command" == true ]]; then
+    if [ ! -f "$REAL_AGY" ]; then
+        echo "❌ Error: Real agy binary not found at $REAL_AGY"
+        exit 1
+    fi
+    exec "$REAL_AGY" "$@"
 fi
 
 # Proactive: auto-switch to ensure active account has quota before running
