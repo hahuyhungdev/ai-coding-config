@@ -25,16 +25,98 @@ def main():
     TOOL = args.tool
     CLAUDE = (args.client == "claude")
 
+    def find_graph(d, inp):
+        def has_g(p):
+            try:
+                return p.joinpath("graphify-out", "graph.json").exists()
+            except Exception:
+                return False
+        # 1. CWD
+        cwd = pathlib.Path().resolve()
+        if has_g(cwd):
+            return True
+        # 2. Walk up parent process chain (Linux)
+        try:
+            pid = os.getpid()
+            while pid > 1:
+                try:
+                    proc_cwd = pathlib.Path(os.readlink(f"/proc/{pid}/cwd"))
+                    if has_g(proc_cwd):
+                        return True
+                except Exception:
+                    pass
+                try:
+                    with open(f"/proc/{pid}/stat") as fh:
+                        pid = int(fh.read().split()[3])
+                except Exception:
+                    break
+        except Exception:
+            pass
+        # 3. workspacePaths
+        wps = list(d.get("workspacePaths", []))
+        if "cwd" in d:
+            wps.append(d["cwd"])
+        for wp in wps:
+            if wp:
+                wp_path = pathlib.Path(wp)
+                if has_g(wp_path):
+                    return True
+                try:
+                    for sub in wp_path.iterdir():
+                        if sub.is_dir() and has_g(sub):
+                            return True
+                except Exception:
+                    pass
+        # 4. Path fields
+        path_fields = [
+            inp.get("file_path"), inp.get("path"), inp.get("pattern"),
+            inp.get("AbsolutePath"), inp.get("DirectoryPath"), inp.get("SearchPath"),
+        ]
+        for val in path_fields:
+            if not val:
+                continue
+            try:
+                val_path = pathlib.Path(val).resolve()
+                for parent in [val_path, *val_path.parents]:
+                    if has_g(parent):
+                        return True
+                    try:
+                        for sub in parent.iterdir():
+                            if sub.is_dir() and has_g(sub):
+                                return True
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        return False
+
     try:
-        data = json.load(sys.stdin)
-    except Exception:
+        raw_stdin = sys.stdin.read()
+        data = json.loads(raw_stdin)
+    except Exception as exc:
         data = {}
 
-    t = data.get("tool_input", data)
+    t = data.get("tool_input", {})
+    if not t and "toolCall" in data:
+        t = data["toolCall"].get("args", {})
+    if not t:
+        t = data
+    exists = find_graph(data, t)
+
+    try:
+        _debug_path = pathlib.Path(__file__).resolve().parent.parent.parent / "hook-debug-claude.json"
+        with open(_debug_path, "w") as f:
+            f.write(json.dumps({
+                "raw_stdin": data,
+                "getcwd": os.getcwd(),
+                "exists": exists
+            }, indent=2))
+    except Exception:
+        pass
+
     decision = "allow"
     context = None
     session = str(data.get("session_id") or "")
-    exists = pathlib.Path("graphify-out/graph.json").exists()
     debug = os.environ.get("GRAPHIFY_DEBUG", "0") == "1"
     bypass = os.environ.get("GRAPHIFY_BYPASS", "0") == "1"
 
@@ -62,11 +144,34 @@ def main():
                 tool_ctx = "planning"
             cmd = sq(str(t.get("command") or t.get("CommandLine") or ""))
             if cmd:
+                import re
                 low_cmd = cmd.lower()
-                if any(w in low_cmd for w in ["error", "debug", "test", "fix", "bug"]):
+                words = set(re.findall(r'[a-z]+', low_cmd))
+                try:
+                    lx = shlex.shlex(cmd, posix=True, punctuation_chars="|&;()")
+                    lx.whitespace_split = True
+                    tokens = list(lx)
+                except ValueError:
+                    tokens = []
+                ex_names = []
+                expect = True
+                for token in tokens:
+                    if token in {"|", "||", "&&", ";", "(", ")", "&"}:
+                        expect = True
+                        continue
+                    if not expect or ("=" in token and not token.startswith(("/", "./"))):
+                        continue
+                    word = pathlib.Path(token).name
+                    if word in {"rtk", "sudo", "command", "builtin", "env", "nohup"}:
+                        continue
+                    ex_names.append(word)
+                    expect = False
+
+                if any(w in words for w in ["error", "debug", "test", "pytest", "vitest", "jest", "unittest", "fix", "bug"]):
                     tool_ctx = "debugging"
-                elif any(w in low_cmd for w in ["build", "compile", "make", "install"]):
-                    tool_ctx = "building"
+                elif any(w in words for w in ["build", "compile", "make", "install"]):
+                    if not any(w in B for w in ex_names):
+                        tool_ctx = "building"
 
         log("Context: " + tool_ctx)
 
@@ -168,6 +273,7 @@ def main():
         out = {"decision": decision}
         if context:
             out["additionalContext"] = context
+            out["reason"] = context
         sys.stdout.write(json.dumps(out))
 
 

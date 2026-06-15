@@ -188,7 +188,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         settings_path.parent.mkdir()
         settings_path.write_text(json.dumps({
             "theme": "dark",
-            "hooks": {"BeforeTool": [
+            "hooks": {"PreToolUse": [
                 {"matcher": "write_file", "hooks": [{"type": "command", "command": "custom"}]}
             ]},
         }))
@@ -200,9 +200,9 @@ class TestGraphifySettingsMerge(unittest.TestCase):
 
         self.assertEqual(first, settings_path.read_text())
         self.assertEqual(data["theme"], "dark")
-        self.assertEqual(len(data["hooks"]["BeforeTool"]), 4)
+        self.assertEqual(len(data["hooks"]["PreToolUse"]), 4)
         self.assertEqual(
-            sum(install.is_managed_graphify_hook(h) for h in data["hooks"]["BeforeTool"]),
+            sum(install.is_managed_graphify_hook(h) for h in data["hooks"]["PreToolUse"]),
             3,
         )
 
@@ -251,7 +251,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         data = json.loads(hooks_path.read_text())
 
         self.assertTrue(data["custom"])
-        self.assertEqual(len(data["hooks"]["PreToolUse"]), 2)
+        self.assertEqual(len(data["hooks"]["PreToolUse"]), 4)
 
     def test_one_cli_failure_does_not_stop_other_clis(self):
         with mock.patch.object(

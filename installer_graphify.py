@@ -138,18 +138,22 @@ def _hook_classifier_script(tool_name: str, claude: bool) -> str:
     return header + content
 
 
-def _python_hook_command(tool_name: str, claude: bool, project_level: bool = False) -> str:
+def _python_hook_command(tool_name: str, claude: bool, project_level: bool = False, client: str = None) -> str:
     py = "python3" if sys.platform != "win32" else "python"
-    client = "claude" if claude else "gemini"
+    actual_client = client if client else ("claude" if claude else "gemini")
     if project_level:
-        hook_path = f".{client}/hooks/graphify_pre_tool.py"
+        hook_path = f".{actual_client}/hooks/graphify_pre_tool.py"
     else:
         # Global path
-        if claude:
-            hook_path = "~/.claude/hooks/graphify_pre_tool.py"
+        home_str = str(Path.home().as_posix())
+        if actual_client == "claude":
+            hook_path = f"{home_str}/.claude/hooks/graphify_pre_tool.py"
+        elif actual_client == "gemini":
+            hook_path = f"{home_str}/.gemini/antigravity-cli/hooks/graphify_pre_tool.py"
         else:
-            hook_path = "~/.gemini/antigravity-cli/hooks/graphify_pre_tool.py"
-    return f"# {MANAGED_GRAPHIFY_MARKER}\n{py} {hook_path} --tool {tool_name} --client {client}"
+            hook_path = f"{home_str}/.{actual_client}/hooks/graphify_pre_tool.py"
+    hook_client = "claude" if actual_client in ("claude", "codex") else "gemini"
+    return f"# {MANAGED_GRAPHIFY_MARKER}\n{py} \"{hook_path}\" --tool {tool_name} --client {hook_client}"
 
 
 def managed_claude_hooks(project_level: bool = False) -> list[dict]:
@@ -168,11 +172,12 @@ def managed_gemini_hooks(project_level: bool = False) -> list[dict]:
     ]
 
 
-def managed_codex_hooks() -> list[dict]:
-    return [{
-        "matcher": "Bash",
-        "hooks": [{"type": "command", "command": f"# {MANAGED_GRAPHIFY_MARKER}\ngraphify hook-check"}],
-    }]
+def managed_codex_hooks(project_level: bool = False) -> list[dict]:
+    return [
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": _python_hook_command("Bash", True, project_level, client="codex")}]},
+        {"matcher": "Grep", "hooks": [{"type": "command", "command": _python_hook_command("Grep", True, project_level, client="codex")}]},
+        {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": _python_hook_command("Read", True, project_level, client="codex")}]},
+    ]
 
 
 def is_managed_graphify_hook(hook: dict) -> bool:
@@ -210,6 +215,9 @@ def _load_json_for_merge(path: Path) -> dict:
 def _merge_managed_hooks(path: Path, event: str, managed_hooks: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     settings = _load_json_for_merge(path)
+    if "settings.json" in path.name.lower():
+        settings["enableJsonHooks"] = True
+        settings["enable_json_hooks"] = True
     hooks = settings.setdefault("hooks", {})
     existing = hooks.get(event, [])
     if not isinstance(existing, list):
@@ -236,18 +244,22 @@ def _safe_copy(src: Path, dst: Path) -> None:
 
 
 def configure_claude_project(project_dir: Path) -> None:
+    global_dir = Path.home() / ".claude"
+    global_hooks_dir = global_dir / "hooks"
+    global_hooks_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Ensure global script exists
+    repo_dir = Path(__file__).resolve().parent
+    repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
+    _safe_copy(repo_hook, global_hooks_dir / "graphify_pre_tool.py")
+
     # Ensure project-level hooks directory exists and copy the script
     local_hook_dir = project_dir / ".claude" / "hooks"
     local_hook_dir.mkdir(parents=True, exist_ok=True)
-    global_hook_path = Path.home() / ".claude" / "hooks" / "graphify_pre_tool.py"
-    if global_hook_path.exists() and global_hook_path.resolve() != (local_hook_dir / "graphify_pre_tool.py").resolve():
-        _safe_copy(global_hook_path, local_hook_dir / "graphify_pre_tool.py")
-    else:
-        # Fallback to repo path
-        repo_dir = Path(__file__).resolve().parent
-        repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
-        _safe_copy(repo_hook, local_hook_dir / "graphify_pre_tool.py")
+    _safe_copy(repo_hook, local_hook_dir / "graphify_pre_tool.py")
 
+    global_settings = global_dir / "settings.json"
+    _merge_managed_hooks(global_settings, "PreToolUse", managed_claude_hooks(project_level=False))
     _merge_managed_hooks(project_dir / ".claude" / "settings.json", "PreToolUse", managed_claude_hooks(project_level=True))
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "CLAUDE.md")
@@ -268,8 +280,29 @@ def configure_gemini_project(project_dir: Path) -> None:
     _safe_copy(repo_hook, local_hook_dir / "graphify_pre_tool.py")
 
     global_settings = global_dir / "settings.json"
-    _merge_managed_hooks(global_settings, "BeforeTool", managed_gemini_hooks(project_level=False))
-    _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "BeforeTool", managed_gemini_hooks(project_level=True))
+    _merge_managed_hooks(global_settings, "PreToolUse", managed_gemini_hooks(project_level=False))
+    _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "PreToolUse", managed_gemini_hooks(project_level=True))
+    
+    # Configure global plugin hooks directly referencing the unified pre-tool script
+    plugin_hooks = Path.home() / ".gemini" / "config" / "plugins" / "graphify" / "hooks.json"
+    _merge_managed_hooks(plugin_hooks, "PreToolUse", managed_gemini_hooks(project_level=False))
+
+    # Clean up legacy BeforeTool hooks if they exist in settings or plugin hooks
+    for path in [global_settings, project_dir / ".gemini" / "settings.json", plugin_hooks]:
+        if path.exists():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if "hooks" in data and "BeforeTool" in data["hooks"]:
+                    data["hooks"]["BeforeTool"] = [
+                        h for h in data["hooks"]["BeforeTool"]
+                        if not is_managed_graphify_hook(h)
+                    ]
+                    if not data["hooks"]["BeforeTool"]:
+                        del data["hooks"]["BeforeTool"]
+                    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            except Exception:
+                pass
+
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "ANTIGRAVITY.md")
 
@@ -279,7 +312,15 @@ def configure_codex_project(project_dir: Path) -> None:
     if codex_dir.exists() and not codex_dir.is_dir():
         _backup_path(codex_dir)
     codex_dir.mkdir(parents=True, exist_ok=True)
-    _merge_managed_hooks(codex_dir / "hooks.json", "PreToolUse", managed_codex_hooks())
+    
+    # Ensure project-level hooks directory exists and copy the script
+    repo_dir = Path(__file__).resolve().parent
+    repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
+    local_hook_dir = codex_dir / "hooks"
+    local_hook_dir.mkdir(parents=True, exist_ok=True)
+    _safe_copy(repo_hook, local_hook_dir / "graphify_pre_tool.py")
+
+    _merge_managed_hooks(codex_dir / "hooks.json", "PreToolUse", managed_codex_hooks(project_level=True))
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "AGENTS.md")
 

@@ -275,6 +275,24 @@ def uninstall_global() -> None:
                 (CLAUDE_DIR / "hooks" / f.name).unlink(missing_ok=True)
             ok("Cleaned global hooks")
 
+        # Clean hooks from settings.json
+        settings_path = CLAUDE_DIR / "settings.json"
+        if settings_path.exists():
+            try:
+                data = json.loads(settings_path.read_text(encoding="utf-8"))
+                if "hooks" in data and "PreToolUse" in data["hooks"]:
+                    data["hooks"]["PreToolUse"] = [
+                        h for h in data["hooks"]["PreToolUse"]
+                        if not is_managed_graphify_hook(h)
+                    ]
+                    if not data["hooks"]["PreToolUse"]:
+                        del data["hooks"]["PreToolUse"]
+                    if not data["hooks"]:
+                        del data["hooks"]
+                    settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            except Exception:
+                pass
+
         # Clean agents
         agents_dir = REPO_DIR / "agents"
         if agents_dir.exists():
@@ -401,13 +419,15 @@ def uninstall_project(project_dir: Path) -> None:
         if settings_path.exists():
             try:
                 data = json.loads(settings_path.read_text(encoding="utf-8"))
-                if "hooks" in data and "BeforeTool" in data["hooks"]:
-                    data["hooks"]["BeforeTool"] = [
-                        h for h in data["hooks"]["BeforeTool"]
-                        if not is_managed_graphify_hook(h)
-                    ]
-                    if not data["hooks"]["BeforeTool"]:
-                        del data["hooks"]["BeforeTool"]
+                if "hooks" in data:
+                    for event in ["BeforeTool", "PreToolUse"]:
+                        if event in data["hooks"]:
+                            data["hooks"][event] = [
+                                h for h in data["hooks"][event]
+                                if not is_managed_graphify_hook(h)
+                            ]
+                            if not data["hooks"][event]:
+                                del data["hooks"][event]
                     if not data["hooks"]:
                         del data["hooks"]
 

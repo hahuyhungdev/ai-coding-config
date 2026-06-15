@@ -3,8 +3,10 @@
   "model": "Gemini 4.0 Pro",
   "toolPermission": "always-proceed",
   "trustedWorkspaces": [],
+  "enableJsonHooks": true,
+  "enable_json_hooks": true,
   "hooks": {
-    "BeforeTool": [
+    "PreToolUse": [
       {
         "matcher": "read_file|list_directory",
         "hooks": [
