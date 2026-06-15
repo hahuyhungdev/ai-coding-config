@@ -40,26 +40,33 @@ Antigravity CLI (successor to Gemini CLI) is built in Go and utilizes a similar 
 
 ---
 
-## 3. The `agyswap` Sync Mechanism
+## 3. AGY Account Management
 
-To allow seamless account switching and credential synchronization between WSL and Windows, a wrapper called `agyswap` is provided.
+The installed `agy` wrapper manages the local WSL account pool directly:
 
-### WSL Alias
-`agyswap` wraps the underlying rotation shell script in WSL:
 ```bash
-alias agyswap="~/.gemini/antigravity-cli/agy-rotate.sh"
+agy account list
+agy account add
+agy account use 2
+agy account rename 2 work
+agy status --refresh
 ```
 
-### Windows Wrapper (`agyswap.bat` / `agyswap.ps1`)
-To run `agyswap` directly from Windows PowerShell or CMD and keep the Windows `agy.exe` instance in sync with the active WSL session:
+Authenticated emails are stored separately from optional display labels. Account mutations create timestamped credential backups under `~/.gemini/antigravity-cli/backups/`; these files must remain private.
+
+See [`AGY_CLI.md`](AGY_CLI.md) for backup, restore, doctor, JSON output, and compatibility commands.
+
+### Optional Windows Synchronization
+
+To keep a separate native Windows `agy.exe` instance synchronized with WSL:
 1. It delegates the rotation command to WSL using `wsl`.
 2. It automatically synchronizes the newly selected credentials back to Windows.
 
 **Implementation of `agyswap.bat`:**
 ```cmd
 @echo off
-REM Windows wrapper for agyswap to sync with WSL
-wsl ~/.gemini/antigravity-cli/agy-rotate.sh %*
+REM Example Windows wrapper for AGY account switching
+wsl agy account use %1
 copy /Y \\wsl.localhost\Ubuntu\home\<username>\.gemini\antigravity-cli\accounts.json "%USERPROFILE%\.gemini\antigravity-cli\accounts.json" >nul 2>nul
 copy /Y \\wsl.localhost\Ubuntu\home\<username>\.gemini\antigravity-cli\antigravity-oauth-token "%USERPROFILE%\.gemini\antigravity-cli\antigravity-oauth-token" >nul 2>nul
 ```

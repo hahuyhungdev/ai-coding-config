@@ -24,6 +24,8 @@ python3 install-agy.py
 *   **Ubuntu / Linux:** Add `export PATH="$HOME/.local/bin:$PATH"` to your `~/.bashrc` or `~/.zshrc` if not already present, then run `source ~/.bashrc`.
 *   **Windows:** Make sure your Windows `PATH` environment variable includes `%USERPROFILE%\.local\bin`.
 *   **Verify Globally:** Run `agy status` from any directory.
+*   **Manage Accounts:** Run `agy account list`, `agy account add`, and `agy account use <target>`.
+*   **Full CLI Guide:** See [`docs/AGY_CLI.md`](docs/AGY_CLI.md).
 
 ### 2. Initialize a Project in 1-Second
 Navigate to any project directory and run:
@@ -105,4 +107,3 @@ If you need to remove the configurations and wrapper scripts:
     ```bash
     python3 install-agy.py --uninstall
     ```
-
