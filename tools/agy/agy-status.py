@@ -34,7 +34,7 @@ Commands:
                                   agyswap select zerocadev
                                   
   agyswap add-current           Import the current active token into accounts.json pool.
-                                (aliases: import, save)
+                                (aliases: add-current-account, import, save)
                                 Useful when you log in manually using the real agy command.
 
   agyswap add-token             Paste token JSON directly from clipboard.
@@ -84,7 +84,7 @@ if __name__ == "__main__":
                 select_account(sys.argv[2])
             else:
                 print("❌ Please specify an account index or email (e.g. 'agyswap select 1' or 'agyswap select zerocadev')")
-        elif cmd in ["add-current", "import", "save"]:
+        elif cmd in ["add-current", "add-current-account", "import", "save"]:
             if len(sys.argv) > 2:
                 import_current_token(sys.argv[2])
             else:
