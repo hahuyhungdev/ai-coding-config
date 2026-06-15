@@ -430,6 +430,107 @@ def get_quota_via_pty(email):
             
         return strip_ansi(output.decode(errors="ignore"))
 
+def parse_quota_output(output):
+    # Try new group-based parser first
+    group_quotas = {
+        "GEMINI": {"weekly": {"pct": 100, "refresh": ""}, "five_hour": {"pct": 100, "refresh": ""}},
+        "CLAUDE": {"weekly": {"pct": 100, "refresh": ""}, "five_hour": {"pct": 100, "refresh": ""}}
+    }
+    found_new_format = False
+    current_group = None
+    current_limit = None
+    
+    def get_group_quota(group_data):
+        w = group_data["weekly"]
+        f = group_data["five_hour"]
+        if w["pct"] < f["pct"]:
+            return w["pct"], w["refresh"]
+        elif f["pct"] < w["pct"]:
+            return f["pct"], f["refresh"]
+        else:
+            refresh = f["refresh"] or w["refresh"]
+            return w["pct"], refresh
+
+    lines = output.splitlines()
+    for line in lines:
+        line_strip = line.strip()
+        if not line_strip:
+            continue
+        if "GEMINI MODELS" in line:
+            current_group = "GEMINI"
+            current_limit = None
+            found_new_format = True
+            continue
+        elif "CLAUDE AND GPT MODELS" in line:
+            current_group = "CLAUDE"
+            current_limit = None
+            found_new_format = True
+            continue
+            
+        if current_group:
+            if "Weekly Limit" in line:
+                current_limit = "weekly"
+                continue
+            elif "Five Hour Limit" in line or "5-Hour Limit" in line:
+                current_limit = "five_hour"
+                continue
+                
+            if current_limit:
+                if "remaining" in line_strip or "Refreshes in" in line_strip:
+                    m_ref = re.search(r"Refreshes in\s*(.*)", line_strip)
+                    if m_ref:
+                        group_quotas[current_group][current_limit]["refresh"] = "In " + m_ref.group(1).split("·")[0].strip()
+                    current_limit = None
+                    continue
+                elif "Quota available" in line_strip:
+                    group_quotas[current_group][current_limit]["refresh"] = ""
+                    current_limit = None
+                    continue
+                
+                m_pct = re.search(r"(\d+(?:\.\d+)?)%", line_strip)
+                if m_pct:
+                    pct_val = float(m_pct.group(1))
+                    group_quotas[current_group][current_limit]["pct"] = int(round(pct_val))
+                    continue
+
+    model_quotas = {}
+    if found_new_format:
+        gemini_pct, gemini_ref = get_group_quota(group_quotas["GEMINI"])
+        claude_pct, claude_ref = get_group_quota(group_quotas["CLAUDE"])
+        
+        for model in GEMINI_MODELS:
+            model_quotas[model] = {"pct": gemini_pct, "refresh": gemini_ref}
+        for model in CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
+            model_quotas[model] = {"pct": claude_pct, "refresh": claude_ref}
+    else:
+        # Fall back to old line-by-line parser
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            model_name = None
+            for known in GEMINI_MODELS + CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
+                if known in line:
+                    model_name = known
+                    break
+
+            if model_name:
+                pct = 100
+                refresh = ""
+                for j in range(i+1, min(i+5, len(lines))):
+                    next_line = lines[j]
+                    if any(known in next_line for known in GEMINI_MODELS + CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]):
+                        break
+                    m_pct = re.search(r"(\d+)%", next_line)
+                    if m_pct:
+                        pct = int(m_pct.group(1))
+                    m_ref = re.search(r"Refreshes in\s*(.*)", next_line)
+                    if m_ref:
+                        refresh = "In " + m_ref.group(1).split("·")[0].strip()
+                model_quotas[model_name] = {"pct": pct, "refresh": refresh}
+            i += 1
+            
+    return model_quotas
+
 def get_account_status():
     if not os.path.exists(JSON_FILE):
         print(f"❌ accounts.json not found at {JSON_FILE}")
@@ -498,37 +599,11 @@ def get_account_status():
             reset_time_str = ""
             quota_str = "0%"
 
-            if "Model Quota" in output or "Model Usage" in output or "Quota" in output:
+            if "Model Quota" in output or "Model Usage" in output or "Quota" in output or "GEMINI MODELS" in output or "CLAUDE AND GPT MODELS" in output:
                 status = "🟢 Ready"
                 quota_str = "100%"
 
-                # Parse ALL model quotas from /quota output
-                model_quotas = {}
-                lines = output.splitlines()
-                i = 0
-                while i < len(lines):
-                    line = lines[i]
-                    # Detect model name lines (contain known model names)
-                    model_name = None
-                    for known in GEMINI_MODELS + CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
-                        if known in line:
-                            model_name = known
-                            break
-
-                    if model_name:
-                        # Look at next few lines for percentage and refresh
-                        pct = 100
-                        refresh = ""
-                        for j in range(i+1, min(i+5, len(lines))):
-                            next_line = lines[j]
-                            m_pct = re.search(r"(\d+)%", next_line)
-                            if m_pct:
-                                pct = int(m_pct.group(1))
-                            m_ref = re.search(r"Refreshes in\s*(.*)", next_line)
-                            if m_ref:
-                                refresh = "In " + m_ref.group(1).split("·")[0].strip()
-                        model_quotas[model_name] = {"pct": pct, "refresh": refresh}
-                    i += 1
+                model_quotas = parse_quota_output(output)
 
                 # Determine overall status from model_quotas
                 # Use the first Gemini model for the summary display
