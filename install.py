@@ -32,7 +32,6 @@ from installer import (
     error,
     setup_claude,
     setup_codex,
-    setup_agy,
     setup_cli_wrapper,
     uninstall_global,
     uninstall_project,
@@ -51,7 +50,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  ./install.py                    # Install all (Claude, Codex, agy)
+  ./install.py                    # Install all (Claude, Codex)
   ./install.py --claude           # Only Claude
   ./install.py --codex --force    # Codex, overwrite all
   ./install.py --all --force      # All, overwrite all
@@ -59,7 +58,6 @@ Examples:
     )
     parser.add_argument("--claude", action="store_true", help="Only install/configure Claude Code")
     parser.add_argument("--codex", action="store_true", help="Only install/configure Codex CLI")
-    parser.add_argument("--agy", action="store_true", help="Only install/configure Antigravity CLI (agy)")
     parser.add_argument("--copilot", action="store_true", help="Only install/configure GitHub Copilot (VS Code)")
     parser.add_argument("--all", action="store_true", help="Install/configure all assistants (default)")
     parser.add_argument("--none", action="store_true", help="Do not install/configure any CLI targets (sync only)")
@@ -195,16 +193,15 @@ Examples:
         return
 
     # Default: install all if no specific flag and not --none
-    if not (args.claude or args.codex or args.agy or args.copilot or args.none):
+    if not (args.claude or args.codex or args.copilot or args.none):
         args.all = True
 
     install_claude = (args.all or args.claude) and not args.none
     install_codex = (args.all or args.codex) and not args.none
-    install_agy = (args.all or args.agy) and not args.none
     install_copilot = (args.all or args.copilot) and not args.none
 
     # Compile agents
-    compile_agents(install_claude, install_codex, install_agy)
+    compile_agents(install_claude, install_codex)
 
     # Setup each CLI
     if install_claude:
@@ -213,14 +210,11 @@ Examples:
     if install_codex:
         setup_codex(args.force)
 
-    if install_agy:
-        setup_agy(args.force)
-
     # Automatically install/update the global command wrapper
     setup_cli_wrapper(REPO_DIR)
 
     # Update MCP configs
-    update_mcp_configs(install_claude, install_agy)
+    update_mcp_configs(install_claude)
 
     # Sync disabled MCP servers
     sync_mcp_disabled()
@@ -287,15 +281,13 @@ Examples:
         avail_assistants = []
         if install_claude and shutil.which("claude"):
             avail_assistants.append("claude")
-        if install_agy and shutil.which("agy"):
-            avail_assistants.append("gemini")
         if install_codex and shutil.which("codex"):
             avail_assistants.append("codex")
         if install_copilot:
             avail_assistants.append("copilot")
 
         if not avail_assistants:
-            warn("No AI assistants (claude, agy, codex, copilot) detected. Skipping project-level hooks.")
+            warn("No AI assistants (claude, codex, copilot) detected. Skipping project-level hooks.")
             return
 
         to_configure = list(avail_assistants)  # default: configure all available
@@ -307,7 +299,6 @@ Examples:
             for i, assistant in enumerate(avail_assistants, 1):
                 name = {
                     "claude": "Claude Code (claude)",
-                    "gemini": "Gemini / Antigravity (agy)",
                     "codex": "Codex CLI (codex)",
                     "copilot": "GitHub Copilot (VS Code)"
                 }.get(assistant, assistant)
@@ -335,7 +326,7 @@ Examples:
 
 
     print()
-    print("Done! Restart Claude Code / Codex CLI / agy to pick up changes.")
+    print("Done! Restart Claude Code / Codex CLI to pick up changes.")
     print()
     print("NOTE: Re-run ./install.py any time to refresh shared assets.")
     print("      Personal Codex trusted projects stay in ~/.codex/config.toml.")

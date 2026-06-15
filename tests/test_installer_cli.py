@@ -91,12 +91,27 @@ exit /b 0
             if not include_graphify and disabled_bin.exists():
                 disabled_bin.rename(graphify_bin)
 
+    def _run_agy(self, *args):
+        env = os.environ.copy()
+        env["HOME"] = str(self.home)
+        if sys.platform == "win32":
+            env["USERPROFILE"] = str(self.home)
+        sep = os.pathsep
+        env["PATH"] = str(self.bin) + sep + os.environ.get("PATH", "")
+        return subprocess.run(
+            [sys.executable, str(REPO_DIR / "install-agy.py"), *args],
+            cwd=self.project,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
     def test_all_force_is_idempotent(self):
         first = self._run("--all", "--force")
         self.assertEqual(first.returncode, 0, first.stderr)
         paths = [
             self.project / ".claude" / "settings.json",
-            self.project / ".gemini" / "settings.json",
             self.project / ".codex" / "hooks.json",
         ]
         before = {path: path.read_text() for path in paths}
@@ -112,11 +127,10 @@ exit /b 0
         cases = {
             "--claude": self.project / ".claude" / "settings.json",
             "--codex": self.project / ".codex" / "hooks.json",
-            "--agy": self.project / ".gemini" / "settings.json",
         }
         for flag, expected in cases.items():
             with self.subTest(flag=flag):
-                for name in (".claude", ".codex", ".gemini"):
+                for name in (".claude", ".codex"):
                     target = self.project / name
                     if target.exists():
                         import shutil
@@ -124,14 +138,13 @@ exit /b 0
                 result = self._run(flag, "--force")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue(expected.exists())
-                created = [name for name in (".claude", ".codex", ".gemini") if (self.project / name).exists()]
+                created = [name for name in (".claude", ".codex") if (self.project / name).exists()]
                 self.assertEqual(created, [expected.parent.name])
 
     def test_none_does_not_configure_project_assistants(self):
         result = self._run("--none", "--force")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((self.project / ".claude").exists())
-        self.assertFalse((self.project / ".gemini").exists())
         self.assertFalse((self.project / ".codex").exists())
 
     def test_missing_graphify_falls_back_without_project_hooks(self):
@@ -161,7 +174,7 @@ exit /b 0
         self.assertIn("init", bat_path.read_text())
 
     def test_setup_agy_installs_wrappers(self):
-        result = self._run("--agy", "--force")
+        result = self._run_agy()
         self.assertEqual(result.returncode, 0, result.stderr)
         
         # Check that agy wrapper script is installed to ~/.local/bin/agy

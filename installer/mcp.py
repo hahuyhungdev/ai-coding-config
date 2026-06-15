@@ -9,9 +9,9 @@ GEMINI_DIR = Path.home() / ".gemini" / "config"
 REPO_DIR = Path(__file__).resolve().parent.parent
 
 
-def update_mcp_configs(install_claude: bool, install_agy: bool) -> None:
+def update_mcp_configs(install_claude: bool) -> None:
     """Update Playwright MCP configurations."""
-    if not (install_claude or install_agy):
+    if not install_claude:
         return
 
     info("Ensuring Playwright MCP runs with --isolated...")
@@ -24,11 +24,6 @@ def update_mcp_configs(install_claude: bool, install_agy: bool) -> None:
         ecc_mcp = CLAUDE_DIR / "ecc-source" / "mcp-configs" / "mcp-servers.json"
         if ecc_mcp.exists():
             run_node_script("update-mcp-config.js", str(ecc_mcp))
-
-    if install_agy:
-        gemini_mcp = GEMINI_DIR / "mcp_config.json"
-        if gemini_mcp.exists():
-            run_node_script("update-mcp-config.js", str(gemini_mcp))
 
 
 def sync_mcp_disabled() -> None:

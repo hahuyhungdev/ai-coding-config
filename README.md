@@ -16,6 +16,15 @@ cd ~/projects/ai-coding-config
 ```
 *Tip: This automatically installs the global `ai-config` CLI wrapper in `~/.local/bin/` (make sure this is in your `PATH`). You can re-run `ai-config` at any time to refresh configurations.*
 
+### 🚀 Standalone Antigravity CLI (agy) Setup
+If you only want to install the `agy` quota status checker wrapper and manage Gemini accounts without setting up the entire config engine:
+```bash
+python3 install-agy.py
+```
+*   **Ubuntu / Linux:** Add `export PATH="$HOME/.local/bin:$PATH"` to your `~/.bashrc` or `~/.zshrc` if not already present, then run `source ~/.bashrc`.
+*   **Windows:** Make sure your Windows `PATH` environment variable includes `%USERPROFILE%\.local\bin`.
+*   **Verify Globally:** Run `agy status` from any directory.
+
 ### 2. Initialize a Project in 1-Second
 Navigate to any project directory and run:
 

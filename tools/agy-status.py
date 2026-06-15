@@ -358,19 +358,27 @@ def get_quota_via_pty(email):
         
         output = b""
         
-        # Fixed 7.0 seconds wait for CLI startup and sign-in to complete
-        time.sleep(7.0)
-        
-        # Read any startup output currently in buffer
-        while True:
-            r, _, _ = select.select([master], [], [], 0.05)
+        # Wait dynamically for prompt (e.g. '>') or 'shortcuts' up to 12 seconds
+        start_time = time.time()
+        while time.time() - start_time < 12.0:
+            r, _, _ = select.select([master], [], [], 0.1)
             if r:
                 try:
-                    output += os.read(master, 4096)
+                    chunk = os.read(master, 4096)
+                    if not chunk:
+                        break
+                    output += chunk
+                    if b"\r\n>" in output or b"shortcuts" in output:
+                        # Flush any remaining bytes
+                        time.sleep(0.1)
+                        r2, _, _ = select.select([master], [], [], 0.05)
+                        if r2:
+                            output += os.read(master, 4096)
+                        break
                 except OSError:
                     break
             else:
-                break
+                time.sleep(0.05)
         
         # Send /usage
         try:
@@ -636,18 +644,18 @@ def get_account_status():
                             if "weekly_pct" in q and "five_hour_pct" in q:
                                 w_pct = q["weekly_pct"]
                                 f_pct = q["five_hour_pct"]
-                                quota_str = f"W:{w_pct}%/5H:{f_pct}%"
+                                quota_str = f"5H:{f_pct}%/W:{w_pct}%"
                                 
                                 w_ref = q.get("weekly_refresh", "")
                                 f_ref = q.get("five_hour_refresh", "")
                                 if w_ref and f_ref:
                                     w_clean = w_ref.replace("In ", "").strip()
                                     f_clean = f_ref.replace("In ", "").strip()
-                                    reset_time_str = f"W:{w_clean}/5H:{f_clean}"
-                                elif w_ref:
-                                    reset_time_str = f"W:{w_ref.replace('In ', '')}"
+                                    reset_time_str = f"5H:{f_clean}/W:{w_clean}"
                                 elif f_ref:
                                     reset_time_str = f"5H:{f_ref.replace('In ', '')}"
+                                elif w_ref:
+                                    reset_time_str = f"W:{w_ref.replace('In ', '')}"
                                 else:
                                     reset_time_str = ""
                             else:
