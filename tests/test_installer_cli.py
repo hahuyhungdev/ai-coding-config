@@ -391,6 +391,7 @@ exit /b 0
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Unknown command: s", result.stderr)
         self.assertIn("agy status", result.stderr)
+        self.assertNotIn("agy restore", result.stderr)
         self.assertNotIn("REAL_AGY_CALLED", result.stdout + result.stderr)
 
     def test_agy_typo_suggests_top_level_and_nested_commands(self):
@@ -402,8 +403,10 @@ exit /b 0
 
         self.assertNotEqual(top_level.returncode, 0)
         self.assertIn("agy account", top_level.stderr)
+        self.assertNotIn("agy backup", top_level.stderr)
         self.assertNotEqual(nested.returncode, 0)
         self.assertIn("agy account list", nested.stderr)
+        self.assertNotIn("agy account use", nested.stderr)
 
     def test_agy_valid_flags_still_pass_through_to_real_cli(self):
         install = self._run_agy()

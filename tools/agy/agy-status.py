@@ -46,7 +46,7 @@ def print_unknown_command(args):
 
     if args[0] == "account" and len(args) > 1:
         unknown = args[1]
-        matches = difflib.get_close_matches(unknown, ACCOUNT_COMMANDS, n=3, cutoff=0.25)
+        matches = difflib.get_close_matches(unknown, ACCOUNT_COMMANDS, n=1, cutoff=0.5)
         print(f"Unknown account command: {unknown}", file=sys.stderr)
         if matches:
             print("Did you mean:", file=sys.stderr)
@@ -57,7 +57,8 @@ def print_unknown_command(args):
         return 2
 
     unknown = args[0]
-    matches = difflib.get_close_matches(unknown, TOP_LEVEL_COMMANDS, n=3, cutoff=0.15)
+    cutoff = 0.27 if len(unknown) == 1 else 0.5
+    matches = difflib.get_close_matches(unknown, TOP_LEVEL_COMMANDS, n=1, cutoff=cutoff)
     print(f"Unknown command: {unknown}", file=sys.stderr)
     if matches:
         print("Did you mean:", file=sys.stderr)
