@@ -264,6 +264,8 @@ def translate_legacy_args(args):
         "weekly-usage": ["weekly"],
     }
     if args[0] in ("help", "guide"):
+        if len(args) > 1:
+            return translate_legacy_args(args[1:]) + ["--help"]
         return ["--help"]
     if args[0] in aliases:
         return aliases[args[0]] + args[1:]
@@ -308,7 +310,7 @@ def main(argv=None):
         return 1
     translated_args = translate_legacy_args(raw_args)
     if translated_args and translated_args[0] == "account" and len(translated_args) > 1:
-        if translated_args[1] not in ACCOUNT_COMMANDS:
+        if translated_args[1] not in ACCOUNT_COMMANDS and translated_args[1] not in ("-h", "--help"):
             return print_unknown_command(translated_args)
     args = build_parser().parse_args(translated_args)
     try:

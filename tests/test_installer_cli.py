@@ -453,6 +453,23 @@ exit /b 0
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(f"REAL_AGY_CALLED:{' '.join(args)}", result.stdout)
 
+    def test_agy_help_subcommands(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        real_agy = self.home / ".local" / "bin" / "agy-bin"
+        real_agy.write_text("#!/bin/sh\nprintf 'REAL_AGY_CALLED:%s\\n' \"$*\"\n")
+        real_agy.chmod(0o755)
+
+        # help status should show status help (runs agy-status.py)
+        result = self._run_installed_agy("help", "status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--refresh", result.stdout)
+
+        # help models should bypass and run agy-bin (runs real agy-bin)
+        result2 = self._run_installed_agy("help", "models")
+        self.assertEqual(result2.returncode, 0, result2.stderr)
+        self.assertIn("REAL_AGY_CALLED:help models", result2.stdout)
+
     def test_agy_uninstall_preserves_user_account_data(self):
         install = self._run_agy()
         self.assertEqual(install.returncode, 0, install.stderr)
