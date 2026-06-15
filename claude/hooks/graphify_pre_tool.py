@@ -272,7 +272,6 @@ def main():
     else:
         out = {"decision": decision}
         if context:
-            out["additionalContext"] = context
             out["reason"] = context
         sys.stdout.write(json.dumps(out))
 
