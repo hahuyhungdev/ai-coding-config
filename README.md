@@ -89,3 +89,20 @@ Verify system behavior, security headers, and user flows:
 *   **Run Unit Tests**: `pytest`
 *   **Run E2E UI Tests**: `node frontend/test-e2e.cjs`
 *   **Verify Assistant Layout Consistency**: `node frontend/verify-layout.cjs`
+
+---
+
+## 🗑️ Uninstallation
+
+If you need to remove the configurations and wrapper scripts:
+
+*   **Uninstall global AI Coding Config engine** (Claude/Codex assets & global `ai-config` wrapper):
+    ```bash
+    ./install.py --uninstall
+    ```
+
+*   **Uninstall standalone Antigravity CLI (agy)**:
+    ```bash
+    python3 install-agy.py --uninstall
+    ```
+

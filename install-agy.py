@@ -6,7 +6,85 @@ import shutil
 import sys
 from pathlib import Path
 
+def uninstall():
+    print("🗑️ Uninstalling Antigravity CLI (agy) standalone...")
+    
+    # Define paths
+    home = Path.home()
+    gemini_dir = home / ".gemini" / "config"
+    agy_cli_dir = home / ".gemini" / "antigravity-cli"
+    bin_dir = home / ".local" / "bin"
+    repo_dir = Path(__file__).resolve().parent
+
+    # 1. Remove wrappers
+    for name in ["agy", "agy.bat"]:
+        p = bin_dir / name
+        if p.exists():
+            try:
+                p.unlink()
+                print(f"   Removed global wrapper {p}")
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to remove global wrapper {p}: {e}")
+
+    # 2. Remove ANTIGRAVITY.md
+    antigravity_md = gemini_dir / "ANTIGRAVITY.md"
+    if antigravity_md.exists():
+        try:
+            antigravity_md.unlink()
+            print(f"   Removed {antigravity_md}")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to remove {antigravity_md}: {e}")
+
+    # 3. Clean up copied skills
+    src_skills = repo_dir / "skills"
+    if src_skills.exists():
+        for item in src_skills.iterdir():
+            if item.is_dir():
+                dst_item = gemini_dir / "skills" / item.name
+                if dst_item.exists():
+                    try:
+                        shutil.rmtree(dst_item)
+                        print(f"   Removed skill {item.name}")
+                    except Exception as e:
+                        print(f"⚠️ Warning: Failed to remove skill {item.name}: {e}")
+
+    # 4. Clean up copied agents
+    src_agents = repo_dir / "agents"
+    if src_agents.exists():
+        for item in src_agents.glob("*.md"):
+            dst_item = gemini_dir / "agents" / item.name
+            if dst_item.exists():
+                try:
+                    dst_item.unlink()
+                    print(f"   Removed agent {item.name}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Failed to remove agent {item.name}: {e}")
+
+    # 5. Clean up antigravity-cli directory
+    if agy_cli_dir.exists():
+        try:
+            shutil.rmtree(agy_cli_dir)
+            print(f"   Removed directory {agy_cli_dir}")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to remove directory {agy_cli_dir}: {e}")
+
+    print("\n🎉 Standalone Antigravity CLI (agy) uninstallation completed successfully!")
+
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Standalone installer and uninstaller for Antigravity CLI (agy).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--uninstall", "-u", action="store_true", help="Uninstall agy wrapper, status scripts, and assets"
+    )
+    args = parser.parse_args()
+
+    if args.uninstall:
+        uninstall()
+        return
+
     print("🚀 Installing Antigravity CLI (agy) standalone...")
     
     # Define paths
@@ -23,17 +101,18 @@ def main():
     agy_cli_dir.mkdir(parents=True, exist_ok=True)
     bin_dir.mkdir(parents=True, exist_ok=True)
     
-    # 1. Copy agy-status.py
-    src_status = repo_dir / "tools" / "agy-status.py"
-    if src_status.exists():
-        shutil.copy2(src_status, agy_cli_dir / "agy-status.py")
-        print(f"   Installed agy-status.py to {agy_cli_dir / 'agy-status.py'}")
+    # 1. Copy modular Python files
+    src_dir = repo_dir / "tools" / "agy"
+    if src_dir.exists():
+        for item in src_dir.glob("*.py"):
+            shutil.copy2(item, agy_cli_dir / item.name)
+        print(f"   Installed modular Python files to {agy_cli_dir}")
     else:
-        print(f"❌ Error: {src_status} not found.", file=sys.stderr)
+        print(f"❌ Error: {src_dir} not found.", file=sys.stderr)
         sys.exit(1)
         
     # 2. Copy bash wrapper (for Ubuntu/Linux, WSL, Git Bash)
-    src_wrapper = repo_dir / "tools" / "agy"
+    src_wrapper = src_dir / "agy"
     if src_wrapper.exists():
         dst_wrapper = bin_dir / "agy"
         shutil.copy2(src_wrapper, dst_wrapper)

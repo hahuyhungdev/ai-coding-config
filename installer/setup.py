@@ -305,10 +305,19 @@ def uninstall_global() -> None:
                 if d.is_dir():
                     shutil.rmtree(GEMINI_DIR / "skills" / d.name, ignore_errors=True)
             ok("Cleaned Gemini/agy skills")
+        # Clean agents
+        agents_dir = REPO_DIR / "agents"
+        if agents_dir.exists():
+            for f in agents_dir.glob("*.md"):
+                (GEMINI_DIR / "agents" / f.name).unlink(missing_ok=True)
+            ok("Cleaned Gemini/agy agents")
 
-    # Remove agy wrapper and agy-status.py
+    # Remove agy wrapper and antigravity-cli directory
     (Path.home() / ".local" / "bin" / "agy").unlink(missing_ok=True)
-    (Path.home() / ".gemini" / "antigravity-cli" / "agy-status.py").unlink(missing_ok=True)
+    (Path.home() / ".local" / "bin" / "agy.bat").unlink(missing_ok=True)
+    agy_cli_dir = Path.home() / ".gemini" / "antigravity-cli"
+    if agy_cli_dir.exists():
+        shutil.rmtree(agy_cli_dir, ignore_errors=True)
     ok("Cleaned agy wrapper and status scripts")
 
     ok("Global uninstallation complete.")

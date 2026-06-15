@@ -3,10 +3,11 @@ import sys
 import unittest
 from importlib.machinery import SourceFileLoader
 
-# Load the agy-status module dynamically due to the hyphen in its name
-tools_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../tools'))
-agy_status_path = os.path.join(tools_dir, 'agy-status.py')
-agy_status = SourceFileLoader("agy_status", agy_status_path).load_module()
+# Load the modular agy package components
+tools_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../tools/agy'))
+sys.path.insert(0, tools_dir)
+import parser
+import utils
 
 class TestAgyStatus(unittest.TestCase):
     def test_parse_quota_output_new_weekly_bottleneck(self):
@@ -36,10 +37,10 @@ CLAUDE AND GPT MODELS
     [██████████████████████████████████████████████████] 100.00%
     Quota available
         """
-        quotas = agy_status.parse_quota_output(output)
+        quotas = parser.parse_quota_output(output)
         
         # GEMINI MODELS check (Weekly is bottleneck: 71%)
-        for m in agy_status.GEMINI_MODELS:
+        for m in utils.GEMINI_MODELS:
             self.assertEqual(quotas[m]["pct"], 71)
             self.assertEqual(quotas[m]["refresh"], "In 99h 53m")
             self.assertEqual(quotas[m]["weekly_pct"], 71)
@@ -48,7 +49,7 @@ CLAUDE AND GPT MODELS
             self.assertEqual(quotas[m]["five_hour_refresh"], "In 4h 53m")
             
         # CLAUDE MODELS check (Weekly is bottleneck: 95%)
-        for m in agy_status.CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
+        for m in utils.CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
             self.assertEqual(quotas[m]["pct"], 95)
             self.assertEqual(quotas[m]["refresh"], "In 104h 56m")
             self.assertEqual(quotas[m]["weekly_pct"], 95)
@@ -73,10 +74,10 @@ CLAUDE AND GPT MODELS
     [██░░] 50.00%
     50% remaining · Refreshes in 1h 45m
         """
-        quotas = agy_status.parse_quota_output(output)
+        quotas = parser.parse_quota_output(output)
         
         # GEMINI MODELS check (Five Hour is bottleneck: 0%)
-        for m in agy_status.GEMINI_MODELS:
+        for m in utils.GEMINI_MODELS:
             self.assertEqual(quotas[m]["pct"], 0)
             self.assertEqual(quotas[m]["refresh"], "In 3h 12m")
             self.assertEqual(quotas[m]["weekly_pct"], 100)
@@ -85,7 +86,7 @@ CLAUDE AND GPT MODELS
             self.assertEqual(quotas[m]["five_hour_refresh"], "In 3h 12m")
             
         # CLAUDE MODELS check (Five Hour is bottleneck: 50%)
-        for m in agy_status.CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
+        for m in utils.CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
             self.assertEqual(quotas[m]["pct"], 50)
             self.assertEqual(quotas[m]["refresh"], "In 1h 45m")
             self.assertEqual(quotas[m]["weekly_pct"], 95)
@@ -103,7 +104,7 @@ Claude Opus 4.6 (Thinking)
   [██████████████████████████████████████░░░░░░░░░░░░] 76%
   76% remaining · Refreshes in 2h 15m
         """
-        quotas = agy_status.parse_quota_output(output)
+        quotas = parser.parse_quota_output(output)
         
         # High Gemini model check
         self.assertEqual(quotas["Gemini 3.5 Flash (High)"]["pct"], 100)
