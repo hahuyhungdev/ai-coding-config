@@ -306,7 +306,7 @@ class ConfigHandler(BaseHTTPRequestHandler):
         targets = []
         if claude: targets.append("--claude")
         if codex: targets.append("--codex")
-        if agy: targets.append("--agy")
+        if agy: targets.append("--gemini")
         
         if targets:
             args.extend(targets)
