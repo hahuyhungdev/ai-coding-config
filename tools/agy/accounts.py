@@ -15,6 +15,7 @@ from parser import (
     get_remaining_reset_from_logs, get_weekly_usage, parse_quota_output
 )
 from pty_client import get_quota_via_pty
+from storage import write_accounts
 
 def find_duplicate_refresh_tokens(accounts):
     """Map duplicate account indexes to the first account using that token."""
@@ -191,8 +192,7 @@ def get_account_status():
             })
 
         # Save refreshed tokens back to accounts.json
-        with open(JSON_FILE, "w") as f:
-            json.dump(accounts, f, indent=2)
+        write_accounts(accounts, create_backup=False)
 
     finally:
         # Restore original active token
@@ -405,8 +405,7 @@ def remove_account(target=None):
     removed_acc = accounts.pop(matched_idx)
     removed_name = removed_acc.get("email") or removed_acc.get("name") or f"Account {matched_idx}"
 
-    with open(JSON_FILE, "w") as f:
-        json.dump(accounts, f, indent=2)
+    write_accounts(accounts)
 
     print(f"🗑️ Successfully removed account: {removed_name} (Index: [{matched_idx}])")
 
@@ -487,12 +486,15 @@ def import_current_token(custom_email=None):
         if get_username(acc_email) == username:
             accounts[idx]["token"] = current_data.get("token") or current_data
             accounts[idx]["auth_method"] = current_data.get("auth_method", "consumer")
+            if "@" in email:
+                accounts[idx]["email"] = email
             updated = True
             break
 
     if not updated:
         accounts.append({
-            "email": username,
+            "email": email if "@" in email else username,
+            "label": None if "@" in email else username,
             "auth_method": current_data.get("auth_method", "consumer"),
             "token": current_data.get("token") or current_data
         })
@@ -500,8 +502,7 @@ def import_current_token(custom_email=None):
     else:
         print(f"🟢 Successfully updated existing account '{username}' in accounts.json!")
 
-    with open(JSON_FILE, "w") as f:
-        json.dump(accounts, f, indent=2)
+    write_accounts(accounts)
 
 def clean_conversations():
     # Read history.jsonl to find active conversation IDs
@@ -754,8 +755,7 @@ def add_token_from_input(custom_email=None):
     else:
         print(f"\n🟢 Updated existing account '{username}'!")
 
-    with open(JSON_FILE, "w") as f:
-        json.dump(accounts, f, indent=2)
+    write_accounts(accounts)
 
     print(f"   Total accounts: {len(accounts)}")
 
@@ -821,7 +821,6 @@ def import_from_file(file_path, custom_email=None):
     else:
         print(f"🟢 Updated existing account '{username}' with token from {os.path.basename(file_path)}!")
 
-    with open(JSON_FILE, "w") as f:
-        json.dump(accounts, f, indent=2)
+    write_accounts(accounts)
 
     print(f"   Total accounts: {len(accounts)}")

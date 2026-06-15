@@ -70,7 +70,7 @@ def ljust_display(s, width):
     return s + (" " * pad)
 
 def account_display_name(acc, idx):
-    return acc.get("email") or acc.get("name") or f"Account {idx + 1}"
+    return acc.get("label") or acc.get("email") or acc.get("name") or f"Account {idx + 1}"
 
 def account_key(name):
     return get_username(name).lower()
@@ -115,4 +115,3 @@ def format_exact_reset_time(duration_str, base_time=None):
         return reset_time.strftime("%a %H:%M")
     except Exception:
         return duration_str
-

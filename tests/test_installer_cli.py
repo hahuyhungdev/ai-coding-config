@@ -270,7 +270,7 @@ exit /b 0
 
         self.assertEqual(result.returncode, 0, result.stderr)
         accounts = json.loads((agy_dir / "accounts.json").read_text())
-        self.assertEqual(accounts[0]["email"], "first")
+        self.assertEqual(accounts[0]["email"], "first@example.com")
         self.assertEqual(accounts[0]["token"]["refresh_token"], "refresh-token")
 
     def test_agy_account_commands_and_cached_status(self):
@@ -309,6 +309,35 @@ exit /b 0
         accounts = json.loads((agy_dir / "accounts.json").read_text())
         self.assertEqual(len(accounts), 1)
         self.assertTrue(list((agy_dir / "backups").glob("accounts-*.json")))
+
+    def test_agy_account_add_label_preserves_authenticated_email(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        agy_dir = self.home / ".gemini" / "antigravity-cli"
+        token = {
+            "email": "owner@example.com",
+            "auth_method": "consumer",
+            "token": {"refresh_token": "owner-token"},
+        }
+        (agy_dir / "antigravity-oauth-token").write_text(json.dumps(token))
+
+        result = self._run_installed_agy("account", "add", "--label", "personal")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        account = json.loads((agy_dir / "accounts.json").read_text())[0]
+        self.assertEqual(account["email"], "owner@example.com")
+        self.assertEqual(account["label"], "personal")
+
+    def test_removing_active_account_activates_remaining_account(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        agy_dir, _ = self._seed_agy_accounts()
+
+        result = self._run_installed_agy("account", "remove", "1", "--yes")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        active = json.loads((agy_dir / "antigravity-oauth-token").read_text())
+        self.assertEqual(active["token"]["refresh_token"], "rt-2")
 
     def test_agy_json_doctor_and_account_list_redact_tokens(self):
         install = self._run_agy()
