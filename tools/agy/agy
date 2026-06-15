@@ -123,7 +123,9 @@ fi
 SUGGESTED_MODEL=""
 if [ -f "$AGY_DIR/agy-status.py" ]; then
     switch_output=$(python3 "$AGY_DIR/agy-status.py" auto-switch 2>&1)
-    echo "$switch_output"
+    if [ -n "$switch_output" ]; then
+        echo "$switch_output" | grep -v "^MODEL:"
+    fi
     # If auto-switch printed a model suggestion (non-empty return), use it
     last_line=$(echo "$switch_output" | tail -1)
     if [[ "$last_line" == MODEL:* ]]; then
