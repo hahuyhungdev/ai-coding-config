@@ -107,6 +107,21 @@ exit /b 0
             check=False,
         )
 
+    def _run_global_uninstall(self):
+        env = os.environ.copy()
+        env["HOME"] = str(self.home)
+        if sys.platform == "win32":
+            env["USERPROFILE"] = str(self.home)
+        env["PATH"] = str(self.bin) + os.pathsep + os.environ.get("PATH", "")
+        return subprocess.run(
+            [sys.executable, str(REPO_DIR / "install.py"), "--uninstall"],
+            cwd=self.project,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
     def test_all_force_is_idempotent(self):
         first = self._run("--all", "--force")
         self.assertEqual(first.returncode, 0, first.stderr)
@@ -185,6 +200,52 @@ exit /b 0
         # Check that agy-status.py is installed to ~/.gemini/antigravity-cli/agy-status.py
         agy_status = self.home / ".gemini" / "antigravity-cli" / "agy-status.py"
         self.assertTrue(agy_status.is_file())
+
+    def test_agy_uninstall_preserves_user_account_data(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+
+        agy_dir = self.home / ".gemini" / "antigravity-cli"
+        user_files = {
+            "accounts.json": "[]",
+            "accounts-backup.json": "[]",
+            "antigravity-oauth-token": "{}",
+            "history.jsonl": "",
+            "settings.json": "{}",
+        }
+        for name, content in user_files.items():
+            (agy_dir / name).write_text(content)
+
+        uninstall = self._run_agy("--uninstall")
+
+        self.assertEqual(uninstall.returncode, 0, uninstall.stderr)
+        self.assertFalse((agy_dir / "agy-status.py").exists())
+        for name in user_files:
+            self.assertTrue((agy_dir / name).exists(), name)
+
+    def test_global_uninstall_preserves_user_account_data(self):
+        install = self._run("--all", "--force")
+        self.assertEqual(install.returncode, 0, install.stderr)
+
+        agy_dir = self.home / ".gemini" / "antigravity-cli"
+        agy_dir.mkdir(parents=True, exist_ok=True)
+        (agy_dir / "agy-status.py").write_text("managed")
+        user_files = {
+            "accounts.json": "[]",
+            "accounts-backup.json": "[]",
+            "antigravity-oauth-token": "{}",
+            "history.jsonl": "",
+            "settings.json": "{}",
+        }
+        for name, content in user_files.items():
+            (agy_dir / name).write_text(content)
+
+        uninstall = self._run_global_uninstall()
+
+        self.assertEqual(uninstall.returncode, 0, uninstall.stderr)
+        self.assertFalse((agy_dir / "agy-status.py").exists())
+        for name in user_files:
+            self.assertTrue((agy_dir / name).exists(), name)
 
 
 if __name__ == "__main__":
