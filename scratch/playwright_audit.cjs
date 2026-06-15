@@ -2,10 +2,12 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
-const ARTIFACTS_DIR = '/home/huyhung/.gemini/antigravity-cli/brain/d33cd024-fdbb-471a-8e85-0f8f7b5148ab';
+const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || path.join(__dirname, '..', 'scratch', 'visual_audit');
 if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
+
+const PORT = process.env.PORT || '8000';
 
 (async () => {
   console.log("🚀 Starting Playwright UI/UX & A11y Audit...");
@@ -32,8 +34,8 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
 
   try {
     // 1. Initial Load & Viewport Setup
-    console.log("Navigating to http://127.0.0.1:8000...");
-    await page.goto('http://127.0.0.1:8000', { waitUntil: 'networkidle' });
+    console.log(`Navigating to http://127.0.0.1:${PORT}...`);
+    await page.goto(`http://127.0.0.1:${PORT}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
 
     // 2. Responsive Visual Checks (Desktop, Tablet, Mobile)
