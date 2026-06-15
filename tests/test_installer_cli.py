@@ -201,6 +201,37 @@ exit /b 0
         agy_status = self.home / ".gemini" / "antigravity-cli" / "agy-status.py"
         self.assertTrue(agy_status.is_file())
 
+    def test_add_current_account_alias_bootstraps_missing_account_pool(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+
+        agy_dir = self.home / ".gemini" / "antigravity-cli"
+        token = {
+            "email": "first@example.com",
+            "auth_method": "consumer",
+            "token": {"refresh_token": "refresh-token"},
+        }
+        (agy_dir / "antigravity-oauth-token").write_text(json.dumps(token))
+
+        env = os.environ.copy()
+        env["HOME"] = str(self.home)
+        if sys.platform == "win32":
+            env["USERPROFILE"] = str(self.home)
+        env["PATH"] = str(self.home / ".local" / "bin") + os.pathsep + str(self.bin) + os.pathsep + os.environ.get("PATH", "")
+        result = subprocess.run(
+            [str(self.home / ".local" / "bin" / "agy"), "add-current-account"],
+            cwd=self.project,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        accounts = json.loads((agy_dir / "accounts.json").read_text())
+        self.assertEqual(accounts[0]["email"], "first")
+        self.assertEqual(accounts[0]["token"]["refresh_token"], "refresh-token")
+
     def test_agy_uninstall_preserves_user_account_data(self):
         install = self._run_agy()
         self.assertEqual(install.returncode, 0, install.stderr)
