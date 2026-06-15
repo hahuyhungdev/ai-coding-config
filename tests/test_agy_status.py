@@ -42,11 +42,19 @@ CLAUDE AND GPT MODELS
         for m in agy_status.GEMINI_MODELS:
             self.assertEqual(quotas[m]["pct"], 71)
             self.assertEqual(quotas[m]["refresh"], "In 99h 53m")
+            self.assertEqual(quotas[m]["weekly_pct"], 71)
+            self.assertEqual(quotas[m]["weekly_refresh"], "In 99h 53m")
+            self.assertEqual(quotas[m]["five_hour_pct"], 77)
+            self.assertEqual(quotas[m]["five_hour_refresh"], "In 4h 53m")
             
         # CLAUDE MODELS check (Weekly is bottleneck: 95%)
         for m in agy_status.CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
             self.assertEqual(quotas[m]["pct"], 95)
             self.assertEqual(quotas[m]["refresh"], "In 104h 56m")
+            self.assertEqual(quotas[m]["weekly_pct"], 95)
+            self.assertEqual(quotas[m]["weekly_refresh"], "In 104h 56m")
+            self.assertEqual(quotas[m]["five_hour_pct"], 100)
+            self.assertEqual(quotas[m]["five_hour_refresh"], "")
 
     def test_parse_quota_output_new_five_hour_bottleneck(self):
         output = """
@@ -71,11 +79,19 @@ CLAUDE AND GPT MODELS
         for m in agy_status.GEMINI_MODELS:
             self.assertEqual(quotas[m]["pct"], 0)
             self.assertEqual(quotas[m]["refresh"], "In 3h 12m")
+            self.assertEqual(quotas[m]["weekly_pct"], 100)
+            self.assertEqual(quotas[m]["weekly_refresh"], "")
+            self.assertEqual(quotas[m]["five_hour_pct"], 0)
+            self.assertEqual(quotas[m]["five_hour_refresh"], "In 3h 12m")
             
         # CLAUDE MODELS check (Five Hour is bottleneck: 50%)
         for m in agy_status.CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
             self.assertEqual(quotas[m]["pct"], 50)
             self.assertEqual(quotas[m]["refresh"], "In 1h 45m")
+            self.assertEqual(quotas[m]["weekly_pct"], 95)
+            self.assertEqual(quotas[m]["weekly_refresh"], "In 104h 56m")
+            self.assertEqual(quotas[m]["five_hour_pct"], 50)
+            self.assertEqual(quotas[m]["five_hour_refresh"], "In 1h 45m")
 
     def test_parse_quota_output_old_format_compatibility(self):
         output = """
@@ -92,10 +108,18 @@ Claude Opus 4.6 (Thinking)
         # High Gemini model check
         self.assertEqual(quotas["Gemini 3.5 Flash (High)"]["pct"], 100)
         self.assertEqual(quotas["Gemini 3.5 Flash (High)"]["refresh"], "")
+        self.assertEqual(quotas["Gemini 3.5 Flash (High)"]["weekly_pct"], 100)
+        self.assertEqual(quotas["Gemini 3.5 Flash (High)"]["weekly_refresh"], "")
+        self.assertEqual(quotas["Gemini 3.5 Flash (High)"]["five_hour_pct"], 100)
+        self.assertEqual(quotas["Gemini 3.5 Flash (High)"]["five_hour_refresh"], "")
         
         # High Claude model check
         self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["pct"], 76)
         self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["refresh"], "In 2h 15m")
+        self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["weekly_pct"], 76)
+        self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["weekly_refresh"], "In 2h 15m")
+        self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["five_hour_pct"], 76)
+        self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["five_hour_refresh"], "In 2h 15m")
 
 if __name__ == "__main__":
     unittest.main()

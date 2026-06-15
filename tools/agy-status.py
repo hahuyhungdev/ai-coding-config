@@ -499,9 +499,23 @@ def parse_quota_output(output):
         claude_pct, claude_ref = get_group_quota(group_quotas["CLAUDE"])
         
         for model in GEMINI_MODELS:
-            model_quotas[model] = {"pct": gemini_pct, "refresh": gemini_ref}
+            model_quotas[model] = {
+                "pct": gemini_pct, 
+                "refresh": gemini_ref,
+                "weekly_pct": group_quotas["GEMINI"]["weekly"]["pct"],
+                "weekly_refresh": group_quotas["GEMINI"]["weekly"]["refresh"],
+                "five_hour_pct": group_quotas["GEMINI"]["five_hour"]["pct"],
+                "five_hour_refresh": group_quotas["GEMINI"]["five_hour"]["refresh"]
+            }
         for model in CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
-            model_quotas[model] = {"pct": claude_pct, "refresh": claude_ref}
+            model_quotas[model] = {
+                "pct": claude_pct, 
+                "refresh": claude_ref,
+                "weekly_pct": group_quotas["CLAUDE"]["weekly"]["pct"],
+                "weekly_refresh": group_quotas["CLAUDE"]["weekly"]["refresh"],
+                "five_hour_pct": group_quotas["CLAUDE"]["five_hour"]["pct"],
+                "five_hour_refresh": group_quotas["CLAUDE"]["five_hour"]["refresh"]
+            }
     else:
         # Fall back to old line-by-line parser
         i = 0
@@ -526,7 +540,14 @@ def parse_quota_output(output):
                     m_ref = re.search(r"Refreshes in\s*(.*)", next_line)
                     if m_ref:
                         refresh = "In " + m_ref.group(1).split("·")[0].strip()
-                model_quotas[model_name] = {"pct": pct, "refresh": refresh}
+                model_quotas[model_name] = {
+                    "pct": pct, 
+                    "refresh": refresh,
+                    "weekly_pct": pct,
+                    "weekly_refresh": refresh,
+                    "five_hour_pct": pct,
+                    "five_hour_refresh": refresh
+                }
             i += 1
             
     return model_quotas
@@ -612,9 +633,27 @@ def get_account_status():
                     for rep_model in ["Gemini 3.5 Flash (Medium)", "Gemini 3.5 Flash (High)"]:
                         if rep_model in model_quotas:
                             q = model_quotas[rep_model]
-                            quota_str = f"{q['pct']}%"
-                            if q['refresh']:
-                                reset_time_str = q['refresh']
+                            if "weekly_pct" in q and "five_hour_pct" in q:
+                                w_pct = q["weekly_pct"]
+                                f_pct = q["five_hour_pct"]
+                                quota_str = f"W:{w_pct}%/5H:{f_pct}%"
+                                
+                                w_ref = q.get("weekly_refresh", "")
+                                f_ref = q.get("five_hour_refresh", "")
+                                if w_ref and f_ref:
+                                    w_clean = w_ref.replace("In ", "").strip()
+                                    f_clean = f_ref.replace("In ", "").strip()
+                                    reset_time_str = f"W:{w_clean}/5H:{f_clean}"
+                                elif w_ref:
+                                    reset_time_str = f"W:{w_ref.replace('In ', '')}"
+                                elif f_ref:
+                                    reset_time_str = f"5H:{f_ref.replace('In ', '')}"
+                                else:
+                                    reset_time_str = ""
+                            else:
+                                quota_str = f"{q['pct']}%"
+                                if q['refresh']:
+                                    reset_time_str = q['refresh']
                             break
 
                     # Check if ALL models are at 0%
@@ -665,9 +704,9 @@ def get_account_status():
     print(" " * 80, end="\r", flush=True)
 
     # Display narrow table
-    print("┌────┬──────────────────────┬──────────┬──────────────┬──────────────┐")
-    print("│IDX │ ACCOUNT              │ STATUS   │ QUOTA        │ RESET TIME   │")
-    print("├────┼──────────────────────┼──────────┼──────────────┼──────────────┤")
+    print("┌────┬──────────────────────┬──────────┬──────────────────┬────────────────────────┐")
+    print("│IDX │ ACCOUNT              │ STATUS   │ QUOTA            │ RESET TIME             │")
+    print("├────┼──────────────────────┼──────────┼──────────────────┼────────────────────────┤")
     for row in status_report:
         idx_str = f"{row['index'] + 1}".center(4)
 
@@ -682,11 +721,11 @@ def get_account_status():
 
         email_str_padded = ljust_display(email_str, 20)
         status_str_padded = ljust_display(row['status'], 8)
-        quota_str_padded = ljust_display(row['quota'], 12)
-        reset_str_padded = ljust_display(row['reset_info'], 12)
+        quota_str_padded = ljust_display(row['quota'], 16)
+        reset_str_padded = ljust_display(row['reset_info'], 22)
 
         print(f"│{idx_str}│ {email_str_padded} │ {status_str_padded} │ {quota_str_padded} │ {reset_str_padded} │")
-    print("└────┴──────────────────────┴──────────┴──────────────┴──────────────┘")
+    print("└────┴──────────────────────┴──────────┴──────────────────┴────────────────────────┘")
     print("(* Quota shows account readiness. ⭐ indicates active account.)")
 
 def list_accounts():
