@@ -88,6 +88,14 @@ def get_account_status():
         with open(sandbox_token_file, "w") as f:
             json.dump(acc, f)
 
+        # Copy global cache directory to sandbox to bypass onboarding screen
+        global_cache = os.path.join(AGY_DIR, "cache")
+        if os.path.exists(global_cache):
+            try:
+                shutil.copytree(global_cache, os.path.join(sandbox_gemini_dir, "cache"))
+            except Exception:
+                pass
+
         # Run interactive PTY to fetch the real quota
         output = get_quota_via_pty(email, sandbox_dir=sandbox_dir)
 
