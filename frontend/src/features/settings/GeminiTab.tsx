@@ -39,8 +39,8 @@ const GeminiTab: React.FC<GeminiTabProps> = ({ initialConfig, tempConfig, setTem
           </div>
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Model Alias:</label>
-              <input type="text" value={tempConfig.gemini.model || ''} placeholder="Gemini 3.5 Flash" onChange={e => handleGeminiChange('model', e.target.value)}
+              <label htmlFor="gemini-model-alias" className={labelBase}>Model Alias:</label>
+              <input id="gemini-model-alias" type="text" value={tempConfig.gemini.model || ''} placeholder="Gemini 3.5 Flash" onChange={e => handleGeminiChange('model', e.target.value)}
                 className={`${inputBase} ${(initialConfig.gemini.model || '') !== (tempConfig.gemini.model || '') ? 'border-warning/40' : ''}`} />
             </div>
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
@@ -68,16 +68,16 @@ const GeminiTab: React.FC<GeminiTabProps> = ({ initialConfig, tempConfig, setTem
           </div>
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Tool Permission:</label>
-              <select value={tempConfig.gemini.toolPermission || 'always-ask'} onChange={e => handleGeminiChange('toolPermission', e.target.value)}
+              <label htmlFor="gemini-tool-permission" className={labelBase}>Tool Permission:</label>
+              <select id="gemini-tool-permission" value={tempConfig.gemini.toolPermission || 'always-ask'} onChange={e => handleGeminiChange('toolPermission', e.target.value)}
                 className={`${inputBase} ${(initialConfig.gemini.toolPermission || '') !== (tempConfig.gemini.toolPermission || '') ? 'border-warning/40' : ''}`}>
                 <option value="always-ask">Always Ask — Prompt for permissions</option>
                 <option value="always-proceed">Always Proceed — Auto-approve tools</option>
               </select>
             </div>
             <div className="grid grid-cols-[200px_1fr] items-start gap-5">
-              <label className={`${labelBase} pt-2`}>Trusted Workspaces:</label>
-              <textarea rows={4} value={trustedWorkspacesText} placeholder="/path/to/project1\n/path/to/project2" onChange={e => handleWorkspacesChange(e.target.value)}
+              <label htmlFor="gemini-trusted-workspaces" className={`${labelBase} pt-2`}>Trusted Workspaces:</label>
+              <textarea id="gemini-trusted-workspaces" rows={4} value={trustedWorkspacesText} placeholder="/path/to/project1\n/path/to/project2" onChange={e => handleWorkspacesChange(e.target.value)}
                 className={`${inputBase} font-mono resize-none ${JSON.stringify(initialConfig.gemini.trustedWorkspaces || []) !== JSON.stringify(tempConfig.gemini.trustedWorkspaces || []) ? 'border-warning/40' : ''}`} />
             </div>
           </div>

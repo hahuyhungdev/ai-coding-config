@@ -42,13 +42,13 @@ const CodexTab: React.FC<CodexTabProps> = ({ tempConfig, initialConfig, setTempC
           </div>
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Model Alias:</label>
-              <input type="text" value={tempConfig.codex.model || ''} placeholder="gpt-5.5" onChange={e => handleCodexChange('model', e.target.value)}
+              <label htmlFor="codex-model-alias" className={labelBase}>Model Alias:</label>
+              <input id="codex-model-alias" type="text" value={tempConfig.codex.model || ''} placeholder="gpt-5.5" onChange={e => handleCodexChange('model', e.target.value)}
                 className={`${inputBase} ${initialConfig.codex.model !== tempConfig.codex.model ? 'border-warning/40' : ''}`} />
             </div>
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Reasoning Effort:</label>
-              <select value={tempConfig.codex.model_reasoning_effort || 'medium'} onChange={e => handleCodexChange('model_reasoning_effort', e.target.value)}
+              <label htmlFor="codex-reasoning-effort" className={labelBase}>Reasoning Effort:</label>
+              <select id="codex-reasoning-effort" value={tempConfig.codex.model_reasoning_effort || 'medium'} onChange={e => handleCodexChange('model_reasoning_effort', e.target.value)}
                 className={`${inputBase} ${initialConfig.codex.model_reasoning_effort !== tempConfig.codex.model_reasoning_effort ? 'border-warning/40' : ''}`}>
                 <option value="low">Low — Faster, less depth</option>
                 <option value="medium">Medium — Balanced execution</option>
@@ -56,16 +56,16 @@ const CodexTab: React.FC<CodexTabProps> = ({ tempConfig, initialConfig, setTempC
               </select>
             </div>
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Web Search:</label>
-              <select value={tempConfig.codex.web_search || 'live'} onChange={e => handleCodexChange('web_search', e.target.value)}
+              <label htmlFor="codex-web-search" className={labelBase}>Web Search:</label>
+              <select id="codex-web-search" value={tempConfig.codex.web_search || 'live'} onChange={e => handleCodexChange('web_search', e.target.value)}
                 className={`${inputBase} ${initialConfig.codex.web_search !== tempConfig.codex.web_search ? 'border-warning/40' : ''}`}>
                 <option value="live">Live — Enabled</option>
                 <option value="disabled">Offline — Disabled</option>
               </select>
             </div>
             <div className="grid grid-cols-[200px_1fr] items-start gap-5">
-              <label className={`${labelBase} pt-2`}>Persistent Instructions:</label>
-              <textarea rows={3} value={tempConfig.codex.persistent_instructions || ''} placeholder="System prompts for every init..." onChange={e => handleCodexChange('persistent_instructions', e.target.value)}
+              <label htmlFor="codex-persistent-instructions" className={`${labelBase} pt-2`}>Persistent Instructions:</label>
+              <textarea id="codex-persistent-instructions" rows={3} value={tempConfig.codex.persistent_instructions || ''} placeholder="System prompts for every init..." onChange={e => handleCodexChange('persistent_instructions', e.target.value)}
                 className={`${inputBase} font-mono resize-none ${initialConfig.codex.persistent_instructions !== tempConfig.codex.persistent_instructions ? 'border-warning/40' : ''}`} />
             </div>
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
@@ -88,8 +88,8 @@ const CodexTab: React.FC<CodexTabProps> = ({ tempConfig, initialConfig, setTempC
           </div>
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Approval Policy:</label>
-              <select value={tempConfig.codex.approval_policy || 'on-request'} onChange={e => handleCodexChange('approval_policy', e.target.value)}
+              <label htmlFor="codex-approval-policy" className={labelBase}>Approval Policy:</label>
+              <select id="codex-approval-policy" value={tempConfig.codex.approval_policy || 'on-request'} onChange={e => handleCodexChange('approval_policy', e.target.value)}
                 className={`${inputBase} ${initialConfig.codex.approval_policy !== tempConfig.codex.approval_policy ? 'border-warning/40' : ''}`}>
                 <option value="on-request">On Request</option>
                 <option value="always">Always</option>
@@ -97,8 +97,8 @@ const CodexTab: React.FC<CodexTabProps> = ({ tempConfig, initialConfig, setTempC
               </select>
             </div>
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Sandbox Mode:</label>
-              <select value={tempConfig.codex.sandbox_mode || 'workspace-write'} onChange={e => handleCodexChange('sandbox_mode', e.target.value)}
+              <label htmlFor="codex-sandbox-mode" className={labelBase}>Sandbox Mode:</label>
+              <select id="codex-sandbox-mode" value={tempConfig.codex.sandbox_mode || 'workspace-write'} onChange={e => handleCodexChange('sandbox_mode', e.target.value)}
                 className={`${inputBase} ${initialConfig.codex.sandbox_mode !== tempConfig.codex.sandbox_mode ? 'border-warning/40' : ''}`}>
                 <option value="workspace-write">Workspace Write</option>
                 <option value="read-only">Read Only</option>
@@ -106,8 +106,8 @@ const CodexTab: React.FC<CodexTabProps> = ({ tempConfig, initialConfig, setTempC
               </select>
             </div>
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Approvals Reviewer:</label>
-              <select value={tempConfig.codex.approvals_reviewer || 'user'} onChange={e => handleCodexChange('approvals_reviewer', e.target.value)}
+              <label htmlFor="codex-approvals-reviewer" className={labelBase}>Approvals Reviewer:</label>
+              <select id="codex-approvals-reviewer" value={tempConfig.codex.approvals_reviewer || 'user'} onChange={e => handleCodexChange('approvals_reviewer', e.target.value)}
                 className={`${inputBase} ${initialConfig.codex.approvals_reviewer !== tempConfig.codex.approvals_reviewer ? 'border-warning/40' : ''}`}>
                 <option value="user">User — Manual approval</option>
                 <option value="auto">Auto — Bypass manual checks</option>

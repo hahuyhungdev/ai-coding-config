@@ -51,7 +51,7 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
         <div className="p-4 border-b border-white/[0.08] flex flex-col gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted h-3.5 w-3.5" />
-            <input type="text" placeholder="Search..." value={explorerSearch} onChange={e => setExplorerSearch(e.target.value)}
+            <input type="text" aria-label="Search agents and skills" placeholder="Search..." value={explorerSearch} onChange={e => setExplorerSearch(e.target.value)}
               className="w-full bg-white/[0.03] border border-white/[0.10] text-text-primary text-xs rounded-lg pl-8 pr-3 py-2 outline-none focus:border-accent/40 transition-all duration-300" />
           </div>
           <div className="grid grid-cols-3 gap-0.5 bg-white/[0.04] p-0.5 rounded-lg border border-white/[0.08]">

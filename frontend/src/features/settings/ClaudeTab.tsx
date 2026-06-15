@@ -40,8 +40,9 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
 
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Max Thinking Tokens:</label>
+              <label htmlFor="max-thinking-tokens" className={labelBase}>Max Thinking Tokens:</label>
               <input
+                id="max-thinking-tokens"
                 type="number"
                 value={tempConfig.claude.env?.MAX_THINKING_TOKENS || ''}
                 placeholder="20000"
@@ -53,8 +54,9 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
             </div>
 
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Max Output Tokens:</label>
+              <label htmlFor="max-output-tokens" className={labelBase}>Max Output Tokens:</label>
               <input
+                id="max-output-tokens"
                 type="number"
                 value={tempConfig.claude.env?.CLAUDE_CODE_MAX_OUTPUT_TOKENS || ''}
                 placeholder="12000"
@@ -66,8 +68,9 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
             </div>
 
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Autocompact % Override:</label>
+              <label htmlFor="autocompact-pct-override" className={labelBase}>Autocompact % Override:</label>
               <input
+                id="autocompact-pct-override"
                 type="number"
                 value={tempConfig.claude.env?.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE || ''}
                 placeholder="60"
@@ -79,8 +82,9 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
             </div>
 
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>No-Flicker Mode:</label>
+              <label htmlFor="no-flicker-mode" className={labelBase}>No-Flicker Mode:</label>
               <select
+                id="no-flicker-mode"
                 value={tempConfig.claude.env?.CLAUDE_CODE_NO_FLICKER || 'true'}
                 onChange={e => handleClaudeEnvChange('CLAUDE_CODE_NO_FLICKER', e.target.value)}
                 className={`${inputBase} ${
@@ -125,8 +129,9 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
 
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Default Permission Mode:</label>
+              <label htmlFor="default-permission-mode" className={labelBase}>Default Permission Mode:</label>
               <select
+                id="default-permission-mode"
                 value={tempConfig.claude.permissions?.defaultMode || 'ask'}
                 onChange={e => handleClaudePermsChange('defaultMode', e.target.value)}
                 className={`${inputBase} ${

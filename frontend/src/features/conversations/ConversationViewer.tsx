@@ -37,7 +37,7 @@ export function ConversationViewer() {
         <div className="px-4 py-3">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input type="text" placeholder="Search conversations..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            <input type="text" aria-label="Search conversations" placeholder="Search conversations..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               className="w-full bg-white/[0.04] border border-white/[0.10] rounded-lg py-2.5 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted/60 focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/10 transition-all duration-300" />
           </div>
         </div>

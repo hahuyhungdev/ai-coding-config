@@ -113,6 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted h-3.5 w-3.5" />
             <input
               type="text"
+              aria-label="Search MCP servers"
               placeholder="Search servers..."
               value={mcpSearch}
               onChange={e => setMcpSearch(e.target.value)}
