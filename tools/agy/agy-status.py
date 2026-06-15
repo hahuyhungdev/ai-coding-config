@@ -206,6 +206,18 @@ def build_parser():
     parser = argparse.ArgumentParser(
         prog="agy",
         description="Launch Antigravity and safely manage local accounts.",
+        epilog="""
+original agy subcommands:
+  changelog           Show changelog and release notes
+  help                Show help for subcommands
+  install             Configure environment paths and shell settings
+  models              List available models
+  plugin (plugins)    Manage plugins (install, uninstall, list, enable, disable)
+  update              Update CLI
+
+Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--json", action="store_true", help="Emit stable JSON without credential values")
     subparsers = parser.add_subparsers(dest="command", required=True)
