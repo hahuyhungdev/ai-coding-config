@@ -38,6 +38,17 @@ agy update
 agy help models
 ```
 
+### Command Help Integration
+
+Help commands are unified. You can run `agy help <command>` or `agy <command> --help` for any command:
+- **Custom wrapper commands** (e.g. `status`, `account`) will display the wrapper's account management help.
+- **Original native commands** (e.g. `models`, `plugin`) will automatically forward the help request to the original binary.
+
+To see all custom and native subcommands in a single unified list, run:
+```bash
+agy --help
+```
+
 `agy status` reads cached quota data immediately. Run a live provider check only when needed:
 
 ```bash
