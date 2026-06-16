@@ -113,6 +113,66 @@ The repository contains several scripts and directories with similar names (e.g.
 
 ---
 
+## 🧠 Skills Catalog
+
+Reusable instruction modules loaded on-demand by AI assistants. Located in [`skills/`](./skills). Each skill has a `SKILL.md` with frontmatter, trigger conditions, and workflow instructions.
+
+### Workflow & Orchestration
+| Skill | Description |
+| :--- | :--- |
+| [`context-budget`](./skills/context-budget) | Audit token overhead across skills/agents/MCPs. Use before adding new components. *(adapted from ECC)* |
+| [`council`](./skills/council) | Four-voice structured deliberation (Architect/Skeptic/Pragmatist/Critic) for ambiguous decisions. *(adapted from ECC)* |
+| [`strategic-compact`](./skills/strategic-compact) | Mid-session compaction at logical milestones to prevent token bloat. |
+| [`eval-harness`](./skills/eval-harness) | Formal eval-driven development (EDD) framework with pass@k metrics. |
+| [`verification-loop`](./skills/verification-loop) | Post-implementation verification checks. |
+| [`tdd-workflow`](./skills/tdd-workflow) | Test-driven development: RED → GREEN → REFACTOR. |
+
+### Code Quality & Review
+| Skill | Description |
+| :--- | :--- |
+| [`coding-standards`](./skills/coding-standards) | Cross-project naming, readability, and immutability conventions. |
+| [`karpathy-guidelines`](./skills/karpathy-guidelines) | Behavioral rules to reduce LLM coding mistakes. |
+| [`security-review`](./skills/security-review) | Security checklist for auth, APIs, user input, and sensitive features. |
+| [`security-best-practices`](./skills/security-best-practices) | Language-specific security best practices (Python, JS/TS, Go). |
+| [`click-path-audit`](./skills/click-path-audit) | Trace handler→state side effects to find silent undos in shared state. *(adapted from ECC)* |
+| [`architecture-decision-records`](./skills/architecture-decision-records) | Capture architectural decisions as `docs/adr/` files during sessions. *(adapted from ECC)* |
+
+### Frontend & Design
+| Skill | Description |
+| :--- | :--- |
+| [`frontend-design`](./skills/frontend-design) | Premium interface design avoiding AI slop aesthetics. |
+| [`frontend-patterns`](./skills/frontend-patterns) | React, Next.js, state management, and UI best practices. |
+| [`design-system`](./skills/design-system) | Design system audit: visual consistency, tokens, and typography. |
+| [`composition-patterns`](./skills/composition-patterns) | React composition patterns: compound components, render props, context providers. |
+| [`next-best-practices`](./skills/next-best-practices) | Next.js App Router conventions, RSC boundaries, data patterns. |
+| [`nextjs-turbopack`](./skills/nextjs-turbopack) | Next.js 16+ and Turbopack incremental bundling. |
+
+### Backend & API
+| Skill | Description |
+| :--- | :--- |
+| [`api-design`](./skills/api-design) | REST API design: resource naming, status codes, pagination, versioning. |
+| [`backend-patterns`](./skills/backend-patterns) | Backend architecture for Node.js, Express, and Next.js API routes. |
+| [`mcp-server-patterns`](./skills/mcp-server-patterns) | Build MCP servers with Node/TypeScript SDK. |
+
+### Codebase & Documentation
+| Skill | Description |
+| :--- | :--- |
+| [`codebase-onboarding`](./skills/codebase-onboarding) | Analyze an unfamiliar codebase and generate a structured onboarding guide. |
+| [`graphify`](./skills/graphify) | Any input → knowledge graph → clustered communities → HTML + audit report. |
+| [`documentation-lookup`](./skills/documentation-lookup) | Live library/framework docs via Context7 MCP. |
+| [`product-lens`](./skills/product-lens) | Validate the "why" before building; pressure-test product direction. |
+
+### Tooling & Automation
+| Skill | Description |
+| :--- | :--- |
+| [`playwright`](./skills/playwright) | E2E testing, visual QA, and Page Object Models via Playwright MCP. |
+| [`gh-fix-ci`](./skills/gh-fix-ci) | Debug and fix failing GitHub Actions checks. |
+| [`cli-creator`](./skills/cli-creator) | Build composable CLIs exposing stable JSON commands. |
+
+> **Adding new skills:** Run `python3 -m pytest tests/test_skills_integrity.py` after adding any skill to verify frontmatter, structure, and size constraints.
+
+---
+
 ## 🧪 Verification & Testing
 
 Verify system behavior, security headers, and user flows:
