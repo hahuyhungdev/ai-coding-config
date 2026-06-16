@@ -146,20 +146,20 @@ export const McpTab: React.FC<McpTabProps> = ({
               <div
                 key={server}
                 onClick={() => setSelectedMcpServer(server)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 ${
+                className={`flex items-center justify-between px-3.5 py-3 rounded-lg cursor-pointer transition-all duration-200 ${
                   selected
-                    ? 'bg-accent/[0.08] border border-accent/15 text-accent'
-                    : 'hover:bg-white/[0.04] text-text-secondary border border-transparent'
+                    ? 'bg-accent-dim border border-accent text-accent'
+                    : 'hover:bg-accent-dim hover:text-accent text-text-secondary border border-transparent'
                 }`}
               >
                 <div className="flex flex-col">
-                  <span className="text-xs font-mono">{server}</span>
-                  <span className="text-[9px] text-text-muted mt-0.5">
+                  <span className="text-sm font-mono font-medium">{server}</span>
+                  <span className="text-[10px] text-text-muted mt-0.5">
                     {DEFAULT_SERVERS.has(server) ? 'Core' : 'Custom'}
                   </span>
                 </div>
-                <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${
-                  isDisabled ? 'bg-error/10 text-error border border-error/15' : 'bg-success/10 text-success border border-success/15'
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${
+                  isDisabled ? 'bg-error-dim text-error border border-error/15' : 'bg-success-dim text-success border border-success/15'
                 }`}>
                   {isDisabled ? 'Off' : 'On'}
                 </span>
