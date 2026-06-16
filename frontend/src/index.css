@@ -2,45 +2,45 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brutalist Light Console Palette */
-  --color-bg: #f5f6fa; /* Clean light paper background */
+  /* Brutalist High-Contrast Light Console Palette */
+  --color-bg: #eceef2; /* Slightly darker cool grey background for card separation */
   --color-bg-elevated: #ffffff; /* Solid white card background */
   --color-surface: #ffffff;
-  --color-surface-glass: #ffffff; /* Refuse glassmorphism: use solid panels */
-  --color-surface-hover: #f0f2f8;
-  --color-surface-active: #e6e9f3;
+  --color-surface-glass: #ffffff; /* Solid panels, no glassmorphism */
+  --color-surface-hover: #e4e7ee;
+  --color-surface-active: #d6dbe7;
 
-  --color-border: #cbd0df; /* High-contrast crisp border */
-  --color-border-subtle: #e6e9f3;
-  --color-border-gold: #ff5500; /* Bold electric orange border for active targets */
-  --color-border-focus: #0066cc; /* Cyber blue focus */
+  --color-border: #8c96ac; /* Sharp dark grey border for maximum card separation */
+  --color-border-subtle: #b8c0d2;
+  --color-border-gold: #ff4500; /* Bold high-contrast active border */
+  --color-border-focus: #005bc4;
 
-  --color-text-primary: #12141c; /* Dark carbon text */
-  --color-text-secondary: #4a5061; /* Muted carbon */
-  --color-text-muted: #838a9d; /* Comments gray */
+  --color-text-primary: #000000; /* Pure black text for maximum readability */
+  --color-text-secondary: #1a1c24; /* Very dark charcoal for descriptions */
+  --color-text-muted: #3c4250; /* Deep slate for comments, small labels, and metadata */
   --color-text-inverse: #ffffff;
 
-  --color-accent: #ff5500; /* Bold Electric Orange */
-  --color-accent-hover: #e04b00;
-  --color-accent-dim: rgba(255, 85, 0, 0.06);
-  --color-accent-glow: rgba(255, 85, 0, 0.03);
+  --color-accent: #ff4500; /* High-contrast Electric Red-Orange */
+  --color-accent-hover: #d13900;
+  --color-accent-dim: rgba(255, 69, 0, 0.08);
+  --color-accent-glow: rgba(255, 69, 0, 0.04);
 
-  --color-success: #008833; /* Readable dark terminal green */
-  --color-success-dim: rgba(0, 136, 51, 0.06);
+  --color-success: #00772c; /* Dark crisp green */
+  --color-success-dim: rgba(0, 119, 44, 0.06);
 
-  --color-warning: #c2410c; /* Readable dark amber */
-  --color-warning-dim: rgba(194, 65, 12, 0.06);
+  --color-warning: #a6350a; /* Dark crisp amber */
+  --color-warning-dim: rgba(166, 53, 10, 0.06);
 
-  --color-error: #dc2626; /* Readable dark red */
+  --color-error: #b91c1c; /* Dark crisp red */
   --color-error-dim: rgba(220, 38, 38, 0.06);
 
-  --color-info: #0066cc; /* Cyber Blue */
-  --color-info-dim: rgba(0, 102, 204, 0.06);
+  --color-info: #0052a3; /* Darker cyber blue for contrast */
+  --color-info-dim: rgba(0, 82, 163, 0.06);
 
   --color-white: #ffffff;
   --color-black: #000000;
 
-  --color-gold-start: #ff5500;
+  --color-gold-start: #ff4500;
   --color-gold-mid: #ff7733;
   --color-gold-end: #ffa800;
 
@@ -189,14 +189,14 @@ body::before {
 
 /* Brutalist light-mode overrides for Tailwind white opacity utilities */
 [class*="bg-white/"] {
-  background-color: rgba(18, 20, 28, 0.04) !important;
+  background-color: rgba(18, 20, 28, 0.06) !important; /* Slightly darker input panels */
 }
 [class*="border-white/"] {
-  border-color: rgba(18, 20, 28, 0.08) !important;
+  border-color: rgba(18, 20, 28, 0.16) !important; /* High contrast sharp borders */
 }
 [class*="hover:bg-white/"]:hover {
-  background-color: rgba(18, 20, 28, 0.08) !important;
+  background-color: rgba(18, 20, 28, 0.10) !important;
 }
 [class*="hover:border-white/"]:hover {
-  border-color: rgba(18, 20, 28, 0.12) !important;
+  border-color: rgba(18, 20, 28, 0.22) !important;
 }
