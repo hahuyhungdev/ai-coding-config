@@ -85,6 +85,28 @@ The engine registers and configures key MCP servers system-wide:
 
 ---
 
+## 📂 Repository File Structure & Installation Scripts
+
+The repository contains several scripts and directories with similar names (e.g., related to `install` or `graphify`). Here is a quick reference to clarify their specific roles:
+
+### ⚙️ Installation & Setup Scripts
+*   **[`install.py`](./install.py)**: The main installer entry point. It sets up the entire configuration engine system-wide (Claude Code, Codex CLI, Antigravity CLI, Copilot) and configures MCP servers and token-saving hooks.
+*   **[`install.bat`](./install.bat)**: A simple Windows batch file wrapper that runs `install.py`.
+*   **[`install-agy.py`](./install-agy.py)**: A standalone, lightweight installer. Use this if you *only* want to install the Antigravity CLI status checker (`agy`) and manage Gemini accounts without installing the full config suite.
+*   **[`installer/`](./installer)**: A Python package containing helper modules used by `install.py`:
+    *   `setup.py`: Core installation and configuration logic for individual assistants.
+    *   `file_ops.py`: File actions (copying templates, backups, JSON/TOML merging).
+    *   `mcp.py` / `agents.py`: MCP server and agent configuration handlers.
+    *   `cli.py`: Terminal UI printing and logging helpers.
+
+### 🕸️ Graphify Assets (Knowledge Graph Engine)
+*   **[`installer_graphify.py`](./installer_graphify.py)**: Manages the configuration and injection of Graphify's pre-tool hooks into the AI assistant configurations. It is called by the main installer during setup.
+*   **[`skills/graphify/`](./skills/graphify)**: The skill bundle containing instructions and guides (`SKILL.md`) that teach the AI how to use Graphify commands during a coding session.
+*   **[`plugins/graphify/`](./plugins/graphify)**: The system-level plugin configuration folder.
+*   **`graphify-out/`**: A generated directory containing local repository subgraphs and index metadata (created after running `graphify update .`).
+
+---
+
 ## 🧪 Verification & Testing
 
 Verify system behavior, security headers, and user flows:

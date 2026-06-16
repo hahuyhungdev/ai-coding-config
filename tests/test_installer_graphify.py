@@ -23,6 +23,16 @@ class TestGraphifyCommandClassification(unittest.TestCase):
             "cat config/settings.json",
             "head -n 50 index.html",
             "tail -n 20 log.txt",
+            "rtk proxy cat README.md",
+            "sed -n '1,10p' README.md",
+            "awk '{print}' README.md",
+            "jq . package.json",
+            "yq . config.yml",
+            "hexdump README.md",
+            "xxd README.md",
+            "strings README.md",
+            "ls config",
+            "rtk ls src/",
         ):
             with self.subTest(command=command):
                 self.assertTrue(install.is_broad_discovery_command(command))
@@ -32,7 +42,6 @@ class TestGraphifyCommandClassification(unittest.TestCase):
             "rtk graphify query 'architecture overview'",
             "graphify path API Database",
             "graphify explain Router",
-            "sed -n '1,120p' src/router.py",
             "echo graphify grep rg find fd ack ag",
             "python scripts/graphify_report.py",
         ):
@@ -66,7 +75,7 @@ class TestGraphifyCommandClassification(unittest.TestCase):
                 self.assertEqual(result["decision"], "allow")
 
     def test_normal_test_ls_and_which_commands_are_allowed(self):
-        for command in ("test -f package.json", "ls config", "which node", "which graphify", "command -v graphify"):
+        for command in ("test -f package.json", "which node", "which graphify", "command -v graphify"):
             with self.subTest(command=command):
                 result = install.classify_graphify_tool_use(
                     "Bash", {"command": command}, graph_exists=True
@@ -86,6 +95,28 @@ class TestGraphifyCommandClassification(unittest.TestCase):
             ),
             {"decision": "allow"},
         )
+
+    def test_denies_inline_python_read_via_classifier(self):
+        for command in (
+            "python3 -c 'print(open(\"README.md\").read())'",
+            "python -c \"import pathlib; print(pathlib.Path('README.md').read_text())\"",
+            "node -e \"require('fs').readFileSync('README.md')\"",
+            "node --eval \"console.log(require('fs').readFileSync('README.md'))\"",
+            "perl -ne 'print' README.md",
+            "perl -pe 'print' README.md",
+            "ruby -e \"puts File.read('README.md')\"",
+            "php -r \"echo file_get_contents('README.md');\"",
+            "python3 -c \"import os; print(os.listdir('.'))\"",
+            "python -c \"import os; next(os.walk('.'))\"",
+            "python3 -c \"import glob; print(glob.glob('*.py'))\"",
+            "node -e \"console.log(require('fs').readdirSync('.'))\"",
+        ):
+            with self.subTest(command=command):
+                result = install.classify_graphify_tool_use(
+                    "Bash", {"command": command}, graph_exists=True
+                )
+                self.assertEqual(result["decision"], "deny")
+                self.assertIn("Inline script execution for exploration is blocked", result["additionalContext"])
 
 
 class TestGraphifySettingsMerge(unittest.TestCase):
@@ -148,8 +179,8 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertIn("Keep this text.", second)
         self.assertEqual(second.count("ai-coding-config:graphify-start"), 1)
-        self.assertIn("FIRST tool call", second)
-        self.assertIn("3 Graphify calls total", second)
+        self.assertIn("Graphify-only", second)
+        self.assertIn("3 Graphify calls", second)
         self.assertIn("hard stop", second)
 
     def test_claude_hook_denies_fourth_graphify_call_in_same_session(self):
@@ -182,6 +213,164 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             json.loads(outputs[3])["hookSpecificOutput"]["permissionDecision"],
             "deny",
         )
+
+    def test_claude_hook_denies_fourth_graphify_call_with_conversation_id(self):
+        from installer_graphify import _hook_classifier_script
+        script = _hook_classifier_script("Bash", True)
+        payload = {
+            "conversationId": f"quota-test-{uuid.uuid4()}",
+            "tool_input": {"command": "rtk graphify query 'architecture'"},
+        }
+        run_kwargs = dict(
+            args=[sys.executable, "-c", script],
+            cwd=self.project,
+        )
+
+        outputs = []
+        for _ in range(4):
+            result = subprocess.run(
+                **run_kwargs,
+                input=json.dumps(payload),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            outputs.append(result.stdout.strip())
+
+        self.assertEqual(outputs[:3], ["", "", ""])
+        self.assertEqual(
+            json.loads(outputs[3])["hookSpecificOutput"]["permissionDecision"],
+            "deny",
+        )
+
+    def test_claude_hook_denies_rtk_proxy_bypass(self):
+        from installer_graphify import _hook_classifier_script
+        script = _hook_classifier_script("Bash", True)
+        payload = {
+            "tool_input": {"command": "rtk proxy cat README.md"},
+        }
+        result = subprocess.run(
+            args=[sys.executable, "-c", script],
+            cwd=self.project,
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        data = json.loads(result.stdout.strip())
+        self.assertEqual(data["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("Direct search/read tools are not available", data["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_claude_hook_denies_inline_python_read_bypass(self):
+        from installer_graphify import _hook_classifier_script
+        script = _hook_classifier_script("Bash", True)
+        payload = {
+            "tool_input": {"command": "python3 -c 'print(open(\"README.md\").read())'"},
+        }
+        result = subprocess.run(
+            args=[sys.executable, "-c", script],
+            cwd=self.project,
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        data = json.loads(result.stdout.strip())
+        self.assertEqual(data["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("Inline script execution for exploration is blocked", data["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_claude_hook_balanced_strict_targeted_reads(self):
+        from installer_graphify import _hook_classifier_script
+        script_bash = _hook_classifier_script("Bash", True)
+        script_read = _hook_classifier_script("Read", True)
+
+        session_id = f"balanced-strict-test-{uuid.uuid4()}"
+
+        # 1. Initially (g_count = 0), a read of a source file (e.g. main.py) in exploration is denied
+        payload_read_0 = {
+            "conversationId": session_id,
+            "tool_input": {"AbsolutePath": "src/main.py", "toolAction": "Exploring codebase"},
+        }
+        res_read_0 = subprocess.run(
+            args=[sys.executable, "-c", script_read],
+            cwd=self.project,
+            input=json.dumps(payload_read_0),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        data_read_0 = json.loads(res_read_0.stdout.strip())
+        self.assertEqual(data_read_0["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("Direct search/read tools are not available", data_read_0["hookSpecificOutput"]["permissionDecisionReason"])
+
+        # 2. Initially (g_count = 0), a sed command in Bash is denied
+        payload_bash_0 = {
+            "conversationId": session_id,
+            "tool_input": {"command": "rtk sed -n '1,10p' src/main.py", "toolAction": "Exploring"},
+        }
+        res_bash_0 = subprocess.run(
+            args=[sys.executable, "-c", script_bash],
+            cwd=self.project,
+            input=json.dumps(payload_bash_0),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        data_bash_0 = json.loads(res_bash_0.stdout.strip())
+        self.assertEqual(data_bash_0["hookSpecificOutput"]["permissionDecision"], "deny")
+
+        # 3. We run a Graphify call to increment the counter
+        payload_graphify = {
+            "conversationId": session_id,
+            "tool_input": {"command": "rtk graphify query 'what does main do'"},
+        }
+        subprocess.run(
+            args=[sys.executable, "-c", script_bash],
+            cwd=self.project,
+            input=json.dumps(payload_graphify),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        # 4. Now (g_count = 1), the read tool is allowed for main.py (even in exploration)
+        res_read_1 = subprocess.run(
+            args=[sys.executable, "-c", script_read],
+            cwd=self.project,
+            input=json.dumps(payload_read_0),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res_read_1.stdout.strip(), "")
+
+        # 5. Now (g_count = 1), the sed command in Bash is allowed
+        res_bash_1 = subprocess.run(
+            args=[sys.executable, "-c", script_bash],
+            cwd=self.project,
+            input=json.dumps(payload_bash_0),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res_bash_1.stdout.strip(), "")
+
+        # 6. Search command (like grep) in Bash is STILL denied
+        payload_grep = {
+            "conversationId": session_id,
+            "tool_input": {"command": "rtk grep 'main' src/", "toolAction": "Exploring"},
+        }
+        res_grep = subprocess.run(
+            args=[sys.executable, "-c", script_bash],
+            cwd=self.project,
+            input=json.dumps(payload_grep),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        data_grep = json.loads(res_grep.stdout.strip())
+        self.assertEqual(data_grep["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("Direct search/read tools are not available", data_grep["hookSpecificOutput"]["permissionDecisionReason"])
 
     def test_gemini_merge_preserves_settings_and_is_idempotent(self):
         settings_path = self.project / ".gemini" / "settings.json"
@@ -299,8 +488,8 @@ class TestGraphifySettingsMerge(unittest.TestCase):
 class TestGraphifyInstructions(unittest.TestCase):
     def test_balanced_strict_instructions(self):
         instructions = install.GRAPHIFY_INSTRUCTIONS
-        self.assertIn("broad `rtk graphify query", instructions)
-        self.assertIn("at most 2 follow-up", instructions)
+        self.assertIn("Graphify-only", instructions)
+        self.assertIn("3 Graphify calls", instructions)
         self.assertIn("targeted raw reads", instructions)
         self.assertIn("GRAPH_REPORT.md", instructions)
 

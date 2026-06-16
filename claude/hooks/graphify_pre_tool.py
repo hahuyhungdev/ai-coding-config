@@ -10,10 +10,72 @@ import sys
 import tempfile
 
 # Constants
-B = ('ack', 'ag', 'bat', 'cat', 'fd', 'find', 'grep', 'head', 'less', 'more', 'rg', 'ripgrep', 'tail', 'wc')
+B = (
+    'ack', 'ag', 'awk', 'bat', 'cat', 'diff', 'fd', 'find', 'grep', 'head', 'hexdump',
+    'jq', 'less', 'ls', 'lzcat', 'more', 'nl', 'od', 'paste', 'rg', 'ripgrep', 'sdff', 'sed',
+    'sort', 'strings', 'tail', 'tee', 'uniq', 'wc', 'xxd', 'xzcat', 'yq', 'zcat', 'zless', 'zmore'
+)
 E = ('.c', '.cc', '.cpp', '.cs', '.go', '.h', '.hpp', '.java', '.js', '.json', '.jsx', '.kt', '.lua', '.md', '.mdx', '.php', '.py', '.rb', '.rs', '.rst', '.scala', '.sh', '.swift', '.toml', '.ts', '.tsx', '.txt', '.yaml', '.yml')
 I = ('.claude', '.codex', '.gemini', '.git', 'graphify-out', 'node_modules', 'skills')
 G = '⚠️ GRAPHIFY WORKFLOW RULES:\n- Architecture questions → rtk graphify query "question"\n- Code relationships → rtk graphify path "A" "B"\n- Deep-dive concepts → rtk graphify explain "concept"\n- Impact analysis / reverse dependencies → rtk graphify affected "SymbolName"\n- Direct reads are ONLY for editing specific files.'
+
+
+def is_inline_python_file_read(command, executables):
+    import shlex
+    import re
+    lowered = command.lower()
+    try:
+        lx = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
+        lx.whitespace_split = True
+        tokens = list(lx)
+    except ValueError:
+        tokens = []
+
+    has_inline_flag = False
+    for t in tokens:
+        if t == "--eval":
+            has_inline_flag = True
+            break
+        if t.startswith("-") and not t.startswith("--"):
+            flag_chars = t[1:]
+            if any(c in flag_chars for c in ("c", "e", "r", "p", "n", "E")):
+                has_inline_flag = True
+                break
+    if not has_inline_flag:
+        if any(marker in lowered for marker in ("<<", "<<<")):
+            has_inline_flag = True
+
+    if not has_inline_flag:
+        return False
+
+    has_read_keyword = any(kw in lowered for kw in ("open", "read", "load", "file", "listdir", "scandir", "walk", "glob"))
+    if not has_read_keyword:
+        return False
+
+    interpreters = {"python", "node", "perl", "ruby", "php", "deno", "bun"}
+    for ex in executables:
+        name = ex.lower()
+        name_base = name.split(".")[0]
+        name_clean = re.sub(r'\d+$', '', name_base)
+        if name_clean in interpreters:
+            return True
+
+    return False
+
+
+def get_graphify_count(session):
+    if not session:
+        return 0
+    safe = "".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
+    state = pathlib.Path(tempfile.gettempdir()) / ("ai-coding-config-graphify-" + safe + ".count")
+    if state.exists():
+        try:
+            with state.open("r") as handle:
+                return int(handle.read().strip() or "0")
+        except Exception:
+            return 0
+    return 0
+
 
 
 def main():
@@ -116,7 +178,7 @@ def main():
 
     decision = "allow"
     context = None
-    session = str(data.get("session_id") or "")
+    session = str(data.get("session_id") or data.get("conversationId") or "")
     debug = os.environ.get("GRAPHIFY_DEBUG", "0") == "1"
     bypass = os.environ.get("GRAPHIFY_BYPASS", "0") == "1"
 
@@ -128,7 +190,41 @@ def main():
         log("Bypass enabled")
         sys.exit(0)
 
-    if exists:
+    # Path leak check (independent of Graphify)
+    leak_detected = False
+    home_dir = str(pathlib.Path.home().as_posix())
+    content_fields = {"content", "code_content", "CodeContent", "replacement_content", "ReplacementContent"}
+
+    def contains_leak(val):
+        if not isinstance(val, str):
+            return False
+        return home_dir in val
+
+    def scan_input(obj):
+        nonlocal leak_detected
+        if leak_detected:
+            return
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in content_fields and contains_leak(v):
+                    leak_detected = True
+                    return
+                elif k == "ReplacementChunks" and isinstance(v, list):
+                    for chunk in v:
+                        if isinstance(chunk, dict) and contains_leak(chunk.get("ReplacementContent")):
+                            leak_detected = True
+                            return
+                scan_input(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                scan_input(item)
+
+    scan_input(t)
+    if leak_detected:
+        decision = "deny"
+        context = f"❌ BLOCKED: Absolute home directory path detected in edit content!\n💡 TIP: Please use relative paths (e.g. `./` or `../`) instead of absolute paths (e.g. `{home_dir}/...`) to prevent leaking your environment."
+
+    if not leak_detected and exists:
         def sq(s):
             s = s.strip()
             while len(s) >= 2 and s[0] == s[-1] and s[0] in ('"', "'"):
@@ -162,7 +258,7 @@ def main():
                     if not expect or ("=" in token and not token.startswith(("/", "./"))):
                         continue
                     word = pathlib.Path(token).name
-                    if word in {"rtk", "sudo", "command", "builtin", "env", "nohup"}:
+                    if word in {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}:
                         continue
                     ex_names.append(word)
                     expect = False
@@ -177,7 +273,7 @@ def main():
 
         if TOOL == "Grep":
             decision = "deny"
-            context = "❌ BLOCKED: Grep is blocked for codebase exploration\n💡 TIP: Use `graphify query \"your question\"` for codebase exploration"
+            context = "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
         elif TOOL == "Bash":
             raw = sq(str(t.get("command") or t.get("CommandLine") or ""))
             low = raw.lower().replace(chr(92), "/")
@@ -196,7 +292,7 @@ def main():
                 if not expect or ("=" in token and not token.startswith(("/", "./"))):
                     continue
                 word = pathlib.Path(token).name
-                if word in {"rtk", "sudo", "command", "builtin", "env", "nohup"}:
+                if word in {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}:
                     continue
                 ex.append(word)
                 expect = False
@@ -239,22 +335,31 @@ def main():
                             pass
             if over_quota:
                 decision = "deny"
-                context = "❌ BLOCKED: Maximum 3 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context."
+                context = "❌ BLOCKED: Maximum 3 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
             elif probe:
                 log("Probe allowed")
+            elif is_inline_python_file_read(raw, ex):
+                decision = "deny"
+                context = "❌ BLOCKED: Inline script execution for exploration is blocked.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
             elif any(word in B for word in ex):
-                if tool_ctx not in {"debugging", "building"}:
+                B_search = {'ack', 'ag', 'fd', 'find', 'grep', 'ls', 'rg', 'ripgrep'}
+                g_count = get_graphify_count(session)
+                is_allowed_post_graphify = (g_count >= 1 and not any(word in B_search for word in ex))
+                if tool_ctx not in {"debugging", "building"} and not is_allowed_post_graphify:
                     decision = "deny"
-                    context = "❌ BLOCKED: Search tools are blocked for codebase exploration\n💡 TIP: Use `graphify query \"your question\"` for codebase exploration"
+                    context = "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
         elif TOOL in {"Read", "Glob"}:
             fp = str(t.get("file_path") or t.get("AbsolutePath") or t.get("path") or "")
             if fp:
                 p = fp.lower().replace(chr(92), "/")
                 parts = set(pathlib.Path(p).parts)
                 if not parts.intersection(I) and pathlib.Path(p).suffix in E:
-                    if tool_ctx not in {"editing", "planning"}:
+                    # Allow reading config/documentation files, or files during editing/planning/debugging
+                    is_config_or_doc = pathlib.Path(p).suffix in {".md", ".json", ".toml", ".yaml", ".yml", ".txt"}
+                    g_count = get_graphify_count(session)
+                    if g_count == 0 and tool_ctx not in {"editing", "planning", "debugging"} and not is_config_or_doc:
                         decision = "deny"
-                        context = "❌ BLOCKED: Reading source files for exploration is blocked\n💡 TIP: Use `graphify query \"what you want to know\"` instead of reading " + pathlib.Path(fp).name
+                        context = "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
 
     if CLAUDE:
         out = {}

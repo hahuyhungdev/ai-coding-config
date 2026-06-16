@@ -63,15 +63,17 @@ Commands:
 - Impact analysis / reverse dependencies → `rtk graphify affected "SymbolName"`
 
 Rules:
-- For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
-- Do NOT use `list_dir` → `grep_search` as a discovery pattern. This is explicitly prohibited. Use Graphify instead.
-- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, `explain` or `affected` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
+- For codebase exploration, use **Graphify-only**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to explore.
+- Use at most **3 Graphify calls** total per question. After 3 calls, hard stop and synthesize from available context.
+- **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
+- **Synthesize from Graphify context only.** Answer based on what Graphify returns. Do not supplement with direct file reads for exploration.
+- **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
-Post-Discovery Reads:
-- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, **config review**, and **precise verification** of specific files identified by Graphify.
+Post-Discovery Reads (exceptions):
+- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, and **config review** of specific files already identified by Graphify.
 - You MUST have run at least one Graphify query before reading source files directly.
 - When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
 - After modifying code, run `graphify update .`.

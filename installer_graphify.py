@@ -11,7 +11,11 @@ from pathlib import Path
 
 
 MANAGED_GRAPHIFY_MARKER = "ai-coding-config:graphify-managed"
-BROAD_DISCOVERY_COMMANDS = {"grep", "rg", "ripgrep", "find", "fd", "ack", "ag", "head", "cat", "tail", "less", "more", "bat", "wc"}
+BROAD_DISCOVERY_COMMANDS = {
+    "ack", "ag", "awk", "bat", "cat", "diff", "fd", "find", "grep", "head", "hexdump",
+    "jq", "less", "ls", "lzcat", "more", "nl", "od", "paste", "rg", "ripgrep", "sdff", "sed",
+    "sort", "strings", "tail", "tee", "uniq", "wc", "xxd", "xzcat", "yq", "zcat", "zless", "zmore"
+}
 SOURCE_EXTENSIONS = {
     ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb",
     ".c", ".h", ".cpp", ".hpp", ".cc", ".cs", ".kt", ".swift", ".php",
@@ -35,15 +39,17 @@ GRAPHIFY_INSTRUCTIONS = f"""## graphify
 {GRAPHIFY_GUIDANCE}
 
 Rules:
-- For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
-- Do NOT use `list_dir` → `grep_search` as a discovery pattern. This is explicitly prohibited. Use Graphify instead.
-- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, `explain` or `affected` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
+- For codebase exploration, use **Graphify-only**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to explore.
+- Use at most **3 Graphify calls** total per question. After 3 calls, hard stop and synthesize from available context.
+- **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
+- **Synthesize from Graphify context only.** Answer based on what Graphify returns. Do not supplement with direct file reads for exploration.
+- **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
-Post-Discovery Reads:
-- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, **config review**, and **precise verification** of specific files identified by Graphify.
+Post-Discovery Reads (exceptions):
+- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, and **config review** of specific files already identified by Graphify.
 - You MUST have run at least one Graphify query before reading source files directly.
 - When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
 - After modifying code, run `graphify update .`.
@@ -88,6 +94,49 @@ RTK filters and compresses command output before it reaches the LLM context, sav
 """
 
 
+def is_inline_python_file_read(command: str, executables: list[str]) -> bool:
+    import shlex
+    import re
+    lowered = command.lower()
+    try:
+        lx = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
+        lx.whitespace_split = True
+        tokens = list(lx)
+    except ValueError:
+        tokens = []
+
+    has_inline_flag = False
+    for t in tokens:
+        if t == "--eval":
+            has_inline_flag = True
+            break
+        if t.startswith("-") and not t.startswith("--"):
+            flag_chars = t[1:]
+            if any(c in flag_chars for c in ("c", "e", "r", "p", "n", "E")):
+                has_inline_flag = True
+                break
+    if not has_inline_flag:
+        if any(marker in lowered for marker in ("<<", "<<<")):
+            has_inline_flag = True
+
+    if not has_inline_flag:
+        return False
+
+    has_read_keyword = any(kw in lowered for kw in ("open", "read", "load", "file", "listdir", "scandir", "walk", "glob"))
+    if not has_read_keyword:
+        return False
+
+    interpreters = {"python", "node", "perl", "ruby", "php", "deno", "bun"}
+    for ex in executables:
+        name = ex.lower()
+        name_base = name.split(".")[0]
+        name_clean = re.sub(r'\d+$', '', name_base)
+        if name_clean in interpreters:
+            return True
+
+    return False
+
+
 def _command_words(command: str) -> list[str]:
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
@@ -98,7 +147,7 @@ def _command_words(command: str) -> list[str]:
 
     executables = []
     expect_command = True
-    wrappers = {"rtk", "sudo", "command", "builtin", "env", "nohup"}
+    wrappers = {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}
     for token in tokens:
         if token in {"|", "||", "&&", ";", "(", ")", "&"}:
             expect_command = True
@@ -151,16 +200,22 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
     if tool_name.lower() == "grep":
         return {
             "decision": "deny",
-            "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
+            "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
         }
     if tool_name.lower() == "bash":
-        command = str(tool_input.get("command", ""))
+        command = str(tool_input.get("command") or tool_input.get("CommandLine") or "")
         if is_graphify_probe_command(command):
             return {"decision": "allow"}
+        executables = _command_words(command)
+        if is_inline_python_file_read(command, executables):
+            return {
+                "decision": "deny",
+                "additionalContext": "❌ BLOCKED: Inline script execution for exploration is blocked.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
+            }
         if is_broad_discovery_command(command):
             return {
                 "decision": "deny",
-                "additionalContext": f"BLOCKED by graphify hook: {GRAPHIFY_GUIDANCE}",
+                "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
             }
     if tool_name.lower() in {"read", "glob", "read_file", "list_directory"} and is_source_tool_input(tool_input):
         result["additionalContext"] = GRAPHIFY_GUIDANCE
@@ -296,7 +351,7 @@ def configure_claude_project(project_dir: Path) -> None:
     global_dir = Path.home() / ".claude"
     global_hooks_dir = global_dir / "hooks"
     global_hooks_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Ensure global script exists
     repo_dir = Path(__file__).resolve().parent
     repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
@@ -318,12 +373,12 @@ def configure_gemini_project(project_dir: Path) -> None:
     global_dir = Path.home() / ".gemini" / "antigravity-cli"
     global_hooks_dir = global_dir / "hooks"
     global_hooks_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Ensure global script exists
     repo_dir = Path(__file__).resolve().parent
     repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
     _safe_copy(repo_hook, global_hooks_dir / "graphify_pre_tool.py")
-    
+
     # Ensure project-level script exists
     local_hook_dir = project_dir / ".gemini" / "hooks"
     _safe_copy(repo_hook, local_hook_dir / "graphify_pre_tool.py")
@@ -331,7 +386,7 @@ def configure_gemini_project(project_dir: Path) -> None:
     global_settings = global_dir / "settings.json"
     _merge_managed_hooks(global_settings, "PreToolUse", managed_gemini_hooks(project_level=False))
     _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "PreToolUse", managed_gemini_hooks(project_level=True))
-    
+
     # Configure global plugin hooks directly referencing the unified pre-tool script
     plugin_hooks = Path.home() / ".gemini" / "config" / "plugins" / "graphify" / "hooks.json"
     _merge_managed_hooks(plugin_hooks, "PreToolUse", managed_gemini_hooks(project_level=False))
@@ -362,7 +417,7 @@ def configure_codex_project(project_dir: Path) -> None:
     if codex_dir.exists() and not codex_dir.is_dir():
         _backup_path(codex_dir)
     codex_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Ensure project-level hooks directory exists and copy the script
     repo_dir = Path(__file__).resolve().parent
     repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
@@ -380,10 +435,10 @@ def configure_copilot_project(project_dir: Path) -> None:
     vscode_dir = project_dir / ".vscode"
     vscode_dir.mkdir(parents=True, exist_ok=True)
     settings_path = vscode_dir / "settings.json"
-    
+
     repo_dir = Path(__file__).resolve().parent
     template_settings_path = repo_dir / "copilot" / "settings.json"
-    
+
     if template_settings_path.exists():
         try:
             with template_settings_path.open("r", encoding="utf-8") as f:
@@ -392,7 +447,7 @@ def configure_copilot_project(project_dir: Path) -> None:
             default_settings = {}
     else:
         default_settings = {}
-        
+
     if settings_path.exists():
         try:
             with settings_path.open("r", encoding="utf-8") as f:
@@ -401,12 +456,12 @@ def configure_copilot_project(project_dir: Path) -> None:
                 data = {}
         except Exception:
             data = {}
-            
+
         instructions = data.setdefault("github.copilot.chat.codeGeneration.instructions", [])
         if not isinstance(instructions, list):
             instructions = []
             data["github.copilot.chat.codeGeneration.instructions"] = instructions
-            
+
         file_path_exists = False
         for item in instructions:
             if isinstance(item, dict) and item.get("filePath") == ".github/copilot-instructions.md":
@@ -414,7 +469,7 @@ def configure_copilot_project(project_dir: Path) -> None:
                 break
         if not file_path_exists:
             instructions.append({"filePath": ".github/copilot-instructions.md"})
-            
+
         search_ex = data.setdefault("search.exclude", {})
         if not isinstance(search_ex, dict):
             search_ex = {}
@@ -422,7 +477,7 @@ def configure_copilot_project(project_dir: Path) -> None:
         if "search.exclude" in default_settings:
             for k, v in default_settings["search.exclude"].items():
                 search_ex[k] = v
-                
+
         watcher_ex = data.setdefault("files.watcherExclude", {})
         if not isinstance(watcher_ex, dict):
             watcher_ex = {}
@@ -430,7 +485,7 @@ def configure_copilot_project(project_dir: Path) -> None:
         if "files.watcherExclude" in default_settings:
             for k, v in default_settings["files.watcherExclude"].items():
                 watcher_ex[k] = v
-                
+
         try:
             with settings_path.open("w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
@@ -450,12 +505,12 @@ def configure_copilot_project(project_dir: Path) -> None:
                     f.write("\n")
             except Exception as exc:
                 sys.stderr.write(f"[WARN] Failed to write {settings_path}: {exc}\n")
-                
+
     # 2. Copilot instructions.md merge
     github_dir = project_dir / ".github"
     github_dir.mkdir(parents=True, exist_ok=True)
     copilot_instructions_path = github_dir / "copilot-instructions.md"
-    
+
     if not copilot_instructions_path.exists():
         template_instructions = repo_dir / "copilot" / "copilot-instructions.md"
         if template_instructions.exists():
@@ -463,6 +518,6 @@ def configure_copilot_project(project_dir: Path) -> None:
                 shutil.copy(str(template_instructions), str(copilot_instructions_path))
             except Exception as exc:
                 sys.stderr.write(f"[WARN] Failed to copy {template_instructions} to {copilot_instructions_path}: {exc}\n")
-                
+
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(copilot_instructions_path)
