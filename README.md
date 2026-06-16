@@ -66,6 +66,12 @@ Instead of dumping full files and burning thousands of tokens, redirect broad qu
     *   *Concept Explanation:* `rtk graphify explain "Louvain Clustering"`
     *   *Impact Analysis:* `rtk graphify affected "db_connect"`
 
+### 🛡️ Hook Enforcement & Quota Policies
+To protect API tokens and keep context windows compact, the configuration engine installs a unified pre-tool execution hook (`claude/hooks/graphify_pre_tool.py`) for all AI assistants. This hook enforces the following security and exploration rules:
+*   **Graphify-First Exploration**: Blocks broad exploration commands (e.g. `ls`, `find`, `grep`, inline Python/Node file reads) and forces the assistant to use Graphify queries first.
+*   **Path Leak Protection**: Intercepts edits or file writes containing absolute home directory paths (e.g. `/home/username/...`) and prompts the assistant to use relative paths instead.
+*   **Session Graphify Quota**: Restricts the maximum number of Graphify discovery calls to **10 calls per conversation session** to prevent token bloat while allowing sufficient follow-ups during long sessions.
+
 ### ⚙️ Pre-configured MCP Servers
 The engine registers and configures key MCP servers system-wide:
 *   `playwright`: Browser automation and E2E visual verification.
