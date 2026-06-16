@@ -30,12 +30,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   setSelectedExplorer,
   fetchConfig
 }) => {
-  const terminalEndRef = useRef<HTMLDivElement>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const [rebuilding, setRebuilding] = React.useState(false);
 
   useEffect(() => {
-    if (terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
@@ -131,7 +131,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
       {/* Graphify Health Status Alert */}
       {tempConfig.graphify_health && (
-        <div className={`rounded-xl p-4 border animate-fade-up flex items-start justify-between gap-4 ${
+        <div className={`rounded-lg p-4 border animate-fade-up flex items-start justify-between gap-4 ${
           !tempConfig.graphify_health.graph_exists
             ? 'bg-error/10 border-error/20 text-error'
             : tempConfig.graphify_health.is_stale
@@ -197,7 +197,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {Object.entries(CLI_CONFIGS).map(([cid, info]) => {
           const tempVal = tempConfig.targets[cid];
           return (
-            <div key={cid} className={`group relative rounded-xl p-5 overflow-hidden transition-all duration-300 hover-lift ${
+            <div key={cid} className={`group relative rounded-lg p-5 overflow-hidden transition-all duration-300 hover-lift ${
               tempVal
                 ? 'glass-gold'
                 : 'glass opacity-60'
@@ -228,7 +228,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 animate-fade-up stagger-2">
         <div
           onClick={() => { setExplorerFilter('agents'); setActiveTab('explorer'); }}
-          className="glass rounded-xl p-4 flex items-center gap-4 cursor-pointer hover-lift group"
+          className="glass rounded-lg p-4 flex items-center gap-4 cursor-pointer hover-lift group"
         >
           <div className="h-10 w-10 rounded-lg bg-[#60a5fa]/10 border border-[#60a5fa]/15 flex items-center justify-center group-hover:border-[#60a5fa]/30 transition-colors">
             <Bot className="h-5 w-5 text-[#60a5fa]" />
@@ -241,7 +241,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
         <div
           onClick={() => { setExplorerFilter('skills'); setActiveTab('explorer'); }}
-          className="glass rounded-xl p-4 flex items-center gap-4 cursor-pointer hover-lift group"
+          className="glass rounded-lg p-4 flex items-center gap-4 cursor-pointer hover-lift group"
         >
           <div className="h-10 w-10 rounded-lg bg-[#8be9fd]/10 border border-[#8be9fd]/15 flex items-center justify-center group-hover:border-[#8be9fd]/30 transition-colors">
             <Wrench className="h-5 w-5 text-[#8be9fd]" />
@@ -254,17 +254,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
         <div
           onClick={() => setActiveTab('mcp')}
-          className="glass rounded-xl p-4 flex items-center gap-4 cursor-pointer hover-lift group col-span-2"
+          className="glass rounded-lg p-4 flex items-center gap-4 cursor-pointer hover-lift group col-span-2"
         >
-          <div className="h-10 w-10 rounded-lg bg-accent/10 border border-accent/15 flex items-center justify-center group-hover:border-accent/30 transition-colors">
+          <div className="h-10 w-10 rounded-lg bg-accent-dim border border-accent-glow flex items-center justify-center group-hover:border-accent-dim transition-colors">
             <Cpu className="h-5 w-5 text-accent" />
           </div>
           <div className="flex-1">
             <div className="text-[10px] text-text-muted uppercase font-semibold tracking-[0.12]">MCP Servers</div>
             <div className="text-[13px] font-medium text-text-primary mt-0.5">
-              <span className="text-success">{tempConfig.all_mcp.length - tempConfig.disabled_mcp.length}</span>
-              <span className="text-text-muted mx-1.5">/</span>
-              <span className="text-text-muted">{tempConfig.disabled_mcp.length} disabled</span>
+              <span className="text-success">{tempConfig.all_mcp.length - tempConfig.disabled_mcp.length} Active</span>
+              <span className="text-text-muted mx-1.5">|</span>
+              <span className="text-text-muted">{tempConfig.disabled_mcp.length} Disabled</span>
             </div>
           </div>
         </div>
@@ -273,7 +273,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* Agents & Skills */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-up stagger-3">
         {/* Agents */}
-        <div className="glass rounded-xl p-5 flex flex-col">
+        <div className="glass rounded-lg p-5 flex flex-col">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
             <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.12] flex items-center gap-2">
               <Bot className="h-3.5 w-3.5 text-[#60a5fa]" /> Agents ({tempConfig.agents.length})
@@ -303,7 +303,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
         {/* Skills */}
-        <div className="glass rounded-xl p-5 flex flex-col">
+        <div className="glass rounded-lg p-5 flex flex-col">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
             <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.12] flex items-center gap-2">
               <Wrench className="h-3.5 w-3.5 text-[#8be9fd]" /> Skills ({tempConfig.skills.length})
@@ -334,7 +334,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       </div>
 
       {/* Logs terminal */}
-      <div className="glass rounded-xl overflow-hidden flex flex-col flex-1 min-h-[350px] animate-fade-up stagger-4">
+      <div className="glass rounded-lg overflow-hidden flex flex-col flex-1 min-h-[350px] animate-fade-up stagger-4">
         <div className="border-b border-white/[0.08] px-5 py-3 flex items-center justify-between bg-white/[0.03]">
           <div className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.12] flex items-center gap-2">
             <TerminalIcon className="h-3.5 w-3.5 text-accent/50" /> Process Output
@@ -346,7 +346,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <Trash className="h-3 w-3" /> Clear
           </button>
         </div>
-        <div className="flex-1 bg-bg p-5 font-mono text-[12px] leading-relaxed text-text-secondary overflow-y-auto max-h-[400px]">
+        <div ref={logContainerRef} className="flex-1 bg-bg p-5 font-mono text-[12px] leading-relaxed text-text-secondary overflow-y-auto max-h-[400px]">
           {logs.length > 0 ? (
             logs.map((log, index) => (
               <div key={index} className="mb-0.5">
@@ -359,7 +359,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <p>No logs yet. Apply changes to see output.</p>
             </div>
           )}
-          <div ref={terminalEndRef} />
         </div>
       </div>
     </div>
