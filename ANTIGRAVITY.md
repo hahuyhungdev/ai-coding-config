@@ -26,6 +26,8 @@
 Load and delegate complex tasks to specialized agents under `~/.gemini/config/agents/` using available subagent/delegation tooling when supported, following these practical guidelines:
 - **Practical Delegation**: Spawning child agents is recommended when the task aligns with their dedicated role (e.g., delegating complex database queries to `database-reviewer` or security reviews to `security-reviewer`), or when you need an isolated context/background run.
 - **Avoid Over-spawning**: Solve simple tasks within the main conversation first. Avoid spawning multiple subagents concurrently for minor tasks that can be easily resolved directly.
+- **Liveness Protection**: Always schedule a liveness timer (using the `schedule` tool) when spawning subagents to prevent CLI hangs in case they get stuck or fail to report back.
+- **Termination Contract**: Always instruct subagents in their prompt to call the `send_message` tool back to the parent conversation ID upon completion (regardless of success or failure).
 
 | Agent | Purpose | When to Use |
 |-------|---------|-------------|
