@@ -486,18 +486,24 @@ class TestGraphifySettingsMerge(unittest.TestCase):
     def test_claude_hook_denies_path_leak_in_write(self):
         from installer_graphify import _hook_classifier_script
         script = _hook_classifier_script("Write", True)
+        leak_path = (self.project / "projects" / "main.py").as_posix()
         payload = {
             "tool_input": {
                 "file_path": "src/leak.py",
-                "code_content": "import os\n# Path leak: /home/huyhung/projects/main.py\nprint('hello')"
+                "code_content": f"import os\n# Path leak: {leak_path}\nprint('hello')"
             }
         }
+        import os
+        env = os.environ.copy()
+        env["HOME"] = str(self.project)
+        env["USERPROFILE"] = str(self.project)
         result = subprocess.run(
             args=[sys.executable, "-c", script],
             cwd=self.project,
             input=json.dumps(payload),
             capture_output=True,
             text=True,
+            env=env,
             check=False,
         )
         data = json.loads(result.stdout.strip())
@@ -507,6 +513,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
     def test_claude_hook_denies_path_leak_in_edit(self):
         from installer_graphify import _hook_classifier_script
         script = _hook_classifier_script("Edit", True)
+        leak_path = (self.project / "projects" / "leak").as_posix()
         payload = {
             "tool_input": {
                 "file_path": "src/leak.py",
@@ -515,17 +522,22 @@ class TestGraphifySettingsMerge(unittest.TestCase):
                         "StartLine": 1,
                         "EndLine": 5,
                         "TargetContent": "print('hello')",
-                        "ReplacementContent": "print('/home/huyhung/projects/leak')"
+                        "ReplacementContent": f"print('{leak_path}')"
                     }
                 ]
             }
         }
+        import os
+        env = os.environ.copy()
+        env["HOME"] = str(self.project)
+        env["USERPROFILE"] = str(self.project)
         result = subprocess.run(
             args=[sys.executable, "-c", script],
             cwd=self.project,
             input=json.dumps(payload),
             capture_output=True,
             text=True,
+            env=env,
             check=False,
         )
         data = json.loads(result.stdout.strip())
@@ -541,12 +553,17 @@ class TestGraphifySettingsMerge(unittest.TestCase):
                 "code_content": "import os\n# Safe tilde path: ~/projects/main.py\nprint('hello')"
             }
         }
+        import os
+        env = os.environ.copy()
+        env["HOME"] = str(self.project)
+        env["USERPROFILE"] = str(self.project)
         result = subprocess.run(
             args=[sys.executable, "-c", script],
             cwd=self.project,
             input=json.dumps(payload),
             capture_output=True,
             text=True,
+            env=env,
             check=False,
         )
         self.assertEqual(result.stdout.strip(), "")
