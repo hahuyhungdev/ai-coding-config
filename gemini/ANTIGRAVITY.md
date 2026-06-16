@@ -10,6 +10,7 @@
 ## 2. Token & Context Management
 - **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors).
 - **On-Demand Skills (Balanced)**: To preserve context and avoid token bloat, load and read specific skills under `~/.gemini/config/skills/<skill-name>/SKILL.md` when the current task aligns with the skill's domain. **Inspect the local `skills/` or global skills folder first to discover available skills (e.g., `frontend-design`, `design-system`, `frontend-patterns` for UI tasks).** Avoid pre-loading unrelated skills at startup.
+- **Avoid Dual-Calling Skills**: Avoid loading overlapping skills in the same turn. For example, use `tdd-workflow` during active development, and `verification-loop` for final verification (build/lint/typecheck) at the end of a task rather than calling both concurrently. Refer to `security-review` as a checklist for sensitive paths, and `security-best-practices` only for deep, language-specific security reviews.
 - **Strategic Compaction**: For long-running tasks, proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 3. MCP & Tools Integration
@@ -25,7 +26,8 @@
 ## 5. Specialized Agents
 Load and delegate complex tasks to specialized agents under `~/.gemini/config/agents/` using available subagent/delegation tooling when supported, following these practical guidelines:
 - **Practical Delegation**: Spawning child agents is recommended when the task aligns with their dedicated role (e.g., delegating complex database queries to `database-reviewer` or security reviews to `security-reviewer`), or when you need an isolated context/background run.
-- **Avoid Over-spawning**: Solve simple tasks within the main conversation first. Avoid spawning multiple subagents concurrently for minor tasks that can be easily resolved directly.
+- **Avoid Over-spawning & Overlap**: Solve simple tasks within the main conversation first. Avoid spawning multiple subagents concurrently. Do NOT spawn multiple review agents for the same changes unless it is a mixed-stack project (where TS/JS and non-TS/JS files both changed, and separate reviewers are scoped to their respective domains). For pure TypeScript/JavaScript changes, use ONLY `typescript-reviewer`. For non-TS/JS changes, use ONLY `code-reviewer`. Use `reviewer` only as a final verification check before submitting a PR.
+- **Architect vs Planner**: Use `architect` to decide design patterns and schemas first, then use `planner` to break down implementation tasks.
 - **Liveness Protection**: Always schedule a liveness timer (using the `schedule` tool) when spawning subagents to prevent CLI hangs in case they get stuck or fail to report back.
 - **Termination Contract**: Always instruct subagents in their prompt to call the `send_message` tool back to the parent conversation ID upon completion (regardless of success or failure).
 
@@ -59,17 +61,18 @@ Commands:
 - Impact analysis / reverse dependencies → `rtk graphify affected "SymbolName"`
 
 Rules:
-- For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
-- Do NOT use `list_dir` → `grep_search` as a discovery pattern. This is explicitly prohibited. Use Graphify instead.
-- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, `explain` or `affected` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
+- For codebase exploration, use **Graphify-only**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to explore.
+- Use at most **10 Graphify calls** total per question. After 10 calls, hard stop and synthesize from available context.
+- **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
+- **Synthesize from Graphify context only.** Answer based on what Graphify returns. Do not supplement with direct file reads for exploration.
+- **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
-Post-Discovery Reads:
-- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, **config review**, and **precise verification** of specific files identified by Graphify.
+Post-Discovery Reads (exceptions):
+- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, and **config review** of specific files already identified by Graphify.
 - You MUST have run at least one Graphify query before reading source files directly.
 - When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
 - After modifying code, run `graphify update .`.
 <!-- ai-coding-config:graphify-end -->
-
