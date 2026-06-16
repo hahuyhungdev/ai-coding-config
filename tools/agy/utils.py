@@ -99,6 +99,19 @@ def format_cached_model_usage(acc, model_name):
         return "?"
     return f"{pct}%"
 
+def remaining_quota_value(quota_text):
+    percentages = re.findall(r"(\d+)%", str(quota_text or ""))
+    if not percentages:
+        return -1
+    return min(int(pct) for pct in percentages)
+
+def sort_rows_by_remaining_quota(rows):
+    return sorted(
+        rows,
+        key=lambda row: remaining_quota_value(row.get("quota")),
+        reverse=True,
+    )
+
 def format_exact_reset_time(duration_str, base_time=None):
     if not duration_str:
         return ""

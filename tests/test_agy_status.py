@@ -2,12 +2,17 @@ import os
 import sys
 import unittest
 from importlib.machinery import SourceFileLoader
+from unittest.mock import patch
 
 # Load the modular agy package components
 tools_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../tools/agy'))
 sys.path.insert(0, tools_dir)
 import parser
 import utils
+
+agy_status = SourceFileLoader(
+    "agy_status", os.path.join(tools_dir, "agy-status.py")
+).load_module()
 
 class TestAgyStatus(unittest.TestCase):
     def test_parse_quota_output_new_weekly_bottleneck(self):
@@ -121,6 +126,26 @@ Claude Opus 4.6 (Thinking)
         self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["weekly_refresh"], "In 2h 15m")
         self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["five_hour_pct"], 76)
         self.assertEqual(quotas["Claude Opus 4.6 (Thinking)"]["five_hour_refresh"], "In 2h 15m")
+
+    def test_status_defaults_to_live_refresh(self):
+        with patch.object(agy_status, "get_account_status") as get_status, \
+             patch.object(agy_status, "account_list") as account_list:
+            agy_status.run_status(refresh=False, json_output=False)
+
+        get_status.assert_called_once_with()
+        account_list.assert_not_called()
+
+    def test_sort_rows_by_effective_remaining_quota_descending(self):
+        rows = [
+            {"index": 1, "quota": "5H:50%/W:100%"},
+            {"index": 2, "quota": "100%"},
+            {"index": 3, "quota": "🔴 0% (Blocked)"},
+            {"index": 4, "quota": "5H:80%/W:75%"},
+        ]
+
+        sorted_rows = agy_status.sort_rows_by_remaining_quota(rows)
+
+        self.assertEqual([row["index"] for row in sorted_rows], [2, 4, 1, 3])
 
 if __name__ == "__main__":
     unittest.main()

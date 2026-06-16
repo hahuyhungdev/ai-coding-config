@@ -69,6 +69,10 @@ def uninstall():
                 installed_item.unlink(missing_ok=True)
             except Exception as e:
                 print(f"⚠️ Warning: Failed to remove {installed_item}: {e}")
+        try:
+            (agy_cli_dir / "README.md").unlink(missing_ok=True)
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to remove {agy_cli_dir / 'README.md'}: {e}")
         print(f"   Removed installed modules from {agy_cli_dir}")
 
     print("\n🎉 Standalone Antigravity CLI (agy) uninstallation completed successfully!")
@@ -109,6 +113,9 @@ def main():
     if src_dir.exists():
         for item in src_dir.glob("*.py"):
             shutil.copy2(item, agy_cli_dir / item.name)
+        readme = src_dir / "README.md"
+        if readme.exists():
+            shutil.copy2(readme, agy_cli_dir / readme.name)
         print(f"   Installed modular Python files to {agy_cli_dir}")
     else:
         print(f"❌ Error: {src_dir} not found.", file=sys.stderr)

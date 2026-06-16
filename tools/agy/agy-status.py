@@ -27,7 +27,7 @@ from storage import (
     write_accounts,
 )
 from switch import auto_switch_account, post_check_and_switch, rotate_account
-from utils import AGY_DIR, TOKEN_FILE
+from utils import AGY_DIR, TOKEN_FILE, sort_rows_by_remaining_quota
 
 
 TOP_LEVEL_COMMANDS = [
@@ -80,7 +80,7 @@ def print_cached_status(rows):
             f"{row['index']:<4} {row['display'] + active:<24} "
             f"{row['status']:<12} {row['quota']:<17} {row['reset_time']}"
         )
-    print("Use 'agy status --refresh' for a live quota check.")
+    print("Use 'agy status' for a live quota check.")
 
 
 def account_list(json_output=False):
@@ -169,15 +169,15 @@ def account_add(label, json_output=False):
 
 
 def run_status(refresh, json_output=False):
-    if refresh:
-        if json_output:
-            with contextlib.redirect_stdout(sys.stderr):
-                get_account_status()
-            emit_json({"accounts": public_accounts(load_accounts()), "refreshed": True})
-        else:
+    if json_output:
+        with contextlib.redirect_stdout(sys.stderr):
             get_account_status()
-        return
-    account_list(json_output=json_output)
+        emit_json({
+            "accounts": sort_rows_by_remaining_quota(public_accounts(load_accounts())),
+            "refreshed": True,
+        })
+    else:
+        get_account_status()
 
 
 def run_backup(output_path, json_output=False):
@@ -222,8 +222,8 @@ Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
     parser.add_argument("--json", action="store_true", help="Emit stable JSON without credential values")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    status = subparsers.add_parser("status", help="Show cached account status")
-    status.add_argument("--refresh", action="store_true", help="Run a live quota refresh")
+    status = subparsers.add_parser("status", help="Run a live quota refresh")
+    status.add_argument("--refresh", action="store_true", help="Accepted for compatibility; status refreshes by default")
 
     account = subparsers.add_parser("account", help="Manage accounts")
     account_commands = account.add_subparsers(dest="account_command", required=True)

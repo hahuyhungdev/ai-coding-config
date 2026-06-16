@@ -49,6 +49,52 @@ def write_accounts(accounts, create_backup=True):
     return backup_path
 
 
+def normalize_token_payload(token_data, fallback_email=None):
+    if "token" in token_data and isinstance(token_data["token"], dict):
+        token_obj = token_data["token"]
+        auth_method = token_data.get("auth_method", "consumer")
+        email = fallback_email or token_data.get("email")
+    elif "refresh_token" in token_data:
+        token_obj = token_data
+        auth_method = "consumer"
+        email = fallback_email
+    else:
+        raise ValueError("Expected JSON with 'refresh_token' or 'token' key")
+
+    if not token_obj.get("refresh_token"):
+        raise ValueError("No refresh_token found")
+
+    return token_obj, auth_method, email
+
+
+def upsert_account_token(accounts, email, token_obj, auth_method, include_alias_label=True):
+    from utils import get_username
+
+    username = get_username(email)
+    updated = False
+    for index, account in enumerate(accounts):
+        account_email = account.get("email") or account.get("name") or ""
+        if get_username(account_email) == username:
+            accounts[index]["token"] = token_obj
+            accounts[index]["auth_method"] = auth_method
+            if "@" in email:
+                accounts[index]["email"] = email
+            updated = True
+            break
+
+    if not updated:
+        account = {
+            "email": email if "@" in email else username,
+            "auth_method": auth_method,
+            "token": token_obj,
+        }
+        if include_alias_label:
+            account["label"] = None if "@" in email else username
+        accounts.append(account)
+
+    return updated
+
+
 def resolve_account(accounts, target):
     if not accounts:
         raise ValueError("No accounts configured")

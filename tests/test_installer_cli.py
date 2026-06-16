@@ -241,6 +241,9 @@ exit /b 0
         # Check that agy-status.py is installed to ~/.gemini/antigravity-cli/agy-status.py
         agy_status = self.home / ".gemini" / "antigravity-cli" / "agy-status.py"
         self.assertTrue(agy_status.is_file())
+        agy_readme = self.home / ".gemini" / "antigravity-cli" / "README.md"
+        self.assertTrue(agy_readme.is_file())
+        self.assertIn("Module Map", agy_readme.read_text())
 
     def test_add_current_account_alias_bootstraps_missing_account_pool(self):
         install = self._run_agy()
@@ -273,19 +276,22 @@ exit /b 0
         self.assertEqual(accounts[0]["email"], "first@example.com")
         self.assertEqual(accounts[0]["token"]["refresh_token"], "refresh-token")
 
-    def test_agy_account_commands_and_cached_status(self):
+    def test_agy_account_commands_and_status_refresh(self):
         install = self._run_agy()
         self.assertEqual(install.returncode, 0, install.stderr)
         agy_dir, _ = self._seed_agy_accounts()
 
+        cached = self._run_installed_agy("account", "list")
         status = self._run_installed_agy("status")
         current = self._run_installed_agy("account", "current")
         use = self._run_installed_agy("account", "use", "2")
         rename = self._run_installed_agy("account", "rename", "2", "work")
 
         self.assertEqual(status.returncode, 0, status.stderr)
-        self.assertIn("5H:90%/W:80%", status.stdout)
-        self.assertNotIn("Checking status", status.stdout)
+        self.assertIn("Checking status", status.stdout)
+        self.assertEqual(cached.returncode, 0, cached.stderr)
+        self.assertIn("5H:90%/W:80%", cached.stdout)
+        self.assertNotIn("Checking status", cached.stdout)
         self.assertEqual(current.returncode, 0, current.stderr)
         self.assertIn("first@example.com", current.stdout)
         self.assertEqual(use.returncode, 0, use.stderr)
