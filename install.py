@@ -32,6 +32,7 @@ from installer import (
     error,
     setup_claude,
     setup_codex,
+    setup_gemini,
     setup_cli_wrapper,
     uninstall_global,
     uninstall_project,
@@ -203,7 +204,7 @@ Examples:
     install_gemini = (args.all or args.gemini) and not args.none
 
     # Compile agents
-    compile_agents(install_claude, install_codex)
+    compile_agents(install_claude, install_codex, install_gemini)
 
     # Setup each CLI
     if install_claude:
@@ -211,6 +212,9 @@ Examples:
 
     if install_codex:
         setup_codex(args.force)
+
+    if install_gemini:
+        setup_gemini(args.force)
 
     # Automatically install/update the global command wrapper
     setup_cli_wrapper(REPO_DIR)

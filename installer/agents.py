@@ -7,7 +7,7 @@ from .cli import info, run_node_script
 REPO_DIR = Path(__file__).resolve().parent.parent
 
 
-def compile_agents(install_claude: bool, install_codex: bool) -> None:
+def compile_agents(install_claude: bool, install_codex: bool, install_gemini: bool = False) -> None:
     """Compile shared Markdown agents to CLI-specific formats."""
     info("Compiling custom agents...")
     flags = []
@@ -15,4 +15,6 @@ def compile_agents(install_claude: bool, install_codex: bool) -> None:
         flags.append("--claude")
     if install_codex:
         flags.append("--codex")
+    if install_gemini:
+        flags.append("--agy")
     run_node_script("compile-agents.js", *flags)

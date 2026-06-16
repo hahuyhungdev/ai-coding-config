@@ -250,6 +250,21 @@ exit /b 0
         self.assertTrue(antigravity_rules.is_file())
         self.assertIn("Always prefix shell commands with `rtk`", antigravity_rules.read_text())
 
+    def test_global_install_copies_gemini_skills_and_configs(self):
+        result = self._run("--all", "--force")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        # Gemini
+        gemini_dir = self.home / ".gemini" / "config"
+        self.assertTrue((gemini_dir / "ANTIGRAVITY.md").is_file())
+        self.assertTrue((gemini_dir / "skills").is_dir())
+        self.assertTrue((gemini_dir / "skills" / "context-budget" / "SKILL.md").is_file())
+        self.assertTrue((gemini_dir / "agents").is_dir())
+
+        # Claude & Codex skills check for consistency
+        self.assertTrue((self.home / ".claude" / "skills" / "context-budget" / "SKILL.md").is_file())
+        self.assertTrue((self.home / ".codex" / "skills" / "context-budget" / "SKILL.md").is_file())
+
     def test_setup_agy_installs_wrappers(self):
         result = self._run_agy()
         self.assertEqual(result.returncode, 0, result.stderr)

@@ -196,6 +196,27 @@ def setup_codex(force: bool) -> None:
         ok(f"Skills ({count_dirs(skills_dir)} dirs)")
 
 
+def setup_gemini(force: bool) -> None:
+    """Setup Gemini (Antigravity CLI) configuration."""
+    info("Setting up Gemini/Antigravity configuration...")
+
+    # Create directories
+    GEMINI_DIR.mkdir(parents=True, exist_ok=True)
+    (GEMINI_DIR / "agents").mkdir(exist_ok=True)
+    (GEMINI_DIR / "skills").mkdir(exist_ok=True)
+
+    # ANTIGRAVITY.md
+    copy_config(REPO_DIR / "gemini" / "ANTIGRAVITY.md", GEMINI_DIR / "ANTIGRAVITY.md", force)
+    ok("ANTIGRAVITY.md")
+
+    # Skills
+    skills_dir = REPO_DIR / "skills"
+    if skills_dir.exists():
+        for d in skills_dir.iterdir():
+            if d.is_dir():
+                copy_config(d, GEMINI_DIR / "skills" / d.name, force)
+        ok(f"Skills ({count_dirs(skills_dir)} dirs)")
+
 
 def setup_cli_wrapper(repo_dir: Path) -> None:
     """Create a global cli wrapper named ai-config in ~/.local/bin/."""
