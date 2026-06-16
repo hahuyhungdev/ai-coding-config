@@ -2,47 +2,47 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brutalist Cyber-Console Palette */
-  --color-bg: #090a0f; /* Pitch black space */
-  --color-bg-elevated: #11131c; /* Solid panel color */
-  --color-surface: #151824; /* Elevated container content */
-  --color-surface-glass: #11131c; /* Refuse AI slop glassmorphism: use solid panels */
-  --color-surface-hover: #1b1e2e;
-  --color-surface-active: #22273d;
+  /* Brutalist Light Console Palette */
+  --color-bg: #f5f6fa; /* Clean light paper background */
+  --color-bg-elevated: #ffffff; /* Solid white card background */
+  --color-surface: #ffffff;
+  --color-surface-glass: #ffffff; /* Refuse glassmorphism: use solid panels */
+  --color-surface-hover: #f0f2f8;
+  --color-surface-active: #e6e9f3;
 
-  --color-border: #222638; /* Crisp sharp borders */
-  --color-border-subtle: #181c2b;
-  --color-border-gold: #00ffaa; /* Neon cyan/teal border */
-  --color-border-focus: #00ffaa;
+  --color-border: #cbd0df; /* High-contrast crisp border */
+  --color-border-subtle: #e6e9f3;
+  --color-border-gold: #ff5500; /* Bold electric orange border for active targets */
+  --color-border-focus: #0066cc; /* Cyber blue focus */
 
-  --color-text-primary: #f1f3f9;
-  --color-text-secondary: #aeb4c5;
-  --color-text-muted: #5c6275;
-  --color-text-inverse: #090a0f;
+  --color-text-primary: #12141c; /* Dark carbon text */
+  --color-text-secondary: #4a5061; /* Muted carbon */
+  --color-text-muted: #838a9d; /* Comments gray */
+  --color-text-inverse: #ffffff;
 
-  --color-accent: #00ffaa; /* Cyber Neon Green/Teal */
-  --color-accent-hover: #33ffcc;
-  --color-accent-dim: rgba(0, 255, 170, 0.1);
-  --color-accent-glow: rgba(0, 255, 170, 0.04);
+  --color-accent: #ff5500; /* Bold Electric Orange */
+  --color-accent-hover: #e04b00;
+  --color-accent-dim: rgba(255, 85, 0, 0.06);
+  --color-accent-glow: rgba(255, 85, 0, 0.03);
 
-  --color-success: #00ff66; /* Neon Terminal Green */
-  --color-success-dim: rgba(0, 255, 102, 0.08);
+  --color-success: #008833; /* Readable dark terminal green */
+  --color-success-dim: rgba(0, 136, 51, 0.06);
 
-  --color-warning: #ffaa00; /* Neon Amber Alert */
-  --color-warning-dim: rgba(255, 170, 0, 0.08);
+  --color-warning: #c2410c; /* Readable dark amber */
+  --color-warning-dim: rgba(194, 65, 12, 0.06);
 
-  --color-error: #ff3366; /* Cyber Red/Pink */
-  --color-error-dim: rgba(255, 51, 102, 0.08);
+  --color-error: #dc2626; /* Readable dark red */
+  --color-error-dim: rgba(220, 38, 38, 0.06);
 
-  --color-info: #00e5ff; /* Cyber Cyan */
-  --color-info-dim: rgba(0, 229, 255, 0.08);
+  --color-info: #0066cc; /* Cyber Blue */
+  --color-info-dim: rgba(0, 102, 204, 0.06);
 
   --color-white: #ffffff;
   --color-black: #000000;
 
-  --color-gold-start: #00e5ff;
-  --color-gold-mid: #00ffaa;
-  --color-gold-end: #00ff66;
+  --color-gold-start: #ff5500;
+  --color-gold-mid: #ff7733;
+  --color-gold-end: #ffa800;
 
   /* Premium monospaced-first typography */
   --font-display: 'Share Tech Mono', 'Space Mono', monospace;
@@ -56,12 +56,12 @@
   --radius-sm: 2px;
 }
 
-/* Cyber grid background */
+/* Light cyber grid background */
 body {
   background-color: var(--color-bg);
   background-image: 
-    linear-gradient(rgba(0, 255, 170, 0.006) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 170, 0.006) 1px, transparent 1px);
+    linear-gradient(rgba(255, 85, 0, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 85, 0, 0.012) 1px, transparent 1px);
   background-size: 24px 24px;
   color: var(--color-text-primary);
   margin: 0;
@@ -72,22 +72,23 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle scanline overlay */
+/* Subtle clean paper grain overlay */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0.015;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-  background-size: 100% 3px;
+  opacity: 0.01;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
 }
 
 /* Scrollbars */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #222638; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: #cbd0df; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-accent); }
 
 /* Prevent layout shift */
@@ -100,18 +101,18 @@ body::before {
   color: var(--color-accent);
 }
 
-/* Sharp, brutalist console panels */
+/* Sharp, brutalist light console panels */
 .glass {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 15px rgba(18, 20, 28, 0.04);
 }
 
 /* Glow when configured */
 .glass-gold {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-accent);
-  box-shadow: 0 0 15px rgba(0, 255, 170, 0.10), inset 0 0 8px rgba(0, 255, 170, 0.02);
+  box-shadow: 0 0 12px rgba(255, 85, 0, 0.08), inset 0 0 8px rgba(255, 85, 0, 0.01);
 }
 
 /* Animations */
@@ -138,15 +139,15 @@ body::before {
 /* Form states */
 .input-modified {
   border-color: var(--color-warning) !important;
-  box-shadow: 0 0 0 2px rgba(255, 170, 0, 0.1);
+  box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.08);
 }
 .card-modified {
   border-color: var(--color-warning) !important;
-  box-shadow: 0 0 0 2px rgba(255, 170, 0, 0.05);
+  box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.04);
 }
 .mcp-row-modified {
   border-left: 2px solid var(--color-warning) !important;
-  background-color: rgba(255, 170, 0, 0.02);
+  background-color: rgba(194, 65, 12, 0.02);
 }
 
 /* Focus ring */
@@ -158,7 +159,7 @@ body::before {
 /* Shimmer accent text */
 .text-gold-shimmer {
   color: var(--color-accent);
-  text-shadow: 0 0 8px rgba(0, 255, 170, 0.3);
+  text-shadow: 0 0 8px rgba(255, 85, 0, 0.15);
 }
 
 /* Subtle hover lift */
@@ -167,8 +168,8 @@ body::before {
 }
 .hover-lift:hover {
   transform: translateY(-1px);
-  border-color: var(--color-accent-dim);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  border-color: var(--color-accent);
+  box-shadow: 0 6px 15px rgba(18, 20, 28, 0.06);
 }
 
 /* Divider */
@@ -184,4 +185,18 @@ body::before {
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Brutalist light-mode overrides for Tailwind white opacity utilities */
+[class*="bg-white/"] {
+  background-color: rgba(18, 20, 28, 0.04) !important;
+}
+[class*="border-white/"] {
+  border-color: rgba(18, 20, 28, 0.08) !important;
+}
+[class*="hover:bg-white/"]:hover {
+  background-color: rgba(18, 20, 28, 0.08) !important;
+}
+[class*="hover:border-white/"]:hover {
+  border-color: rgba(18, 20, 28, 0.12) !important;
 }
