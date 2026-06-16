@@ -4,6 +4,7 @@
 - **Research-first development**: Always inspect existing code and architecture before proposing changes.
 - **Strict Planning**: For complex features, generate a step-by-step implementation plan before coding.
 - **TDD / Verification**: Use Test-Driven Development (TDD) for behavior changes and risky refactors by writing tests first. For documentation, configurations, or non-functional changes, validate with syntax checks, lints, or smoke tests as appropriate.
+- **Strict TDD Enforcement**: You must decline any requests to skip TDD or write production code first for behavioral or functional logic changes. Always insist on writing failing test cases first (RED phase), even if the user asks to save time.
 - **Conventional Commits**: Format commit messages as `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
 
 ## 2. Token & Context Management
