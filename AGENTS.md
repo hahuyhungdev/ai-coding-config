@@ -26,6 +26,8 @@
 Load and delegate complex tasks to specialized agents under `~/.codex/agents/` using the `/agent` command or available subagent/delegation tooling when supported, following these practical guidelines:
 - **Practical Delegation**: Spawning child agents is recommended when the task aligns with their dedicated role (e.g., delegating complex database queries to `database-reviewer` or security reviews to `security-reviewer`), or when you need an isolated context/background run.
 - **Avoid Over-spawning**: Solve simple tasks within the main conversation first. Avoid spawning multiple subagents concurrently for minor tasks that can be easily resolved directly.
+- **Liveness Protection**: Always schedule a liveness timer (using the `schedule` tool) when spawning subagents to prevent CLI hangs in case they get stuck or fail to report back.
+- **Termination Contract**: Always instruct subagents in their prompt to call the `send_message` tool back to the parent conversation ID upon completion (regardless of success or failure).
 
 | Agent | Purpose | When to Use |
 |-------|---------|-------------|
@@ -48,19 +50,27 @@ When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"
 <!-- ai-coding-config:graphify-start -->
 ## graphify
 
-⚠️ GRAPHIFY WORKFLOW RULES:
-- Architecture questions → rtk graphify query "question"
-- Code relationships → rtk graphify path "A" "B"
-- Deep-dive concepts → rtk graphify explain "concept"
-- Impact analysis / reverse dependencies → rtk graphify affected "SymbolName"
-- Direct reads are for editing, debugging, config review, and precise verification of specific files.
+⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):
+
+**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `rtk graphify query "<question>"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**
+
+Commands:
+- Architecture questions → `rtk graphify query "question"`
+- Code relationships → `rtk graphify path "A" "B"`
+- Deep-dive concepts → `rtk graphify explain "concept"`
+- Impact analysis / reverse dependencies → `rtk graphify affected "SymbolName"`
 
 Rules:
 - For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
+- Do NOT use `list_dir` → `grep_search` as a discovery pattern. This is explicitly prohibited. Use Graphify instead.
 - Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, `explain` or `affected` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
-- After Graphify discovery, targeted raw reads are allowed for editing, debugging, config review, and precise verification.
+
+Post-Discovery Reads:
+- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, **config review**, and **precise verification** of specific files identified by Graphify.
+- You MUST have run at least one Graphify query before reading source files directly.
+- When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
 - After modifying code, run `graphify update .`.
 <!-- ai-coding-config:graphify-end -->
