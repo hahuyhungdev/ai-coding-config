@@ -13,7 +13,8 @@
 - **Strategic Compaction**: For long-running tasks, proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 3. MCP & Tools Integration
-- **MCP Server Discovery & Management**: Core servers (`playwright`, `context7`, `memory`, `sequential-thinking`) are enabled by default for frontend/documentation tasks. Optional servers (`postgres`, `sqlite`, `docker`, `aws`) are registered but disabled. **Run `python3 scripts/mcp-toggle.py list` to inspect status, and `python3 scripts/mcp-toggle.py enable <name>` to enable optional servers dynamically if needed.**
+- **MCP Server Discovery & Management**: Core servers (`playwright`, `context7`, `memory`, `sequential-thinking`) are enabled by default for frontend/documentation tasks. Optional servers (`postgres`, `sqlite`, `docker`, `aws`) are registered but disabled. **Run `python3 scripts/mcp-toggle.py list` to inspect status, and `python3 scripts/mcp-toggle.py enable <name>` to enable optional servers dynamically if needed.** After enabling, restart the CLI session to activate the new server.
+- **MCP Fallback Strategy**: When an optional MCP server is disabled, do NOT attempt to call its tools. Instead, fall back to equivalent shell commands (e.g., `rtk sqlite3 db.sqlite ".schema"` instead of SQLite MCP, `docker ps` instead of Docker MCP). Always check server availability before proposing MCP-dependent workflows.
 - **Browser Automation**: Run E2E tests and visual verification using Playwright MCP on the `msedge` (Microsoft Edge) channel when configured and available; otherwise, run tests via CLI test runners.
 
 ## 4. UI/UX Aesthetics

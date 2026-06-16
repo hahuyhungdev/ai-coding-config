@@ -13,7 +13,8 @@
 - **Strategic Compaction**: For long-running tasks, proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 3. MCP & Tools Integration
-- **MCP Server Discovery & Management**: Core servers (`playwright`, `context7`, `memory`, `sequential-thinking`) are enabled by default for frontend/documentation tasks. Optional servers (`postgres`, `sqlite`, `docker`, `aws`) are registered but disabled. **Run `python3 scripts/mcp-toggle.py list` to inspect status, and `python3 scripts/mcp-toggle.py enable <name>` to enable optional servers dynamically if needed.**
+- **MCP Server Discovery & Management**: Core servers (`playwright`, `context7`, `memory`, `sequential-thinking`) are enabled by default for frontend/documentation tasks. Optional servers (`postgres`, `sqlite`, `docker`, `aws`) are registered but disabled. **Run `python3 scripts/mcp-toggle.py list` to inspect status, and `python3 scripts/mcp-toggle.py enable <name>` to enable optional servers dynamically if needed.** After enabling, restart the CLI session to activate the new server.
+- **MCP Fallback Strategy**: When an optional MCP server is disabled, do NOT attempt to call its tools. Instead, fall back to equivalent shell commands (e.g., `rtk sqlite3 db.sqlite ".schema"` instead of SQLite MCP, `docker ps` instead of Docker MCP). Always check server availability before proposing MCP-dependent workflows.
 - **Browser Automation**: Run E2E tests and visual verification using Playwright MCP on the `msedge` (Microsoft Edge) channel when configured and available; otherwise, run tests via CLI test runners.
 
 ## 4. UI/UX Aesthetics
@@ -44,4 +45,31 @@ Load and delegate complex tasks to specialized agents under `~/.gemini/config/ag
 | code-explorer | Codebase analysis | Trace execution paths |
 | architect | System design | Architecture decisions |
 
+<!-- ai-coding-config:graphify-start -->
+## graphify
+
+⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):
+
+**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `rtk graphify query "<question>"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**
+
+Commands:
+- Architecture questions → `rtk graphify query "question"`
+- Code relationships → `rtk graphify path "A" "B"`
+- Deep-dive concepts → `rtk graphify explain "concept"`
+- Impact analysis / reverse dependencies → `rtk graphify affected "SymbolName"`
+
+Rules:
+- For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
+- Do NOT use `list_dir` → `grep_search` as a discovery pattern. This is explicitly prohibited. Use Graphify instead.
+- Use at most 3 Graphify calls total: the initial query plus at most 2 follow-up `query`, `path`, `explain` or `affected` calls. After the third call, hard stop all Graphify calls and synthesize the answer from available context.
+- Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
+- If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
+- Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
+
+Post-Discovery Reads:
+- After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, **config review**, and **precise verification** of specific files identified by Graphify.
+- You MUST have run at least one Graphify query before reading source files directly.
+- When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
+- After modifying code, run `graphify update .`.
+<!-- ai-coding-config:graphify-end -->
 
