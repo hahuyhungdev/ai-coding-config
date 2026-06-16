@@ -144,6 +144,7 @@ class TestSwitch(unittest.TestCase):
             # Mock switch paths
             switch.JSON_FILE = json_file
             switch.TOKEN_FILE = token_file
+            switch.AGY_DIR = tmpdir
 
             # Case 1: JSON file doesn't exist
             self.assertEqual(switch.auto_switch_account(quiet=True), "")

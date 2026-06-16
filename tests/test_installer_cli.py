@@ -229,6 +229,27 @@ exit /b 0
         self.assertIn("install.py", bat_path.read_text())
         self.assertIn("init", bat_path.read_text())
 
+    def test_global_install_configures_rtk_for_claude_and_codex(self):
+        result = self._run("--all", "--force")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        claude_settings = json.loads((self.home / ".claude" / "settings.json").read_text())
+        pre_tool_hooks = claude_settings["hooks"]["PreToolUse"]
+        self.assertTrue(
+            any(
+                hook.get("matcher") == "Bash"
+                and any(command.get("command") == "rtk hook claude" for command in hook.get("hooks", []))
+                for hook in pre_tool_hooks
+            )
+        )
+
+        codex_agents = (self.home / ".codex" / "AGENTS.md").read_text()
+        self.assertIn(f"@{self.home / '.codex' / 'RTK.md'}", codex_agents)
+
+        antigravity_rules = self.project / ".agents" / "rules" / "antigravity-rtk-rules.md"
+        self.assertTrue(antigravity_rules.is_file())
+        self.assertIn("Always prefix shell commands with `rtk`", antigravity_rules.read_text())
+
     def test_setup_agy_installs_wrappers(self):
         result = self._run_agy()
         self.assertEqual(result.returncode, 0, result.stderr)

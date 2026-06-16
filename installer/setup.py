@@ -43,6 +43,41 @@ def configure_project_assistants(project_dir: Path, assistants: list[str]) -> di
     return results
 
 
+def ensure_claude_rtk_hook(settings_path: Path) -> None:
+    """Ensure Claude Code has the RTK Bash hook without disturbing other hooks."""
+    try:
+        data = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
+    except Exception:
+        data = {}
+
+    hooks = data.setdefault("hooks", {})
+    pre_tool_hooks = hooks.setdefault("PreToolUse", [])
+    for hook in pre_tool_hooks:
+        if hook.get("matcher") != "Bash":
+            continue
+        for command in hook.get("hooks", []):
+            if command.get("type") == "command" and command.get("command") == "rtk hook claude":
+                settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+                return
+
+    pre_tool_hooks.append({
+        "matcher": "Bash",
+        "hooks": [{"type": "command", "command": "rtk hook claude"}],
+    })
+    settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def ensure_codex_rtk_reference(agents_path: Path, rtk_path: Path) -> None:
+    """Ensure Codex global instructions include the installed RTK reference."""
+    reference = f"@{rtk_path}"
+    content = agents_path.read_text(encoding="utf-8") if agents_path.exists() else ""
+    if reference in content:
+        return
+    stripped = content.rstrip()
+    next_content = f"{stripped}\n\n{reference}\n" if stripped else f"{reference}\n"
+    agents_path.write_text(next_content, encoding="utf-8")
+
+
 def setup_claude(force: bool) -> None:
     """Setup Claude Code configuration."""
     info("Setting up Claude Code...")
@@ -97,6 +132,7 @@ def setup_claude(force: bool) -> None:
                 f.write("\n")
         except Exception:
             pass
+    ensure_claude_rtk_hook(target_settings)
     ok("settings.json")
 
     # RTK.md
@@ -145,6 +181,7 @@ def setup_codex(force: bool) -> None:
     # RTK.md
     copy_config(REPO_DIR / "codex" / "RTK.md", CODEX_DIR / "RTK.md", force)
     ok("RTK.md")
+    ensure_codex_rtk_reference(CODEX_DIR / "AGENTS.md", CODEX_DIR / "RTK.md")
 
     # config.toml
     install_local_config(REPO_DIR / "codex" / "config.toml", CODEX_DIR / "config.toml", force)

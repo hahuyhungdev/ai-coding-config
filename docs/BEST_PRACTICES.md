@@ -263,14 +263,15 @@ pnpm build
 
 ---
 
-### ✅ DO: Use TDD for New Features
+### ✅ DO: Use TDD for Behavior Changes & Refactors
 
 **Workflow:**
-1. Write tests first (RED)
+1. Use TDD for behavioral changes and risky refactors by writing tests first (RED)
 2. Implement to pass (GREEN)
 3. Refactor (IMPROVE)
+*Note: For documentation, configurations, or non-functional changes, validate with syntax checks, lints, or smoke tests as appropriate.*
 
-**Why:** Ensures quality and coverage.
+**Why:** Ensures quality and coverage without creating unnecessary overhead.
 
 ---
 

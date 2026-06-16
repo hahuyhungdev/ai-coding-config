@@ -52,7 +52,7 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/` 
 - Code relationships → rtk graphify path "A" "B"
 - Deep-dive concepts → rtk graphify explain "concept"
 - Impact analysis / reverse dependencies → rtk graphify affected "SymbolName"
-- Direct reads are ONLY for editing specific files.
+- Direct reads are for editing, debugging, config review, and precise verification of specific files.
 
 Rules:
 - For an architecture question, the FIRST tool call must be one broad `rtk graphify query "<question>"`. Do not check Graphify with `ls`, `which`, or `test` first.
@@ -60,6 +60,6 @@ Rules:
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
-- After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
+- After Graphify discovery, targeted raw reads are allowed for editing, debugging, config review, and precise verification.
 - After modifying code, run `graphify update .`.
 <!-- ai-coding-config:graphify-end -->

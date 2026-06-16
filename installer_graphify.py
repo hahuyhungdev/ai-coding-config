@@ -27,7 +27,7 @@ GRAPHIFY_GUIDANCE = (
     "- Code relationships → rtk graphify path \"A\" \"B\"\n"
     "- Deep-dive concepts → rtk graphify explain \"concept\"\n"
     "- Impact analysis / reverse dependencies → rtk graphify affected \"SymbolName\"\n"
-    "- Direct reads are ONLY for editing specific files."
+    "- Direct reads are for editing, debugging, config review, and precise verification of specific files."
 )
 GRAPHIFY_INSTRUCTIONS = f"""## graphify
 
@@ -39,12 +39,47 @@ Rules:
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
-- After Graphify discovery, targeted raw reads are allowed for editing or debugging specific code.
+- After Graphify discovery, targeted raw reads are allowed for editing, debugging, config review, and precise verification.
 - After modifying code, run `graphify update .`.
 """
 INSTRUCTION_START = "<!-- ai-coding-config:graphify-start -->"
 INSTRUCTION_END = "<!-- ai-coding-config:graphify-end -->"
 PROJECT_GRAPHIFY_BLOCK = f"{INSTRUCTION_START}\n{GRAPHIFY_INSTRUCTIONS.rstrip()}\n{INSTRUCTION_END}"
+ANTIGRAVITY_RTK_RULE = """# RTK - Rust Token Killer (Google Antigravity)
+
+**Usage**: Token-optimized CLI proxy for shell commands.
+
+## Rule
+
+Always prefix shell commands with `rtk` to minimize token consumption.
+
+Examples:
+
+```bash
+rtk git status
+rtk cargo test
+rtk ls src/
+rtk grep "pattern" src/
+rtk find "*.rs" .
+rtk docker ps
+rtk gh pr list
+```
+
+> ⚠️ **Note**: While `rtk grep` and `rtk find` are supported for targeted lookup, codebase and architecture exploration should always use Graphify first (`rtk graphify query`, etc.) to preserve context and save tokens.
+
+## Meta Commands
+
+```bash
+rtk gain              # Show token savings
+rtk gain --history    # Command history with savings
+rtk discover          # Find missed RTK opportunities
+rtk proxy <cmd>       # Run raw (no filtering, for debugging)
+```
+
+## Why
+
+RTK filters and compresses command output before it reaches the LLM context, saving 60-90% tokens on common operations. Always use `rtk <cmd>` instead of raw commands.
+"""
 
 
 def _command_words(command: str) -> list[str]:
@@ -237,6 +272,14 @@ def _merge_project_instructions(path: Path) -> None:
     path.write_text(merged, encoding="utf-8")
 
 
+def _ensure_antigravity_rtk_rule(project_dir: Path) -> None:
+    rules_path = project_dir / ".agents" / "rules" / "antigravity-rtk-rules.md"
+    if rules_path.exists():
+        return
+    rules_path.parent.mkdir(parents=True, exist_ok=True)
+    rules_path.write_text(ANTIGRAVITY_RTK_RULE, encoding="utf-8")
+
+
 def _safe_copy(src: Path, dst: Path) -> None:
     if src.exists() and src.resolve() != dst.resolve():
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -305,6 +348,7 @@ def configure_gemini_project(project_dir: Path) -> None:
 
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(project_dir / "ANTIGRAVITY.md")
+    _ensure_antigravity_rtk_rule(project_dir)
 
 
 def configure_codex_project(project_dir: Path) -> None:
@@ -416,4 +460,3 @@ def configure_copilot_project(project_dir: Path) -> None:
                 
     if (project_dir / "graphify-out" / "graph.json").exists():
         _merge_project_instructions(copilot_instructions_path)
-
