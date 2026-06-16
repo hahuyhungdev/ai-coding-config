@@ -218,7 +218,10 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
                 "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
             }
     if tool_name.lower() in {"read", "glob", "read_file", "list_directory"} and is_source_tool_input(tool_input):
-        result["additionalContext"] = GRAPHIFY_GUIDANCE
+        return {
+            "decision": "deny",
+            "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
+        }
     return result
 
 
@@ -257,6 +260,8 @@ def managed_claude_hooks(project_level: bool = False) -> list[dict]:
         {"matcher": "Bash", "hooks": [{"type": "command", "command": _python_hook_command("Bash", True, project_level)}]},
         {"matcher": "Grep", "hooks": [{"type": "command", "command": _python_hook_command("Grep", True, project_level)}]},
         {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": _python_hook_command("Read", True, project_level)}]},
+        {"matcher": "Write", "hooks": [{"type": "command", "command": _python_hook_command("Write", True, project_level)}]},
+        {"matcher": "Edit", "hooks": [{"type": "command", "command": _python_hook_command("Edit", True, project_level)}]},
     ]
 
 
@@ -265,6 +270,7 @@ def managed_gemini_hooks(project_level: bool = False) -> list[dict]:
         {"matcher": "run_command|run_shell_command", "hooks": [{"type": "command", "command": _python_hook_command("Bash", False, project_level)}]},
         {"matcher": "view_file|list_dir|read_file|list_directory", "hooks": [{"type": "command", "command": _python_hook_command("Read", False, project_level)}]},
         {"matcher": "grep_search", "hooks": [{"type": "command", "command": _python_hook_command("Grep", False, project_level)}]},
+        {"matcher": "write_to_file|replace_file_content|multi_replace_file_content", "hooks": [{"type": "command", "command": _python_hook_command("Write", False, project_level)}]},
     ]
 
 
@@ -273,6 +279,8 @@ def managed_codex_hooks(project_level: bool = False) -> list[dict]:
         {"matcher": "Bash", "hooks": [{"type": "command", "command": _python_hook_command("Bash", True, project_level, client="codex")}]},
         {"matcher": "Grep", "hooks": [{"type": "command", "command": _python_hook_command("Grep", True, project_level, client="codex")}]},
         {"matcher": "Read|Glob", "hooks": [{"type": "command", "command": _python_hook_command("Read", True, project_level, client="codex")}]},
+        {"matcher": "Write", "hooks": [{"type": "command", "command": _python_hook_command("Write", True, project_level, client="codex")}]},
+        {"matcher": "Edit", "hooks": [{"type": "command", "command": _python_hook_command("Edit", True, project_level, client="codex")}]},
     ]
 
 

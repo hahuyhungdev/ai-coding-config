@@ -52,9 +52,9 @@ class TestGraphifyCommandClassification(unittest.TestCase):
         result = install.classify_graphify_tool_use(
             "Read", {"file_path": "src/router.py"}, graph_exists=True
         )
-        self.assertEqual(result["decision"], "allow")
+        self.assertEqual(result["decision"], "deny")
         self.assertIn("additionalContext", result)
-        self.assertNotIn("BLOCKED", result["additionalContext"])
+        self.assertIn("BLOCKED", result["additionalContext"])
 
     def test_builtin_grep_is_denied_when_graph_exists(self):
         result = install.classify_graphify_tool_use(
@@ -160,7 +160,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertEqual(data["hooks"]["PostToolUse"][0]["matcher"], "Edit")
         self.assertEqual(
             sum(install.is_managed_graphify_hook(h) for h in data["hooks"]["PreToolUse"]),
-            3,
+            5,
         )
         self.assertTrue(any(h.get("matcher") == "Write" for h in data["hooks"]["PreToolUse"]))
         commands = json.dumps(data["hooks"]["PreToolUse"])
@@ -389,10 +389,10 @@ class TestGraphifySettingsMerge(unittest.TestCase):
 
         self.assertEqual(first, settings_path.read_text())
         self.assertEqual(data["theme"], "dark")
-        self.assertEqual(len(data["hooks"]["PreToolUse"]), 4)
+        self.assertEqual(len(data["hooks"]["PreToolUse"]), 5)
         self.assertEqual(
             sum(install.is_managed_graphify_hook(h) for h in data["hooks"]["PreToolUse"]),
-            3,
+            4,
         )
 
     def test_invalid_json_is_backed_up(self):
@@ -440,7 +440,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         data = json.loads(hooks_path.read_text())
 
         self.assertTrue(data["custom"])
-        self.assertEqual(len(data["hooks"]["PreToolUse"]), 4)
+        self.assertEqual(len(data["hooks"]["PreToolUse"]), 6)
 
     def test_one_cli_failure_does_not_stop_other_clis(self):
         with mock.patch.object(
@@ -482,6 +482,74 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertTrue(instructions_path.exists())
         self.assertIn("# Mock Copilot Instructions", instructions_path.read_text())
         self.assertIn("ai-coding-config:graphify-start", instructions_path.read_text())
+
+    def test_claude_hook_denies_path_leak_in_write(self):
+        from installer_graphify import _hook_classifier_script
+        script = _hook_classifier_script("Write", True)
+        payload = {
+            "tool_input": {
+                "file_path": "src/leak.py",
+                "code_content": "import os\n# Path leak: /home/huyhung/projects/main.py\nprint('hello')"
+            }
+        }
+        result = subprocess.run(
+            args=[sys.executable, "-c", script],
+            cwd=self.project,
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        data = json.loads(result.stdout.strip())
+        self.assertEqual(data["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("Absolute home directory path detected", data["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_claude_hook_denies_path_leak_in_edit(self):
+        from installer_graphify import _hook_classifier_script
+        script = _hook_classifier_script("Edit", True)
+        payload = {
+            "tool_input": {
+                "file_path": "src/leak.py",
+                "ReplacementChunks": [
+                    {
+                        "StartLine": 1,
+                        "EndLine": 5,
+                        "TargetContent": "print('hello')",
+                        "ReplacementContent": "print('/home/huyhung/projects/leak')"
+                    }
+                ]
+            }
+        }
+        result = subprocess.run(
+            args=[sys.executable, "-c", script],
+            cwd=self.project,
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        data = json.loads(result.stdout.strip())
+        self.assertEqual(data["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("Absolute home directory path detected", data["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_claude_hook_allows_no_path_leak_in_write(self):
+        from installer_graphify import _hook_classifier_script
+        script = _hook_classifier_script("Write", True)
+        payload = {
+            "tool_input": {
+                "file_path": "src/leak.py",
+                "code_content": "import os\n# Safe tilde path: ~/projects/main.py\nprint('hello')"
+            }
+        }
+        result = subprocess.run(
+            args=[sys.executable, "-c", script],
+            cwd=self.project,
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.stdout.strip(), "")
 
 
 
