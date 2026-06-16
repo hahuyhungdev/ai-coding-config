@@ -79,8 +79,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       '32': 'text-success font-bold',
       '33': 'text-warning font-bold',
       '34': 'text-info font-bold',
-      '35': 'text-[#8be9fd] font-bold',
-      '36': 'text-[#22d3ee] font-bold',
+      '35': 'text-accent font-bold',
+      '36': 'text-info font-bold',
       '90': 'text-text-muted',
       '91': 'text-error',
       '92': 'text-success',
@@ -211,8 +211,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span className={`h-2 w-2 rounded-full ${tempVal ? 'bg-success shadow-[0_0_8px_rgba(52,211,153,0.4)] animate-pulse' : 'bg-text-muted/30'}`} />
               </div>
               <h3 className="text-[15px] font-medium text-text-primary flex items-center gap-2.5">
-                {cid === 'claude' && <MessageSquareCode className="h-4 w-4 text-[#60a5fa]" />}
-                {cid === 'codex' && <TerminalIcon className="h-4 w-4 text-[#50fa7b]" />}
+                {cid === 'claude' && <MessageSquareCode className="h-4 w-4 text-info" />}
+                {cid === 'codex' && <TerminalIcon className="h-4 w-4 text-success" />}
                 {cid === 'agy' && <Sparkles className="h-4 w-4 text-accent" />}
                 {info.name}
               </h3>
@@ -230,8 +230,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           onClick={() => { setExplorerFilter('agents'); setActiveTab('explorer'); }}
           className="glass rounded-lg p-4 flex items-center gap-4 cursor-pointer hover-lift group"
         >
-          <div className="h-10 w-10 rounded-lg bg-[#60a5fa]/10 border border-[#60a5fa]/15 flex items-center justify-center group-hover:border-[#60a5fa]/30 transition-colors">
-            <Bot className="h-5 w-5 text-[#60a5fa]" />
+          <div className="h-10 w-10 rounded-lg bg-info-dim border border-info/15 flex items-center justify-center group-hover:border-info/30 transition-colors">
+            <Bot className="h-5 w-5 text-info" />
           </div>
           <div>
             <div className="text-[10px] text-text-muted uppercase font-semibold tracking-[0.12]">Agents</div>
@@ -243,8 +243,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           onClick={() => { setExplorerFilter('skills'); setActiveTab('explorer'); }}
           className="glass rounded-lg p-4 flex items-center gap-4 cursor-pointer hover-lift group"
         >
-          <div className="h-10 w-10 rounded-lg bg-[#8be9fd]/10 border border-[#8be9fd]/15 flex items-center justify-center group-hover:border-[#8be9fd]/30 transition-colors">
-            <Wrench className="h-5 w-5 text-[#8be9fd]" />
+          <div className="h-10 w-10 rounded-lg bg-accent-dim border border-accent/15 flex items-center justify-center group-hover:border-accent/30 transition-colors">
+            <Wrench className="h-5 w-5 text-accent" />
           </div>
           <div>
             <div className="text-[10px] text-text-muted uppercase font-semibold tracking-[0.12]">Skills</div>
@@ -276,11 +276,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className="glass rounded-lg p-5 flex flex-col">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
             <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.12] flex items-center gap-2">
-              <Bot className="h-3.5 w-3.5 text-[#60a5fa]" /> Agents ({tempConfig.agents.length})
+              <Bot className="h-3.5 w-3.5 text-info" /> Agents ({tempConfig.agents.length})
             </h4>
             <button
               onClick={() => { setExplorerFilter('agents'); setActiveTab('explorer'); }}
-              className="text-[10px] text-[#60a5fa] hover:text-[#93bbfd] font-medium transition-colors cursor-pointer"
+              className="text-[10px] text-info hover:opacity-80 font-medium transition-colors cursor-pointer"
             >
               View All →
             </button>
@@ -290,10 +290,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div
                 key={agentName}
                 onClick={() => { setSelectedExplorer({ type: 'agent', name: agentName }); setActiveTab('explorer'); }}
-                className="flex items-center justify-between p-2.5 bg-white/[0.04] border border-white/[0.08] hover:border-[#60a5fa]/20 rounded-lg cursor-pointer transition-all duration-200"
+                className="flex items-center justify-between p-2.5 bg-white/[0.04] border border-white/[0.08] hover:border-info/30 rounded-lg cursor-pointer transition-all duration-200"
               >
-                <span className="text-[12px] font-mono text-text-secondary">{agentName}</span>
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#60a5fa]/10 text-[#60a5fa] border border-[#60a5fa]/15 font-medium">Agent</span>
+                <span className="text-sm font-mono text-text-primary font-medium">{agentName}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-info-dim text-info border border-info/15 font-medium">Agent</span>
               </div>
             ))}
             {tempConfig.agents.length === 0 && (
@@ -306,11 +306,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className="glass rounded-lg p-5 flex flex-col">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
             <h4 className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.12] flex items-center gap-2">
-              <Wrench className="h-3.5 w-3.5 text-[#8be9fd]" /> Skills ({tempConfig.skills.length})
+              <Wrench className="h-3.5 w-3.5 text-accent" /> Skills ({tempConfig.skills.length})
             </h4>
             <button
               onClick={() => { setExplorerFilter('skills'); setActiveTab('explorer'); }}
-              className="text-[10px] text-[#8be9fd] hover:text-[#a4f1fe] font-medium transition-colors cursor-pointer"
+              className="text-[10px] text-accent hover:opacity-80 font-medium transition-colors cursor-pointer"
             >
               View All →
             </button>
@@ -320,10 +320,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div
                 key={skillName}
                 onClick={() => { setSelectedExplorer({ type: 'skill', name: skillName }); setActiveTab('explorer'); }}
-                className="flex items-center justify-between p-2.5 bg-white/[0.04] border border-white/[0.08] hover:border-[#8be9fd]/20 rounded-lg cursor-pointer transition-all duration-200"
+                className="flex items-center justify-between p-2.5 bg-white/[0.04] border border-white/[0.08] hover:border-accent/30 rounded-lg cursor-pointer transition-all duration-200"
               >
-                <span className="text-[12px] font-mono text-text-secondary">{skillName}</span>
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#8be9fd]/10 text-[#8be9fd] border border-[#8be9fd]/15 font-medium">Skill</span>
+                <span className="text-sm font-mono text-text-primary font-medium">{skillName}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-dim text-accent border border-accent/15 font-medium">Skill</span>
               </div>
             ))}
             {tempConfig.skills.length === 0 && (

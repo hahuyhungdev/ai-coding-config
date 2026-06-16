@@ -25,7 +25,7 @@ const CodexTab: React.FC<CodexTabProps> = ({ tempConfig, initialConfig, setTempC
   const isInstructionsModified = initialConfig.codex_instructions !== tempConfig.codex_instructions;
   const inputBase = "w-full bg-white/[0.03] border border-white/[0.10] text-text-primary text-sm rounded-lg px-3 py-2 outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/10 transition-all duration-300";
   const labelBase = "text-sm font-medium text-text-secondary";
-  const accentColor = "text-[#50fa7b]";
+  const accentColor = "text-success";
 
   return (
     <div className="flex flex-col gap-5 w-full">

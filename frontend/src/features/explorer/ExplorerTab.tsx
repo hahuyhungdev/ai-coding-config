@@ -42,7 +42,7 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
     ...(explorerFilter === 'all' || explorerFilter === 'skills' ? tempConfig.skills.map(s => ({ type: 'skill' as const, name: s })) : [])
   ].filter(item => item.name.toLowerCase().includes(explorerSearch.toLowerCase()));
 
-  const accentForType = (type: 'agent' | 'skill') => type === 'agent' ? '#60a5fa' : '#8be9fd';
+  const accentForType = (type: 'agent' | 'skill') => type === 'agent' ? '#0052a3' : '#ff4500';
 
   return (
     <div className="flex h-[calc(100vh-180px)] glass rounded-xl overflow-hidden">
@@ -100,12 +100,12 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {selectedExplorer?.type === 'agent' ? (
-                    <div className="h-10 w-10 rounded-lg bg-[#60a5fa]/10 border border-[#60a5fa]/15 flex items-center justify-center">
-                      <Bot className="h-5 w-5 text-[#60a5fa]" />
+                    <div className="h-10 w-10 rounded-lg bg-info-dim border border-info/15 flex items-center justify-center">
+                      <Bot className="h-5 w-5 text-info" />
                     </div>
                   ) : (
-                    <div className="h-10 w-10 rounded-lg bg-[#8be9fd]/10 border border-[#8be9fd]/15 flex items-center justify-center">
-                      <Wrench className="h-5 w-5 text-[#8be9fd]" />
+                    <div className="h-10 w-10 rounded-lg bg-accent-dim border border-accent/15 flex items-center justify-center">
+                      <Wrench className="h-5 w-5 text-accent" />
                     </div>
                   )}
                   <div>
@@ -117,8 +117,8 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 </div>
                 <span className={`text-[9px] font-mono font-semibold px-3 py-1 rounded-full uppercase border ${
                   selectedExplorer?.type === 'agent'
-                    ? 'bg-[#60a5fa]/10 text-[#60a5fa] border-[#60a5fa]/15'
-                    : 'bg-[#8be9fd]/10 text-[#8be9fd] border-[#8be9fd]/15'
+                    ? 'bg-info-dim text-info border-info/15'
+                    : 'bg-accent-dim text-accent border-accent/15'
                 }`}>{selectedExplorer?.type}</span>
               </div>
 

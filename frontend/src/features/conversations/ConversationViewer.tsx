@@ -29,7 +29,7 @@ export function ConversationViewer() {
             </div>
             <div>
               <span className="font-display font-semibold text-sm text-text-primary block">Conversations</span>
-              <span className="text-[13px] text-white font-medium">{filteredConversations.length} items · {formatBytes(filteredConversations.reduce((s, c) => s + c.size_bytes, 0))}</span>
+              <span className="text-[13px] text-text-muted">{filteredConversations.length} items · {formatBytes(filteredConversations.reduce((s, c) => s + c.size_bytes, 0))}</span>
             </div>
           </div>
         </div>
@@ -48,7 +48,7 @@ export function ConversationViewer() {
             className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-200 group border ${
               activeConvId === null
                 ? 'bg-accent/[0.08] border-accent/20 shadow-[0_0_12px_rgba(201,165,92,0.06)] text-accent font-semibold'
-                : 'border-transparent text-text-secondary hover:bg-white/[0.04] hover:text-white'
+                : 'border-transparent text-text-secondary hover:bg-white/[0.04] hover:text-text-primary'
             }`}
           >
             <BarChart2 size={14} className={activeConvId === null ? 'text-accent' : 'text-text-muted group-hover:text-text-secondary'} />
@@ -74,14 +74,14 @@ export function ConversationViewer() {
                 }`}>
                   {conv.source || 'gemini'}
                 </span>
-                <span className="text-[13px] text-white font-medium truncate" title={conv.project}>
+                <span className="text-[13px] text-text-secondary font-medium truncate" title={conv.project}>
                   {conv.project || 'Global'}
                 </span>
               </div>
               <div className="text-[14px] font-semibold text-text-primary leading-snug line-clamp-2 mb-2 group-hover:text-accent transition-colors">
                 {conv.title}
               </div>
-              <div className="flex items-center gap-3 text-[13px] text-white">
+              <div className="flex items-center gap-3 text-[13px] text-text-muted">
                 <span className="flex items-center gap-1.5"><Clock size={11} className="text-accent" />{formatDate(conv.last_updated)}</span>
                 <span className="flex items-center gap-1.5"><HardDrive size={11} className="text-accent" />{formatBytes(conv.size_bytes)}</span>
               </div>

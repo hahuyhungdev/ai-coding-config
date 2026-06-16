@@ -34,7 +34,7 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
       <div className="flex flex-col gap-5">
         {/* Card 1: LLM & Environment */}
         <div className="glass rounded-xl p-6 flex flex-col gap-5 animate-fade-up stagger-1">
-          <div className="text-[13px] font-semibold text-[#60a5fa] border-b border-white/[0.08] pb-3 flex items-center gap-2">
+          <div className="text-[13px] font-semibold text-info border-b border-white/[0.08] pb-3 flex items-center gap-2">
             <Sliders className="h-4 w-4" /> LLM & Environment Configuration
           </div>
 
@@ -123,7 +123,7 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
 
         {/* Card 2: Security & Permissions */}
         <div className="glass rounded-xl p-6 flex flex-col gap-5 animate-fade-up stagger-2">
-          <div className="text-[13px] font-semibold text-[#60a5fa] border-b border-white/[0.08] pb-3 flex items-center gap-2">
+          <div className="text-[13px] font-semibold text-info border-b border-white/[0.08] pb-3 flex items-center gap-2">
             <ShieldCheck className="h-4 w-4" /> Security & Permission Policies
           </div>
 
@@ -167,7 +167,7 @@ export const ClaudeTab: React.FC<ClaudeTabProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-md p-6 animate-fade-in">
           <div className="glass-gold rounded-xl w-full max-w-[900px] h-[80vh] flex flex-col overflow-hidden shadow-2xl shadow-black/40">
             <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.04]">
-              <div className="text-[13px] font-semibold text-[#60a5fa] flex items-center gap-2">
+              <div className="text-[13px] font-semibold text-info flex items-center gap-2">
                 <FileText className="h-4 w-4" /> CLAUDE.md Instructions
               </div>
               <button

@@ -123,7 +123,7 @@ function renderStepContent(step: ConversationStep) {
   if (isPlainText) {
     return (
       <div className="mt-2.5">
-        <div className="text-[11px] text-white/80 uppercase tracking-wider mb-1.5 font-semibold">Output</div>
+        <div className="text-[11px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">Output</div>
         <div className="bg-black/40 rounded-xl border border-white/[0.08] p-4 overflow-x-auto max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin">
           <pre className="text-[13px] font-mono text-white leading-relaxed whitespace-pre select-text">
             {content}
@@ -136,9 +136,9 @@ function renderStepContent(step: ConversationStep) {
   // Otherwise, render as markdown
   return (
     <div className="mt-2.5">
-      <div className="text-[11px] text-white/80 uppercase tracking-wider mb-1.5 font-semibold">Result</div>
+      <div className="text-[11px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">Result</div>
       <div 
-        className="cv-ws-md text-[14px] leading-relaxed text-white font-mono bg-bg/50 rounded-xl p-4 border border-white/[0.10] max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin" 
+        className="cv-ws-md text-[14px] leading-relaxed text-text-primary font-mono bg-white/[0.04] rounded-xl p-4 border border-white/[0.10] max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin" 
         dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} 
       />
     </div>
@@ -167,7 +167,7 @@ function ToolCard({ step, inputRate }: { step: ConversationStep; inputRate: numb
             </span>
           </div>
           {reason && (
-            <div className="text-[14px] text-white mt-1 leading-normal whitespace-pre-wrap break-words italic" title={step.reason}>
+            <div className="text-[14px] text-text-secondary mt-1 leading-normal whitespace-pre-wrap break-words italic" title={step.reason}>
               {reason}
             </div>
           )}
@@ -187,15 +187,15 @@ function ToolCard({ step, inputRate }: { step: ConversationStep; inputRate: numb
       {expanded && (
         <div className="px-4 pb-4 pt-0 animate-fade-in space-y-3">
           {step.reason && (
-            <div className="text-[14px] text-white font-mono bg-black/20 rounded-lg p-3 border border-accent/10">
+            <div className="text-[14px] text-text-primary font-mono bg-white/[0.04] rounded-lg p-3 border border-border-subtle">
               <div className="text-[12px] text-accent font-semibold uppercase tracking-wider mb-1.5">Reason</div>
               <div className="whitespace-pre-wrap break-words leading-relaxed">{step.reason}</div>
             </div>
           )}
           {step.resolved_args && Object.keys(step.resolved_args).length > 0 && (
-            <div className="text-[13px] text-white/90 font-mono bg-white/[0.03] rounded-lg p-3 border border-white/[0.06]">
-              <div className="text-[12px] text-white/80 uppercase tracking-wider mb-1.5 font-semibold">Arguments</div>
-              <pre className="whitespace-pre-wrap break-all text-white select-text scrollbar-thin max-h-[150px] overflow-y-auto">{JSON.stringify(step.resolved_args, null, 2)}</pre>
+            <div className="text-[13px] text-text-secondary font-mono bg-white/[0.03] rounded-lg p-3 border border-white/[0.06]">
+              <div className="text-[12px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">Arguments</div>
+              <pre className="whitespace-pre-wrap break-all text-text-primary select-text scrollbar-thin max-h-[150px] overflow-y-auto">{JSON.stringify(step.resolved_args, null, 2)}</pre>
             </div>
           )}
           {renderStepContent(step)}
@@ -296,7 +296,7 @@ export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn, o
         </div>
 
         {turnReason && (
-          <div className="text-[14px] text-white mb-3 leading-relaxed bg-black/20 rounded-lg p-3 border border-accent/10 max-h-[120px] overflow-y-auto scrollbar-thin">
+          <div className="text-[14px] text-text-primary mb-3 leading-relaxed bg-white/[0.04] rounded-lg p-3 border border-border-subtle max-h-[120px] overflow-y-auto scrollbar-thin">
             <div className="text-[12px] text-accent font-semibold uppercase tracking-wider mb-1">AI Reasoning</div>
             <div className="cv-ws-md whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: renderMarkdown(turnReason) }} />
           </div>
@@ -318,18 +318,18 @@ export function WorkspaceView({ turn, stats, turns, activeTurn, setActiveTurn, o
       </div>
 
       <style>{`
-        .cv-ws-md { font-size: 14px; color: #ffffff; }
-        .cv-ws-md p { margin: 0 0 6px; font-size: 14px; color: #ffffff; }
-        .cv-ws-md pre { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 14px; overflow-x: auto; margin: 6px 0; font-size: 13px; line-height: 1.5; }
-        .cv-ws-md code { background: rgba(255,255,255,0.04); padding: 1px 4px; border-radius: 3px; font-size: 13px; color: var(--color-accent); }
-        .cv-ws-md pre code { background: none; padding: 0; color: #ffffff; font-size: 13px; }
+        .cv-ws-md { font-size: 14px; color: var(--color-text-primary); }
+        .cv-ws-md p { margin: 0 0 6px; font-size: 14px; color: var(--color-text-secondary); }
+        .cv-ws-md pre { background: rgba(18, 20, 28, 0.04); border: 1px solid var(--color-border-subtle); border-radius: 6px; padding: 10px 14px; overflow-x: auto; margin: 6px 0; font-size: 13px; line-height: 1.5; }
+        .cv-ws-md code { background: rgba(18, 20, 28, 0.04); padding: 1px 4px; border-radius: 3px; font-size: 13px; color: var(--color-accent); }
+        .cv-ws-md pre code { background: none; padding: 0; color: var(--color-text-primary); font-size: 13px; }
         .cv-ws-md ul, .cv-ws-md ol { padding-left: 16px; margin: 4px 0; }
         .cv-ws-md li { margin: 2px 0; }
         
         .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(18, 20, 28, 0.15); border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(18, 20, 28, 0.3); }
       `}</style>
     </div>
   );
