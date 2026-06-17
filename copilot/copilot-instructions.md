@@ -9,7 +9,7 @@
 ## 2. Token & Context Management
 - **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors).
 - **On-Demand Skills (Balanced)**: To preserve context and avoid token bloat, load and read specific skills under `~/.claude/skills/<skill-name>/SKILL.md` (or `~/.codex/skills/`) when the current task directly aligns with the skill's domain and description (e.g., loading `frontend-design` when working on UI/components). Avoid pre-loading unrelated skills at startup.
-- **Strategic Compaction**: Proactively call the `strategic-compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
+- **Strategic Compaction**: Proactively call the `compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 3. MCP & Tools Integration
 - **Database Verification**: Use local `postgres` and `sqlite` MCP servers to inspect schemas and validate ORM queries directly.

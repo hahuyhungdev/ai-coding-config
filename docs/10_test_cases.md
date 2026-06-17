@@ -144,4 +144,4 @@ This document contains 10 structured test cases to verify the performance, const
   > "We just finished updating the CSS classes and tokens. What should we do with our context window before moving to visual tests?"
 * **Requirements & Expected Behavior:**
   * The agent must not call compaction on simple tasks, but recognize that this multi-phase task is long-running.
-  * After completing the first major phase, the agent should propose running `/strategic-compact` (or calling the compaction skill) to summarize progress and clean up the context window before starting the next phase.
+  * After completing the first major phase, the agent should propose running `/compact` (or calling the compaction skill) to summarize progress and clean up the context window before starting the next phase.

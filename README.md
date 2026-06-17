@@ -14,7 +14,7 @@ git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/projects/ai-coding-
 cd ~/projects/ai-coding-config
 ./install.py
 ```
-*Tip: This automatically installs the global `ai-config` CLI wrapper in `~/.local/bin/` (make sure this is in your `PATH`). You can re-run `ai-config` at any time to refresh configurations.*
+*Tip: This automatically installs the global `ai-config` CLI wrapper in `~/.local/bin/` (make sure this is in your `PATH`). You can re-run `ai-config` at any time to refresh configurations. Add the `--force` flag to run completely non-interactively and auto-overwrite any file conflicts (e.g. `./install.py --force`).*
 
 ### 🚀 Standalone Antigravity CLI (agy) Setup
 If you only want to install the `agy` quota status checker wrapper and manage Gemini accounts without setting up the entire config engine:
@@ -60,6 +60,7 @@ Instead of dumping full files and burning thousands of tokens, redirect broad qu
     ```bash
     graphify update .
     ```
+    *Tip: Add the `--force` flag to force a complete, clean rebuild of the graph database from scratch (e.g., `graphify update . --force`).*
 *   **Query Codebase Architecture/Context**:
     *   *Architecture Overview:* `rtk graphify query "How does the auth module work?"`
     *   *Code Relationships:* `rtk graphify path "src/main.py" "src/auth.py"`
@@ -96,7 +97,7 @@ The engine registers and configures key MCP servers system-wide:
 The repository contains several scripts and directories with similar names (e.g., related to `install` or `graphify`). Here is a quick reference to clarify their specific roles:
 
 ### ⚙️ Installation & Setup Scripts
-*   **[`install.py`](./install.py)**: The main installer entry point. It sets up the entire configuration engine system-wide (Claude Code, Codex CLI, Antigravity CLI, Copilot) and configures MCP servers and token-saving hooks.
+*   **[`install.py`](./install.py)**: The main installer entry point. It sets up the entire configuration engine system-wide (Claude Code, Codex CLI, Antigravity CLI, Copilot) and configures MCP servers and token-saving hooks. You can run it with the `--force` flag to auto-overwrite target file conflicts and skip interactive prompts.
 *   **[`install.bat`](./install.bat)**: A simple Windows batch file wrapper that runs `install.py`.
 *   **[`install-agy.py`](./install-agy.py)**: A standalone, lightweight installer. Use this if you *only* want to install the Antigravity CLI status checker (`agy`) and manage Gemini accounts without installing the full config suite.
 *   **[`installer/`](./installer)**: A Python package containing helper modules used by `install.py`:
@@ -122,7 +123,7 @@ Reusable instruction modules loaded on-demand by AI assistants. Located in [`ski
 | :--- | :--- |
 | [`context-budget`](./skills/context-budget) | Audit token overhead across skills/agents/MCPs. Use before adding new components. *(adapted from ECC)* |
 | [`council`](./skills/council) | Four-voice structured deliberation (Architect/Skeptic/Pragmatist/Critic) for ambiguous decisions. *(adapted from ECC)* |
-| [`strategic-compact`](./skills/strategic-compact) | Mid-session compaction at logical milestones to prevent token bloat. |
+| [`compact`](./skills/compact) | Context compaction procedure and strategic guidelines for logical session rollover. |
 | [`eval-harness`](./skills/eval-harness) | Formal eval-driven development (EDD) framework with pass@k metrics. |
 | [`verification-loop`](./skills/verification-loop) | Post-implementation verification checks. |
 | [`tdd-workflow`](./skills/tdd-workflow) | Test-driven development: RED → GREEN → REFACTOR. |

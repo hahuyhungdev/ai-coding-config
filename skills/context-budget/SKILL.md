@@ -81,4 +81,4 @@ Headroom gained:            ~Z tokens
 
 - This repo uses `rtk` prefix for commands — factor RTK overhead (~minimal) into estimates
 - MCP toggle managed via `python3 scripts/mcp-toggle.py` — always check status before recommending MCP removal
-- `strategic-compact` skill already handles manual compaction — this skill focuses on structural audit, not mid-session compaction
+- `compact` skill already handles manual compaction — this skill focuses on structural audit, not mid-session compaction

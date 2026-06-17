@@ -48,7 +48,7 @@ REQUIRED_SKILLS = {
     "product-lens",
     "security-best-practices",
     "security-review",
-    "strategic-compact",
+    "compact",
     "tdd-workflow",
     "verification-loop",
 }
@@ -273,19 +273,19 @@ class TestNewSkillsQuality(unittest.TestCase):
 class TestNoOverlapBetweenNewAndExisting(unittest.TestCase):
     """Smoke-check that new skills don't duplicate existing skill trigger words."""
 
-    def test_context_budget_not_same_as_strategic_compact(self):
-        """context-budget (structural audit) vs strategic-compact (mid-session compaction) — different scope."""
+    def test_context_budget_not_same_as_compact(self):
+        """context-budget (structural audit) vs compact (mid-session compaction) — different scope."""
         cb = read_skill("context-budget")
-        sc = read_skill("strategic-compact")
-        # context-budget should mention "structural audit" or "inventory", not just compaction
+        c = read_skill("compact")
+        # context-budget should focus on structural audit/inventory, not just compaction
         self.assertTrue(
             "Inventory" in cb or "inventory" in cb or "audit" in cb.lower(),
             "context-budget should focus on structural audit/inventory, not just compaction"
         )
-        # strategic-compact should not mention MCP toggle (that's context-budget's job)
+        # compact should not mention MCP toggle (that's context-budget's job)
         self.assertNotIn(
-            "mcp-toggle.py", sc,
-            "strategic-compact should not overlap with context-budget's MCP audit scope"
+            "mcp-toggle.py", c,
+            "compact should not overlap with context-budget's MCP audit scope"
         )
 
     def test_council_not_same_as_eval_harness(self):

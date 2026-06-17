@@ -196,7 +196,7 @@ pnpm build
 
 **Command:**
 ```
-/strategic-compact
+/compact
 ```
 
 **Why:** Keeps context manageable.
