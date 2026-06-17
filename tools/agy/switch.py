@@ -192,6 +192,11 @@ def auto_switch_account(quiet=False):
         selected_acc = accounts[0]
         with open(TOKEN_FILE, "w") as f:
             json.dump(selected_acc, f)
+        if os.name == 'posix':
+            try:
+                os.chmod(TOKEN_FILE, 0o600)
+            except OSError:
+                pass
         email = selected_acc.get("email") or selected_acc.get("name") or "Account 1"
         if not quiet:
             print(f"🔄 Initialized active account to: {email}")
@@ -229,6 +234,11 @@ def auto_switch_account(quiet=False):
             selected_acc = accounts[found_idx]
             with open(TOKEN_FILE, "w") as f:
                 json.dump(selected_acc, f)
+            if os.name == 'posix':
+                try:
+                    os.chmod(TOKEN_FILE, 0o600)
+                except OSError:
+                    pass
 
             INDEX_FILE = os.path.join(AGY_DIR, ".current_index")
             with open(INDEX_FILE, "w") as f:
@@ -322,6 +332,11 @@ def post_check_and_switch():
         accounts[active_idx]["last_checked"] = datetime.now().isoformat()
         with open(JSON_FILE, "w") as f:
             json.dump(accounts, f, indent=2)
+        if os.name == 'posix':
+            try:
+                os.chmod(JSON_FILE, 0o600)
+            except OSError:
+                pass
 
     if active_idx is None:
         active_idx = 0
@@ -346,6 +361,11 @@ def post_check_and_switch():
         selected_acc = accounts[found_idx]
         with open(TOKEN_FILE, "w") as f:
             json.dump(selected_acc, f)
+        if os.name == 'posix':
+            try:
+                os.chmod(TOKEN_FILE, 0o600)
+            except OSError:
+                pass
 
         INDEX_FILE = os.path.join(AGY_DIR, ".current_index")
         with open(INDEX_FILE, "w") as f:
@@ -411,6 +431,11 @@ def rotate_account():
     selected_acc = accounts[next_idx]
     with open(TOKEN_FILE, "w") as f:
         json.dump(selected_acc, f)
+    if os.name == 'posix':
+        try:
+            os.chmod(TOKEN_FILE, 0o600)
+        except OSError:
+            pass
 
     INDEX_FILE = os.path.join(AGY_DIR, ".current_index")
     with open(INDEX_FILE, "w") as f:

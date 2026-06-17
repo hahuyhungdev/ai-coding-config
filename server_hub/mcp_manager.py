@@ -1,3 +1,4 @@
+import os
 import json
 import re
 from pathlib import Path
@@ -62,6 +63,11 @@ def save_mcp_configs(updated_configs: dict, disabled_list: list[str]) -> None:
         with open(claude_json_path, "w") as f:
             json.dump(data, f, indent=2)
             f.write("\n")
+        if os.name == 'posix':
+            try:
+                os.chmod(claude_json_path, 0o600)
+            except OSError:
+                pass
     except Exception as e:
         print(f"Error saving Claude MCP configs: {e}")
 
@@ -84,6 +90,11 @@ def save_mcp_configs(updated_configs: dict, disabled_list: list[str]) -> None:
         with open(gemini_json_path, "w") as f:
             json.dump(data, f, indent=2)
             f.write("\n")
+        if os.name == 'posix':
+            try:
+                os.chmod(gemini_json_path, 0o600)
+            except OSError:
+                pass
     except Exception as e:
         print(f"Error saving Gemini MCP configs: {e}")
 
@@ -126,5 +137,10 @@ def save_mcp_configs(updated_configs: dict, disabled_list: list[str]) -> None:
                     content += "\n"
             
             codex_toml_path.write_text(content, encoding="utf-8")
+            if os.name == 'posix':
+                try:
+                    os.chmod(codex_toml_path, 0o600)
+                except OSError:
+                    pass
     except Exception as e:
         print(f"Error saving Codex MCP configs: {e}")
