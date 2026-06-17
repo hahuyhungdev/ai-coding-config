@@ -4,7 +4,7 @@ import { Toggle } from './Toggle';
 import {
   Sliders, Search, CheckCircle2, XCircle, GitBranch,
   Save, Trash2, MessageSquareCode, Terminal as TerminalIcon,
-  Sparkles, Cpu
+  Sparkles, Cpu, X
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -20,6 +20,7 @@ interface SidebarProps {
   pendingChanges: Array<{ key: string; text: string; type: 'add' | 'del' | 'mod' }>;
   setShowApplyModal: (show: boolean) => void;
   setShowDiscardModal: (show: boolean) => void;
+  onClose?: () => void;
 }
 
 const CLI_CONFIGS: Record<string, { name: string; icon: string }> = {
@@ -40,13 +41,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   hasPendingChanges,
   pendingChanges,
   setShowApplyModal,
-  setShowDiscardModal
+  setShowDiscardModal,
+  onClose
 }) => {
   return (
     <aside className="w-[320px] bg-surface/60 backdrop-blur-xl border-r border-white/[0.08] flex flex-col h-full shrink-0 animate-slide-left">
       {/* Brand */}
-      <div className="p-6 border-b border-white/[0.08]">
-        <div className="flex items-center gap-3 mb-1.5">
+      <div className="p-6 border-b border-white/[0.08] flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
             <Sliders className="h-4 w-4 text-accent" />
           </div>
@@ -59,6 +61,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </p>
           </div>
         </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg hover:bg-white/[0.06] text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+            title="Close Sidebar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-6">

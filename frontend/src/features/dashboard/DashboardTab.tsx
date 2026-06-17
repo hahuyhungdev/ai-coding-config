@@ -131,7 +131,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
       {/* Graphify Health Status Alert */}
       {tempConfig.graphify_health && (
-        <div className={`rounded-lg p-4 border animate-fade-up flex items-start justify-between gap-4 ${
+        <div className={`rounded-lg p-4 border animate-fade-up flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
           !tempConfig.graphify_health.graph_exists
             ? 'bg-error/10 border-error/20 text-error'
             : tempConfig.graphify_health.is_stale
@@ -139,7 +139,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               : 'bg-success/5 border-success/15 text-success'
         }`}>
           <div className="flex items-start gap-3">
-            <div className="mt-0.5">
+            <div className="mt-0.5 shrink-0">
               {!tempConfig.graphify_health.graph_exists ? (
                 <AlertTriangle size={18} className="text-error animate-pulse" />
               ) : tempConfig.graphify_health.is_stale ? (
@@ -177,7 +177,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <button
               disabled={rebuilding}
               onClick={handleRebuildGraph}
-              className={`px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border shrink-0 ${
+              className={`px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 border shrink-0 w-full sm:w-auto ${
                 rebuilding
                   ? 'bg-text-muted/10 border-text-muted/20 text-text-muted cursor-not-allowed'
                   : tempConfig.graphify_health.is_stale
@@ -225,7 +225,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       </div>
 
       {/* Stats overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 animate-fade-up stagger-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-up stagger-2">
         <div
           onClick={() => { setExplorerFilter('agents'); setActiveTab('explorer'); }}
           className="glass rounded-lg p-4 flex items-center gap-4 cursor-pointer hover-lift group"
@@ -346,7 +346,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <Trash className="h-3 w-3" /> Clear
           </button>
         </div>
-        <div ref={logContainerRef} className="flex-1 bg-bg p-5 font-mono text-[12px] leading-relaxed text-text-secondary overflow-y-auto max-h-[400px]">
+        <div ref={logContainerRef} className="flex-1 bg-slate-50 border border-slate-200/60 p-5 font-mono text-[12px] leading-relaxed text-text-primary overflow-y-auto max-h-[400px] shadow-inner">
           {logs.length > 0 ? (
             logs.map((log, index) => (
               <div key={index} className="mb-0.5">

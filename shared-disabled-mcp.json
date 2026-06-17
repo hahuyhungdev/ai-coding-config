@@ -2,7 +2,6 @@
   "disabledMcpServers": [
     "aws",
     "docker",
-    "playwright",
     "postgres",
     "sqlite"
   ]

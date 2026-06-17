@@ -124,8 +124,8 @@ function renderStepContent(step: ConversationStep) {
     return (
       <div className="mt-2.5">
         <div className="text-[11px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">Output</div>
-        <div className="bg-black/40 rounded-xl border border-white/[0.08] p-4 overflow-x-auto max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin">
-          <pre className="text-[13px] font-mono text-white leading-relaxed whitespace-pre select-text">
+        <div className="bg-slate-50 rounded-xl border border-slate-200/60 p-4 overflow-x-auto max-h-[350px] overflow-y-auto shadow-inner scrollbar-thin">
+          <pre className="text-[13px] font-mono text-text-primary leading-relaxed whitespace-pre select-text">
             {content}
           </pre>
         </div>

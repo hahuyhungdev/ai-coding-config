@@ -59,6 +59,9 @@ security_audit_report.md
 
 # Playwright E2E screenshots
 *-check.png
+/dashboard_*.png
+/page-*.png
+/*.png
 
 
 

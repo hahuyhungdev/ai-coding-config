@@ -93,7 +93,8 @@ def sync_gemini(disabled_list):
         "playwright": {
             "command": "npx",
             "args": ["-y", "@playwright/mcp@latest", "--browser", "msedge",
-                     "--headless", "--ignore-https-errors", "--isolated"]
+                     "--headless", "--ignore-https-errors", "--isolated",
+                     "--output-dir", ".playwright-mcp"]
         },
         "context7": {
             "type": "sse",

@@ -88,7 +88,7 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
         .cv-markdown p { margin: 0 0 10px; }
         .cv-markdown p:last-child { margin: 0; }
         .cv-markdown code {
-          background: rgba(255,255,255,0.04);
+          background: rgba(15, 23, 42, 0.04);
           padding: 2px 6px;
           border-radius: 4px;
           font-family: 'JetBrains Mono', monospace;
@@ -96,8 +96,8 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
           color: var(--color-accent);
         }
         .cv-markdown pre {
-          background: rgba(0,0,0,0.3);
-          border: 1px solid rgba(255,255,255,0.04);
+          background: rgba(15, 23, 42, 0.03);
+          border: 1px solid rgba(15, 23, 42, 0.08);
           border-radius: 8px;
           padding: 14px 18px;
           overflow-x: auto;
@@ -108,7 +108,7 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
           padding: 0;
           font-size: 13px;
           line-height: 1.6;
-          color: var(--color-text-secondary);
+          color: var(--color-text-primary);
         }
         .cv-markdown ul, .cv-markdown ol { padding-left: 20px; margin: 6px 0; }
         .cv-markdown li { margin: 3px 0; }
@@ -132,12 +132,12 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
         .cv-markdown a:hover { text-decoration: underline; }
         .cv-markdown table { border-collapse: collapse; width: 100%; margin: 10px 0; }
         .cv-markdown th, .cv-markdown td {
-          border: 1px solid rgba(255,255,255,0.06);
+          border: 1px solid rgba(15, 23, 42, 0.08);
           padding: 8px 12px;
           text-align: left;
           font-size: 13px;
         }
-        .cv-markdown th { background: rgba(255,255,255,0.03); font-weight: 600; }
+        .cv-markdown th { background: rgba(15, 23, 42, 0.03); font-weight: 600; }
       `}</style>
     </div>
   );

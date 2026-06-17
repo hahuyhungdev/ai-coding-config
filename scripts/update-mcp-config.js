@@ -30,7 +30,7 @@ try {
     const defaultServers = {
         playwright: {
             command: "npx",
-            args: ["-y", "@playwright/mcp@latest", "--browser", "msedge", "--headless", "--ignore-https-errors", "--isolated"]
+            args: ["-y", "@playwright/mcp@latest", "--browser", "msedge", "--headless", "--ignore-https-errors", "--isolated", "--output-dir", ".playwright-mcp"]
         },
         context7: {
             type: "sse",
@@ -98,6 +98,14 @@ try {
                 const bIdx = args.indexOf("--browser");
                 if (bIdx !== -1 && bIdx + 1 < args.length && args[bIdx + 1] !== "msedge") {
                     args[bIdx + 1] = "msedge";
+                    pUpdated = true;
+                }
+                const oIdx = args.indexOf("--output-dir");
+                if (oIdx === -1) {
+                    args.push("--output-dir", ".playwright-mcp");
+                    pUpdated = true;
+                } else if (oIdx + 1 < args.length && args[oIdx + 1] !== ".playwright-mcp") {
+                    args[oIdx + 1] = ".playwright-mcp";
                     pUpdated = true;
                 }
                 if (pUpdated) {
