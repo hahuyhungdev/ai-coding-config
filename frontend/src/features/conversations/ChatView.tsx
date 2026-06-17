@@ -34,11 +34,11 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
     <div ref={scrollRef} className="h-full overflow-y-auto p-6 flex flex-col gap-6">
       {/* User Message */}
       {turn.user && (
-        <div className="flex gap-3.5 max-w-[85%] animate-fade-in">
+        <div className="flex gap-3.5 max-w-[85%] animate-fade-in min-w-0">
           <div className="w-9 h-9 rounded-xl bg-accent/15 border border-accent/20 flex items-center justify-center flex-shrink-0">
             <User size={15} className="text-accent" />
           </div>
-          <div className="bg-accent/[0.05] border border-accent/12 rounded-2xl rounded-tl-md px-5 py-4 text-sm leading-relaxed text-text-primary">
+          <div className="bg-accent/[0.05] border border-accent/12 rounded-2xl rounded-tl-md px-5 py-4 text-sm leading-relaxed text-text-primary min-w-0">
             <div className="text-xs font-bold text-accent mb-2.5 uppercase tracking-wider">You</div>
             <div className="cv-markdown" dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.user.content) }} />
             <div className="mt-3 text-[13px] text-text-secondary font-mono">~{turn.user.est_tokens.toLocaleString()} tokens</div>
@@ -48,8 +48,8 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
 
       {/* AI Response */}
       {turn.agent && (
-        <div className="flex gap-3.5 max-w-[85%] self-end animate-fade-in">
-          <div className="glass rounded-2xl rounded-tr-md px-5 py-4 text-sm leading-relaxed text-text-primary">
+        <div className="flex gap-3.5 max-w-[85%] self-end animate-fade-in min-w-0">
+          <div className="glass rounded-2xl rounded-tr-md px-5 py-4 text-sm leading-relaxed text-text-primary min-w-0">
             <div className="text-xs font-bold text-success mb-2.5 uppercase tracking-wider">Assistant</div>
             <div className="cv-markdown" dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.agent.content) }} />
             <div className="mt-3 text-[13px] text-text-secondary font-mono">~{turn.agent.est_tokens.toLocaleString()} tokens</div>
@@ -85,6 +85,10 @@ export function ChatView({ turn, onToggleWorkspace, isWorkspaceOpen }: ChatViewP
       )}
 
       <style>{`
+        .cv-markdown {
+          word-break: break-word;
+          overflow-wrap: break-word;
+        }
         .cv-markdown p { margin: 0 0 10px; }
         .cv-markdown p:last-child { margin: 0; }
         .cv-markdown code {

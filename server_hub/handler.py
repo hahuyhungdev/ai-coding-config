@@ -34,6 +34,30 @@ from .mcp_manager import (
     save_mcp_configs,
 )
 
+def resolve_gemini_transcript_path(gemini_id, brain_dir=BRAIN_DIR):
+    log_dir = brain_dir / gemini_id / ".system_generated" / "logs"
+    for filename in ("transcript_full.jsonl", "transcript.jsonl"):
+        log_file = log_dir / filename
+        if log_file.exists():
+            return log_file
+    return None
+
+def describe_gemini_transcript_source(gemini_id, brain_dir=BRAIN_DIR):
+    log_file = resolve_gemini_transcript_path(gemini_id, brain_dir=brain_dir)
+    if log_file is None:
+        return None
+
+    try:
+        relative_path = log_file.relative_to(brain_dir).as_posix()
+    except ValueError:
+        relative_path = log_file.name
+
+    return {
+        "kind": "full" if log_file.name == "transcript_full.jsonl" else "compact",
+        "filename": log_file.name,
+        "relative_path": relative_path,
+    }
+
 class ConfigHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         # Override to suppress standard HTTP logging to keep console clean
@@ -631,13 +655,15 @@ class ConfigHandler(BaseHTTPRequestHandler):
         source = parts[0]
         steps = []
         model_name = "unknown"
+        log_source = None
         
         if source == "gemini":
             gemini_id = parts[1]
-            log_file = BRAIN_DIR / gemini_id / ".system_generated" / "logs" / "transcript.jsonl"
-            if not log_file.exists():
+            log_file = resolve_gemini_transcript_path(gemini_id)
+            if log_file is None:
                 self.send_error_json(404, "Gemini conversation log not found")
                 return
+            log_source = describe_gemini_transcript_source(gemini_id)
             steps = parse_gemini_jsonl(log_file)
             model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
             
@@ -765,6 +791,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
             "stats": stats,
             "steps": steps
         }
+        if log_source is not None:
+            payload["log_source"] = log_source
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()

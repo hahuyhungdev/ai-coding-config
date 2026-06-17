@@ -28,4 +28,10 @@ Post-Discovery Reads (exceptions):
 - You MUST have run at least one Graphify query before reading source files directly.
 - When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
 - After modifying code, run `graphify update .`.
+
+Blocked Tool Recovery:
+- If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.
+- Do not create one-off scratch scripts to inspect facts that a project diagnostic already covers.
+- For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`.
+- When debugging truncation, measure full content length and keyword presence; do not use substring-only previews as evidence.
 <!-- ai-coding-config:graphify-end -->

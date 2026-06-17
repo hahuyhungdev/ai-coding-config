@@ -4,6 +4,8 @@ import urllib.request
 import json
 import threading
 import time
+import tempfile
+import importlib.util
 from pathlib import Path
 from http.server import ThreadingHTTPServer
 
@@ -11,6 +13,12 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
 from server import ConfigHandler, get_all_conversations
+from server_hub.handler import describe_gemini_transcript_source, resolve_gemini_transcript_path
+
+INSPECT_CONVERSATION_SCRIPT = REPO_DIR / "scripts" / "inspect_conversation.py"
+inspect_spec = importlib.util.spec_from_file_location("inspect_conversation", INSPECT_CONVERSATION_SCRIPT)
+inspect_conversation = importlib.util.module_from_spec(inspect_spec)
+inspect_spec.loader.exec_module(inspect_conversation)
 
 class TestConversationsAPI(unittest.TestCase):
     @classmethod
@@ -53,6 +61,67 @@ class TestConversationsAPI(unittest.TestCase):
                 self.fail("Should have returned 404/500 for non-existent conversation")
         except urllib.error.HTTPError as e:
             self.assertIn(e.code, (404, 500))
+
+    def test_gemini_transcript_prefers_full_log_when_available(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            brain_dir = Path(tmp_dir)
+            log_dir = brain_dir / "session-123" / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            (log_dir / "transcript.jsonl").write_text("truncated\n", encoding="utf-8")
+            (log_dir / "transcript_full.jsonl").write_text("full\n", encoding="utf-8")
+
+            resolved = resolve_gemini_transcript_path("session-123", brain_dir=brain_dir)
+
+            self.assertEqual(resolved, log_dir / "transcript_full.jsonl")
+
+    def test_gemini_transcript_falls_back_to_compact_log(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            brain_dir = Path(tmp_dir)
+            log_dir = brain_dir / "session-123" / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            (log_dir / "transcript.jsonl").write_text("compact\n", encoding="utf-8")
+
+            resolved = resolve_gemini_transcript_path("session-123", brain_dir=brain_dir)
+
+            self.assertEqual(resolved, log_dir / "transcript.jsonl")
+
+    def test_gemini_transcript_source_reports_relative_full_log(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            brain_dir = Path(tmp_dir)
+            log_dir = brain_dir / "session-123" / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            (log_dir / "transcript_full.jsonl").write_text("full\n", encoding="utf-8")
+
+            source = describe_gemini_transcript_source("session-123", brain_dir=brain_dir)
+
+            self.assertEqual(source["kind"], "full")
+            self.assertEqual(source["filename"], "transcript_full.jsonl")
+            self.assertEqual(source["relative_path"], "session-123/.system_generated/logs/transcript_full.jsonl")
+            self.assertFalse(source["relative_path"].startswith("/"))
+
+    def test_inspect_conversation_script_reports_step_and_keyword(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            brain_dir = Path(tmp_dir)
+            log_dir = brain_dir / "session-123" / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            (log_dir / "transcript_full.jsonl").write_text(
+                json.dumps({"type": "USER_INPUT", "content": "hello"}) + "\n"
+                + json.dumps({"type": "PLANNER_RESPONSE", "content": "131 tests passed successfully"}) + "\n",
+                encoding="utf-8",
+            )
+
+            result = inspect_conversation.inspect_conversation(
+                "gemini__session-123",
+                brain_dir=brain_dir,
+                step_index=1,
+                keyword="131 tests passed",
+            )
+
+            self.assertEqual(result["log_source"]["kind"], "full")
+            self.assertEqual(result["total_steps"], 2)
+            self.assertEqual(result["step"]["index"], 1)
+            self.assertEqual(result["step"]["type"], "PLANNER_RESPONSE")
+            self.assertTrue(result["keyword"]["found"])
 
     def test_invalid_host_header_blocked(self):
         url = f"http://127.0.0.1:{self.port}/api/conversations"
