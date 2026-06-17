@@ -1,10 +1,7 @@
 """Agent compilation for installer."""
 
-from pathlib import Path
 from .cli import info, run_script
-
-# Directories
-REPO_DIR = Path(__file__).resolve().parent.parent
+from .constants import REPO_DIR
 
 
 def compile_agents(install_claude: bool, install_codex: bool, install_gemini: bool = False) -> None:

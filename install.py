@@ -43,7 +43,7 @@ from installer import (
     show_status,
 )
 
-REPO_DIR = Path(__file__).resolve().parent
+from installer.constants import CLAUDE_DIR, GEMINI_CLI_DIR, REPO_DIR
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -91,7 +91,7 @@ Examples:
         # Load from ~/.gemini/antigravity-cli/settings.json
         if not gemini_key or not gemini_model:
             try:
-                f_agy = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+                f_agy = GEMINI_CLI_DIR / "settings.json"
                 if f_agy.exists():
                     with open(f_agy, "r") as f:
                         data = json.load(f)
@@ -106,7 +106,7 @@ Examples:
         # Load from ~/.claude/settings.json
         if not claude_key or not claude_model:
             try:
-                f_claude = Path.home() / ".claude" / "settings.json"
+                f_claude = CLAUDE_DIR / "settings.json"
                 if f_claude.exists():
                     with open(f_claude, "r") as f:
                         data = json.load(f)

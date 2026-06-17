@@ -8,6 +8,7 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from installer.constants import CLAUDE_DIR, GEMINI_DIR, GEMINI_CLI_DIR, REPO_DIR
 
 
 MANAGED_GRAPHIFY_MARKER = "ai-coding-config:graphify-managed"
@@ -40,7 +41,7 @@ GRAPHIFY_INSTRUCTIONS = f"""## graphify
 
 Rules:
 - For codebase exploration, use **Graphify-only**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to explore.
-- Use at most **10 Graphify calls** total per question. After 10 calls, hard stop and synthesize from available context.
+- Use at most **20 Graphify calls** total per question. After 20 calls, hard stop and synthesize from available context.
 - **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
 - **Synthesize from Graphify context only.** Answer based on what Graphify returns. Do not supplement with direct file reads for exploration.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
@@ -362,12 +363,12 @@ def _safe_copy(src: Path, dst: Path) -> None:
 
 
 def configure_claude_project(project_dir: Path) -> None:
-    global_dir = Path.home() / ".claude"
+    global_dir = CLAUDE_DIR
     global_hooks_dir = global_dir / "hooks"
     global_hooks_dir.mkdir(parents=True, exist_ok=True)
 
     # Ensure global script exists
-    repo_dir = Path(__file__).resolve().parent
+    repo_dir = REPO_DIR
     repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
     _safe_copy(repo_hook, global_hooks_dir / "graphify_pre_tool.py")
 
@@ -384,12 +385,12 @@ def configure_claude_project(project_dir: Path) -> None:
 
 
 def configure_gemini_project(project_dir: Path) -> None:
-    global_dir = Path.home() / ".gemini" / "antigravity-cli"
+    global_dir = GEMINI_CLI_DIR
     global_hooks_dir = global_dir / "hooks"
     global_hooks_dir.mkdir(parents=True, exist_ok=True)
 
     # Ensure global script exists
-    repo_dir = Path(__file__).resolve().parent
+    repo_dir = REPO_DIR
     repo_hook = repo_dir / "claude" / "hooks" / "graphify_pre_tool.py"
     _safe_copy(repo_hook, global_hooks_dir / "graphify_pre_tool.py")
 
@@ -402,7 +403,7 @@ def configure_gemini_project(project_dir: Path) -> None:
     _merge_managed_hooks(project_dir / ".gemini" / "settings.json", "PreToolUse", managed_gemini_hooks(project_level=True))
 
     # Configure global plugin hooks directly referencing the unified pre-tool script
-    plugin_hooks = Path.home() / ".gemini" / "config" / "plugins" / "graphify" / "hooks.json"
+    plugin_hooks = GEMINI_DIR / "plugins" / "graphify" / "hooks.json"
     _merge_managed_hooks(plugin_hooks, "PreToolUse", managed_gemini_hooks(project_level=False))
 
     # Clean up legacy BeforeTool hooks if they exist in settings or plugin hooks

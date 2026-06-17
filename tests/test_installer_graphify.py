@@ -180,10 +180,10 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertIn("Keep this text.", second)
         self.assertEqual(second.count("ai-coding-config:graphify-start"), 1)
         self.assertIn("Graphify-only", second)
-        self.assertIn("10 Graphify calls", second)
+        self.assertIn("20 Graphify calls", second)
         self.assertIn("hard stop", second)
 
-    def test_claude_hook_denies_eleventh_graphify_call_in_same_session(self):
+    def test_claude_hook_denies_twenty_first_graphify_call_in_same_session(self):
         # Get the hook script directly — avoids shell quoting issues on Windows
         # where subprocess.run(shell=True) uses cmd.exe, not bash.
         from installer_graphify import _hook_classifier_script
@@ -198,7 +198,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         )
 
         outputs = []
-        for _ in range(11):
+        for _ in range(21):
             result = subprocess.run(
                 **run_kwargs,
                 input=json.dumps(payload),
@@ -208,13 +208,13 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             )
             outputs.append(result.stdout.strip())
 
-        self.assertEqual(outputs[:10], [""] * 10)
+        self.assertEqual(outputs[:20], [""] * 20)
         self.assertEqual(
-            json.loads(outputs[10])["hookSpecificOutput"]["permissionDecision"],
+            json.loads(outputs[20])["hookSpecificOutput"]["permissionDecision"],
             "deny",
         )
 
-    def test_claude_hook_denies_eleventh_graphify_call_with_conversation_id(self):
+    def test_claude_hook_denies_twenty_first_graphify_call_with_conversation_id(self):
         from installer_graphify import _hook_classifier_script
         script = _hook_classifier_script("Bash", True)
         payload = {
@@ -227,7 +227,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         )
 
         outputs = []
-        for _ in range(11):
+        for _ in range(21):
             result = subprocess.run(
                 **run_kwargs,
                 input=json.dumps(payload),
@@ -237,9 +237,9 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             )
             outputs.append(result.stdout.strip())
 
-        self.assertEqual(outputs[:10], [""] * 10)
+        self.assertEqual(outputs[:20], [""] * 20)
         self.assertEqual(
-            json.loads(outputs[10])["hookSpecificOutput"]["permissionDecision"],
+            json.loads(outputs[20])["hookSpecificOutput"]["permissionDecision"],
             "deny",
         )
 
@@ -574,7 +574,7 @@ class TestGraphifyInstructions(unittest.TestCase):
     def test_balanced_strict_instructions(self):
         instructions = install.GRAPHIFY_INSTRUCTIONS
         self.assertIn("Graphify-only", instructions)
-        self.assertIn("10 Graphify calls", instructions)
+        self.assertIn("20 Graphify calls", instructions)
         self.assertIn("targeted raw reads", instructions)
         self.assertIn("GRAPH_REPORT.md", instructions)
 

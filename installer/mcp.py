@@ -2,11 +2,7 @@
 
 from pathlib import Path
 from .cli import info, ok, warn, run_script, run_node_script
-
-# Directories
-CLAUDE_DIR = Path.home() / ".claude"
-GEMINI_DIR = Path.home() / ".gemini" / "config"
-REPO_DIR = Path(__file__).resolve().parent.parent
+from .constants import CLAUDE_DIR, GEMINI_DIR, REPO_DIR
 
 
 def update_mcp_configs(install_claude: bool) -> None:

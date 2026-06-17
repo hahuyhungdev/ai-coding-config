@@ -347,7 +347,7 @@ def main():
                         count = int(handle.read().strip() or "0")
                     except ValueError:
                         count = 0
-                    over_quota = count >= 10
+                    over_quota = count >= 20
                     if not over_quota:
                         handle.seek(0)
                         handle.truncate()
@@ -364,7 +364,7 @@ def main():
                             pass
             if over_quota:
                 decision = "deny"
-                context = "❌ BLOCKED: Maximum 10 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
+                context = "❌ BLOCKED: Maximum 20 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
             elif probe:
                 log("Probe allowed")
             elif is_inline_python_file_read(raw, ex):
