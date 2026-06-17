@@ -1,6 +1,7 @@
 """Setup functions for different AI coding assistants."""
 
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Optional
@@ -13,6 +14,35 @@ CLAUDE_DIR = Path.home() / ".claude"
 CODEX_DIR = Path.home() / ".codex"
 GEMINI_DIR = Path.home() / ".gemini" / "config"
 REPO_DIR = Path(__file__).resolve().parent.parent
+
+
+def _copy_skills(target_dir: Path, force: bool) -> None:
+    """Helper to copy skills from repository to target directory."""
+    skills_dir = REPO_DIR / "skills"
+    if skills_dir.exists():
+        for d in skills_dir.iterdir():
+            if d.is_dir():
+                copy_config(d, target_dir / "skills" / d.name, force)
+        ok(f"Skills ({count_dirs(skills_dir)} dirs)")
+
+
+def _clean_skills(target_dir: Path, label: str) -> None:
+    """Helper to clean skills from target directory."""
+    skills_dir = REPO_DIR / "skills"
+    if skills_dir.exists():
+        for d in skills_dir.iterdir():
+            if d.is_dir():
+                shutil.rmtree(target_dir / "skills" / d.name, ignore_errors=True)
+        ok(f"Cleaned {label}")
+
+
+def _clean_agents(target_dir: Path, label: str) -> None:
+    """Helper to clean agents from target directory."""
+    agents_dir = REPO_DIR / "agents"
+    if agents_dir.exists():
+        for f in agents_dir.glob("*.md"):
+            (target_dir / "agents" / f.name).unlink(missing_ok=True)
+        ok(f"Cleaned {label}")
 
 
 def configure_project_assistants(project_dir: Path, assistants: list[str]) -> dict[str, bool]:
@@ -140,12 +170,7 @@ def setup_claude(force: bool) -> None:
     ok("RTK.md")
 
     # Skills
-    skills_dir = REPO_DIR / "skills"
-    if skills_dir.exists():
-        for d in skills_dir.iterdir():
-            if d.is_dir():
-                copy_config(d, CLAUDE_DIR / "skills" / d.name, force)
-        ok(f"Skills ({count_dirs(skills_dir)} dirs)")
+    _copy_skills(CLAUDE_DIR, force)
 
     # Rules (ECC only)
     rules_dir = REPO_DIR / "claude" / "rules" / "ecc"
@@ -188,12 +213,7 @@ def setup_codex(force: bool) -> None:
     ok("config.toml")
 
     # Skills
-    skills_dir = REPO_DIR / "skills"
-    if skills_dir.exists():
-        for d in skills_dir.iterdir():
-            if d.is_dir():
-                copy_config(d, CODEX_DIR / "skills" / d.name, force)
-        ok(f"Skills ({count_dirs(skills_dir)} dirs)")
+    _copy_skills(CODEX_DIR, force)
 
 
 def setup_gemini(force: bool) -> None:
@@ -210,12 +230,7 @@ def setup_gemini(force: bool) -> None:
     ok("ANTIGRAVITY.md")
 
     # Skills
-    skills_dir = REPO_DIR / "skills"
-    if skills_dir.exists():
-        for d in skills_dir.iterdir():
-            if d.is_dir():
-                copy_config(d, GEMINI_DIR / "skills" / d.name, force)
-        ok(f"Skills ({count_dirs(skills_dir)} dirs)")
+    _copy_skills(GEMINI_DIR, force)
 
 
 def setup_cli_wrapper(repo_dir: Path) -> None:
@@ -312,12 +327,7 @@ def uninstall_global() -> None:
                 p.unlink()
 
         # Clean skills
-        skills_dir = REPO_DIR / "skills"
-        if skills_dir.exists():
-            for d in skills_dir.iterdir():
-                if d.is_dir():
-                    shutil.rmtree(CLAUDE_DIR / "skills" / d.name, ignore_errors=True)
-            ok("Cleaned global skills")
+        _clean_skills(CLAUDE_DIR, "global skills")
 
         # Clean rules
         rules_dir = REPO_DIR / "claude" / "rules" / "ecc"
@@ -352,41 +362,23 @@ def uninstall_global() -> None:
                 pass
 
         # Clean agents
-        agents_dir = REPO_DIR / "agents"
-        if agents_dir.exists():
-            for f in agents_dir.glob("*.md"):
-                (CLAUDE_DIR / "agents" / f.name).unlink(missing_ok=True)
-            ok("Cleaned global agents")
+        _clean_agents(CLAUDE_DIR, "global agents")
 
     # Clean Codex
     if CODEX_DIR.exists():
         for name in ["AGENTS.md", "RTK.md"]:
             (CODEX_DIR / name).unlink(missing_ok=True)
         # Clean skills
-        skills_dir = REPO_DIR / "skills"
-        if skills_dir.exists():
-            for d in skills_dir.iterdir():
-                if d.is_dir():
-                    shutil.rmtree(CODEX_DIR / "skills" / d.name, ignore_errors=True)
-            ok("Cleaned Codex skills")
+        _clean_skills(CODEX_DIR, "Codex skills")
 
     # Clean Gemini/agy
     if GEMINI_DIR.exists():
         for name in ["ANTIGRAVITY.md"]:
             (GEMINI_DIR / name).unlink(missing_ok=True)
         # Clean skills
-        skills_dir = REPO_DIR / "skills"
-        if skills_dir.exists():
-            for d in skills_dir.iterdir():
-                if d.is_dir():
-                    shutil.rmtree(GEMINI_DIR / "skills" / d.name, ignore_errors=True)
-            ok("Cleaned Gemini/agy skills")
+        _clean_skills(GEMINI_DIR, "Gemini/agy skills")
         # Clean agents
-        agents_dir = REPO_DIR / "agents"
-        if agents_dir.exists():
-            for f in agents_dir.glob("*.md"):
-                (GEMINI_DIR / "agents" / f.name).unlink(missing_ok=True)
-            ok("Cleaned Gemini/agy agents")
+        _clean_agents(GEMINI_DIR, "Gemini/agy agents")
 
     # Remove agy wrapper and installed modules while preserving user data.
     (Path.home() / ".local" / "bin" / "agy").unlink(missing_ok=True)
