@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .cli import info, ok, warn, error, run_node_script
+from .cli import info, ok, warn, error, run_script
 
 
 def merge_json(source: Path, target: Path) -> bool:
@@ -192,7 +192,7 @@ def install_local_config(source: Path, target: Path, force: bool = False) -> boo
         if filecmp.cmp(source, target, shallow=False):
             return True  # Same, skip
         info(f"Merging {source.name} configurations into {target}...")
-        run_node_script("merge-toml-config.js", str(source), str(target))
+        run_script("merge_toml_config.py", str(source), str(target))
         return True
 
     try:

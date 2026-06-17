@@ -19,11 +19,12 @@ def update_mcp_configs(install_claude: bool) -> None:
     if install_claude:
         claude_json = Path.home() / ".claude.json"
         if claude_json.exists():
-            run_node_script("update-mcp-config.js", str(claude_json))
+            run_script("update_mcp_config.py", str(claude_json))
 
         ecc_mcp = CLAUDE_DIR / "ecc-source" / "mcp-configs" / "mcp-servers.json"
         if ecc_mcp.exists():
-            run_node_script("update-mcp-config.js", str(ecc_mcp))
+            run_script("update_mcp_config.py", str(ecc_mcp))
+
 
 
 def sync_mcp_disabled() -> None:

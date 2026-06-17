@@ -1,7 +1,7 @@
 """Agent compilation for installer."""
 
 from pathlib import Path
-from .cli import info, run_node_script
+from .cli import info, run_script
 
 # Directories
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -17,4 +17,5 @@ def compile_agents(install_claude: bool, install_codex: bool, install_gemini: bo
         flags.append("--codex")
     if install_gemini:
         flags.append("--agy")
-    run_node_script("compile-agents.js", *flags)
+    run_script("compile_agents.py", *flags)
+
