@@ -1,5 +1,3 @@
-
-
 <!-- ai-coding-config:graphify-start -->
 ## graphify
 

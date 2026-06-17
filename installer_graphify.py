@@ -342,7 +342,7 @@ def _merge_project_instructions(path: Path) -> None:
     if INSTRUCTION_START in existing and INSTRUCTION_END in existing:
         before, remainder = existing.split(INSTRUCTION_START, 1)
         _, after = remainder.split(INSTRUCTION_END, 1)
-        merged = before.rstrip() + "\n\n" + PROJECT_GRAPHIFY_BLOCK + after
+        merged = before.rstrip() + ("\n\n" if before.strip() else "") + PROJECT_GRAPHIFY_BLOCK + after
     else:
         merged = existing.rstrip() + ("\n\n" if existing.strip() else "") + PROJECT_GRAPHIFY_BLOCK + "\n"
     path.write_text(merged, encoding="utf-8")
