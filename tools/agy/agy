@@ -190,7 +190,7 @@ while [ $attempt -le $MAX_RETRIES ]; do
 
             rm -f "$HOME/.gemini/antigravity-cli/.compact_signal"
             echo -e "\n\033[1;32m♻️ [AUTO-RESUMING COMPACTED SESSION]...\033[0m\n"
-            AUTO_PROMPT=$(echo -e "[SYSTEM: Read the following progress summary to restore your session context. The temporary progress file has already been deleted from disk by the wrapper script to keep the git status clean. Do not ask for confirmation.]\n\n$PROGRESS_CONTENT")
+            AUTO_PROMPT=$(echo -e "[SYSTEM: Read the following progress summary to restore your session context. The temporary progress file has already been deleted from disk by the wrapper script to keep the git status clean. Do not ask for confirmation. IMPORTANT: Do NOT execute any pending tasks or run commands automatically. Instead, present the summary to the user, suggest the next step, and wait for their confirmation to proceed.]\n\n$PROGRESS_CONTENT")
             set -- "-i" "$AUTO_PROMPT"
             attempt=0
             continue
