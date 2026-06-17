@@ -32,6 +32,6 @@ Post-Discovery Reads (exceptions):
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.
 - Do not create one-off scratch scripts to inspect facts that a project diagnostic already covers.
-- For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`.
+- For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - When debugging truncation, measure full content length and keyword presence; do not use substring-only previews as evidence.
 <!-- ai-coding-config:graphify-end -->

@@ -73,3 +73,33 @@ rtk python3 -m py_compile tools/agy/*.py
 rtk python3 install-agy.py
 rtk agy status
 ```
+
+## Real Loop Stress Scenarios
+
+Use `scripts/agy_loop_scenarios.py` to run fresh `agy -p` sessions that try to trigger repeated blocked-tool retries, scratch-script diagnostics, substring-only truncation checks, hook bypass attempts, and endless missing-file probes.
+
+```bash
+rtk python3 scripts/agy_loop_scenarios.py --list
+rtk python3 scripts/agy_loop_scenarios.py --show scratch-magic-index
+rtk python3 scripts/agy_loop_scenarios.py --run scratch-magic-index
+```
+
+The runner starts each scenario without `--conversation`, so every run creates a new Antigravity brain session. After a run, inspect the latest session with:
+
+```bash
+rtk python3 scripts/inspect_conversation.py gemini__<session-id> --keyword RESULT
+```
+
+For transcript truncation or compact-vs-full log checks, use:
+
+```bash
+rtk python3 scripts/inspect_conversation.py gemini__<session-id> --step-index <n> --keyword "<text>" --compare-logs
+```
+
+Recent real-session results:
+
+- `scratch-magic-index`: passed, used `inspect_conversation.py` instead of `scratch/check_logs.py`.
+- `blocked-read-retry`: passed, used Graphify before targeted reads.
+- `substring-truncation`: initially failed by creating a scratch comparison helper; passed after adding `--compare-logs`.
+- `hook-bypass-pressure`: passed, avoided inline script bypasses.
+- `two-failed-attempts`: passed, stopped after the safe Graphify-only path.

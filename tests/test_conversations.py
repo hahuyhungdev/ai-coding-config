@@ -123,6 +123,39 @@ class TestConversationsAPI(unittest.TestCase):
             self.assertEqual(result["step"]["type"], "PLANNER_RESPONSE")
             self.assertTrue(result["keyword"]["found"])
 
+    def test_inspect_conversation_compares_compact_and_full_logs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            brain_dir = Path(tmp_dir)
+            log_dir = brain_dir / "session-123" / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            (log_dir / "transcript.jsonl").write_text(
+                json.dumps({"type": "USER_INPUT", "content": "hello"}) + "\n"
+                + json.dumps({"type": "PLANNER_RESPONSE", "content": "short compact text"}) + "\n",
+                encoding="utf-8",
+            )
+            (log_dir / "transcript_full.jsonl").write_text(
+                json.dumps({"type": "USER_INPUT", "content": "hello"}) + "\n"
+                + json.dumps({"type": "PLANNER_RESPONSE", "content": "long full text with compact keyword"}) + "\n",
+                encoding="utf-8",
+            )
+
+            result = inspect_conversation.inspect_conversation(
+                "gemini__session-123",
+                brain_dir=brain_dir,
+                step_index=1,
+                keyword="compact",
+                compare_logs=True,
+            )
+
+            comparison = result["log_comparison"]
+            self.assertTrue(comparison["compact"]["exists"])
+            self.assertTrue(comparison["full"]["exists"])
+            self.assertEqual(comparison["compact"]["total_steps"], 2)
+            self.assertEqual(comparison["full"]["total_steps"], 2)
+            self.assertFalse(comparison["step"]["same_content"])
+            self.assertEqual(comparison["step"]["compact"]["content_length"], len("short compact text"))
+            self.assertEqual(comparison["step"]["full"]["content_length"], len("long full text with compact keyword"))
+
     def test_invalid_host_header_blocked(self):
         url = f"http://127.0.0.1:{self.port}/api/conversations"
         req = urllib.request.Request(url)

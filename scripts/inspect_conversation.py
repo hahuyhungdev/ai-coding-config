@@ -22,7 +22,98 @@ def _content_preview(content, limit=240):
     return content[:limit] + "..."
 
 
-def inspect_conversation(conversation_id, brain_dir=BRAIN_DIR, step_index=None, keyword=None):
+def _log_path(gemini_id, brain_dir, filename):
+    return brain_dir / gemini_id / ".system_generated" / "logs" / filename
+
+
+def _keyword_hits(steps, keyword):
+    hits = []
+    for index, step in enumerate(steps):
+        content = str(step.get("content") or "")
+        if keyword in content:
+            hits.append({
+                "index": index,
+                "type": step.get("type"),
+                "content_length": len(content),
+            })
+    return hits
+
+
+def _step_summary(steps, step_index):
+    if step_index is None:
+        return None
+    if step_index < 0 or step_index >= len(steps):
+        return {
+            "index": step_index,
+            "error": f"step index out of range; total_steps={len(steps)}",
+        }
+    step = steps[step_index]
+    content = str(step.get("content") or "")
+    return {
+        "index": step_index,
+        "type": step.get("type"),
+        "name": step.get("name"),
+        "content_length": len(content),
+        "preview": _content_preview(content),
+    }
+
+
+def _log_summary(gemini_id, brain_dir, filename, step_index=None, keyword=None):
+    log_file = _log_path(gemini_id, brain_dir, filename)
+    if not log_file.exists():
+        return {
+            "exists": False,
+            "filename": filename,
+            "total_steps": 0,
+        }
+
+    steps = parse_gemini_jsonl(log_file)
+    summary = {
+        "exists": True,
+        "filename": filename,
+        "total_steps": len(steps),
+    }
+    step = _step_summary(steps, step_index)
+    if step is not None:
+        summary["step"] = step
+    if keyword:
+        hits = _keyword_hits(steps, keyword)
+        summary["keyword"] = {
+            "query": keyword,
+            "found": bool(hits),
+            "hit_count": len(hits),
+            "first_hits": hits[:10],
+        }
+    return summary
+
+
+def _compare_logs(gemini_id, brain_dir, step_index=None, keyword=None):
+    compact = _log_summary(gemini_id, brain_dir, "transcript.jsonl", step_index, keyword)
+    full = _log_summary(gemini_id, brain_dir, "transcript_full.jsonl", step_index, keyword)
+    comparison = {
+        "compact": compact,
+        "full": full,
+    }
+
+    if step_index is not None and compact["exists"] and full["exists"]:
+        compact_step = compact.get("step", {})
+        full_step = full.get("step", {})
+        if "error" not in compact_step and "error" not in full_step:
+            compact_steps = parse_gemini_jsonl(_log_path(gemini_id, brain_dir, "transcript.jsonl"))
+            full_steps = parse_gemini_jsonl(_log_path(gemini_id, brain_dir, "transcript_full.jsonl"))
+            compact_content = str(compact_steps[step_index].get("content") or "")
+            full_content = str(full_steps[step_index].get("content") or "")
+            comparison["step"] = {
+                "index": step_index,
+                "same_type": compact_step.get("type") == full_step.get("type"),
+                "same_content": compact_content == full_content,
+                "compact": compact_step,
+                "full": full_step,
+            }
+    return comparison
+
+
+def inspect_conversation(conversation_id, brain_dir=BRAIN_DIR, step_index=None, keyword=None, compare_logs=False):
     clean_id = _clean_conversation_id(conversation_id)
     parts = clean_id.split("__")
     if len(parts) < 2:
@@ -44,38 +135,19 @@ def inspect_conversation(conversation_id, brain_dir=BRAIN_DIR, step_index=None, 
     }
 
     if step_index is not None:
-        if step_index < 0 or step_index >= len(steps):
-            result["step"] = {
-                "index": step_index,
-                "error": f"step index out of range; total_steps={len(steps)}",
-            }
-        else:
-            step = steps[step_index]
-            content = str(step.get("content") or "")
-            result["step"] = {
-                "index": step_index,
-                "type": step.get("type"),
-                "name": step.get("name"),
-                "content_length": len(content),
-                "preview": _content_preview(content),
-            }
+        result["step"] = _step_summary(steps, step_index)
 
     if keyword:
-        hits = []
-        for index, step in enumerate(steps):
-            content = str(step.get("content") or "")
-            if keyword in content:
-                hits.append({
-                    "index": index,
-                    "type": step.get("type"),
-                    "content_length": len(content),
-                })
+        hits = _keyword_hits(steps, keyword)
         result["keyword"] = {
             "query": keyword,
             "found": bool(hits),
             "hit_count": len(hits),
             "first_hits": hits[:10],
         }
+
+    if compare_logs:
+        result["log_comparison"] = _compare_logs(gemini_id, brain_dir, step_index, keyword)
 
     return result
 
@@ -85,10 +157,16 @@ def main():
     parser.add_argument("conversation_id", help="Conversation ID, for example gemini__<session-id>")
     parser.add_argument("--step-index", type=int, help="Optional raw transcript step index to inspect")
     parser.add_argument("--keyword", help="Optional keyword to locate in parsed step content")
+    parser.add_argument("--compare-logs", action="store_true", help="Compare transcript.jsonl and transcript_full.jsonl without scratch scripts")
     args = parser.parse_args()
 
     try:
-        result = inspect_conversation(args.conversation_id, step_index=args.step_index, keyword=args.keyword)
+        result = inspect_conversation(
+            args.conversation_id,
+            step_index=args.step_index,
+            keyword=args.keyword,
+            compare_logs=args.compare_logs,
+        )
     except Exception as exc:
         print(json.dumps({"error": str(exc)}, indent=2), file=sys.stderr)
         return 1
