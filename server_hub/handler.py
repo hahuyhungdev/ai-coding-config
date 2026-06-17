@@ -58,6 +58,17 @@ def describe_gemini_transcript_source(gemini_id, brain_dir=BRAIN_DIR):
         "relative_path": relative_path,
     }
 
+def is_safe_path(requested_path, allowed_bases):
+    try:
+        resolved_path = Path(requested_path).resolve()
+        for base in allowed_bases:
+            resolved_base = Path(base).resolve()
+            if resolved_base in resolved_path.parents or resolved_base == resolved_path:
+                return True
+        return False
+    except Exception:
+        return False
+
 class ConfigHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         # Override to suppress standard HTTP logging to keep console clean
@@ -582,6 +593,20 @@ class ConfigHandler(BaseHTTPRequestHandler):
             file_path = Path("/") / unquoted_path if unquoted_path.startswith("home/") else Path.home() / unquoted_path
             if not file_path.exists():
                 file_path = REPO_DIR / unquoted_path
+
+            # Enforce path safety checks
+            allowed_bases = [
+                REPO_DIR,
+                Path.home() / ".gemini",
+                Path.home() / ".claude",
+                Path.home() / ".codex",
+                Path.home() / ".playwright-mcp"
+            ]
+            if not is_safe_path(file_path, allowed_bases):
+                self.send_response(403)
+                self.end_headers()
+                self.wfile.write(b"Forbidden: Path is outside of allowed directories")
+                return
 
             if file_path.exists() and file_path.is_file():
                 content_type = "image/png" if file_path.suffix == ".png" else "application/octet-stream"
