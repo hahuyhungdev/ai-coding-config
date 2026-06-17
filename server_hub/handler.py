@@ -2,16 +2,18 @@ import json
 import subprocess
 import sys
 import urllib.parse
-import urllib.request
-import shutil
 import os
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
 from .constants import REPO_DIR, BRAIN_DIR, CLAUDE_DIR, CODEX_DIR, AGENTS_DIR, SKILLS_DIR
 from .parsers import parse_gemini_jsonl, parse_claude_jsonl, parse_codex_jsonl
-from .metadata import get_all_conversations
-from .token_estimator import estimate_tokens
+from .metadata import (
+    get_all_conversations,
+    resolve_gemini_transcript_path,
+    describe_gemini_transcript_source,
+)
+from .token_estimator import calculate_session_stats
 from .analytics import get_aggregate_analytics
 from .health import get_graphify_health
 from .config_manager import (
@@ -24,7 +26,15 @@ from .config_manager import (
     get_targets_state,
     list_agents,
     list_skills,
-    parse_markdown_frontmatter,
+    load_markdown_content,
+)
+from .system_ops import (
+    resolve_project_dir,
+    generate_graphify_view,
+    run_graphify_update,
+    execute_simulator_command,
+    read_simulator_file,
+    test_mcp_server,
 )
 from .mcp_manager import (
     get_all_mcp_servers,
@@ -34,29 +44,7 @@ from .mcp_manager import (
     save_mcp_configs,
 )
 
-def resolve_gemini_transcript_path(gemini_id, brain_dir=BRAIN_DIR):
-    log_dir = brain_dir / gemini_id / ".system_generated" / "logs"
-    for filename in ("transcript_full.jsonl", "transcript.jsonl"):
-        log_file = log_dir / filename
-        if log_file.exists():
-            return log_file
-    return None
 
-def describe_gemini_transcript_source(gemini_id, brain_dir=BRAIN_DIR):
-    log_file = resolve_gemini_transcript_path(gemini_id, brain_dir=brain_dir)
-    if log_file is None:
-        return None
-
-    try:
-        relative_path = log_file.relative_to(brain_dir).as_posix()
-    except ValueError:
-        relative_path = log_file.name
-
-    return {
-        "kind": "full" if log_file.name == "transcript_full.jsonl" else "compact",
-        "filename": log_file.name,
-        "relative_path": relative_path,
-    }
 
 def is_safe_path(requested_path, allowed_bases):
     try:
@@ -250,14 +238,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.send_error_json(404, "Agent not found")
             return
         try:
-            content = agent_file.read_text()
-            metadata = parse_markdown_frontmatter(agent_file)
-            prompt = content
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    prompt = parts[2].strip()
-            res = {"name": name, "metadata": metadata, "prompt": prompt}
+            res = load_markdown_content(agent_file)
+            res["name"] = name
             self.send_json(200, res)
         except Exception as e:
             self.send_error_json(500, str(e))
@@ -268,14 +250,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.send_error_json(404, "Skill not found")
             return
         try:
-            content = skill_file.read_text()
-            metadata = parse_markdown_frontmatter(skill_file)
-            prompt = content
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    prompt = parts[2].strip()
-            res = {"name": name, "metadata": metadata, "prompt": prompt}
+            res = load_markdown_content(skill_file)
+            res["name"] = name
             self.send_json(200, res)
         except Exception as e:
             self.send_error_json(500, str(e))
@@ -292,44 +268,18 @@ class ConfigHandler(BaseHTTPRequestHandler):
             project_name = query.get("project", ["mswcc-front-fe"])[0]
             view_type = query.get("type", ["graph"])[0]  # 'graph', 'tree', or 'callflow'
             
-            project_dir = None
-            search_paths = [
-                Path.home() / "projects" / "company" / project_name,
-                Path.home() / "projects" / "personals" / project_name,
-                Path.home() / "projects" / project_name
-            ]
-            for p in search_paths:
-                if p.exists() and p.is_dir():
-                    project_dir = p
-                    break
-                    
+            project_dir = resolve_project_dir(project_name)
             if not project_dir:
                 self.send_response(404)
                 self.end_headers()
                 self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
                 return
                 
-            if view_type == "graph":
-                filename = "graph.html"
-            elif view_type == "tree":
-                filename = "GRAPH_TREE.html"
-                file_path = project_dir / "graphify-out" / filename
-                if not file_path.exists():
-                    subprocess.run(["graphify", "tree"], cwd=str(project_dir), capture_output=True)
-            elif view_type == "callflow":
-                filename = f"{project_name}-callflow.html"
-                file_path = project_dir / "graphify-out" / filename
-                if not file_path.exists():
-                    subprocess.run(["graphify", "export", "callflow-html"], cwd=str(project_dir), capture_output=True)
-            else:
-                filename = "graph.html"
-            
-            file_path = project_dir / "graphify-out" / filename
-            
-            if not file_path.exists():
+            file_path, err_msg = generate_graphify_view(project_dir, view_type, project_name)
+            if err_msg:
                 self.send_response(404)
                 self.end_headers()
-                self.wfile.write(f"Graph visualization file '{filename}' not found in project '{project_name}'".encode("utf-8"))
+                self.wfile.write(err_msg.encode("utf-8"))
                 return
                 
             self.send_response(200)
@@ -449,51 +399,23 @@ class ConfigHandler(BaseHTTPRequestHandler):
             project_name = payload.get("project", "mswcc-front-fe")
             force = payload.get("force", False)
             
-            project_dir = None
-            search_paths = [
-                Path.home() / "projects" / "company" / project_name,
-                Path.home() / "projects" / "personals" / project_name,
-                Path.home() / "projects" / project_name
-            ]
-            for p in search_paths:
-                if p.exists() and p.is_dir():
-                    project_dir = p
-                    break
-                    
+            project_dir = resolve_project_dir(project_name)
             if not project_dir:
                 self.send_response(404)
                 self.end_headers()
                 self.wfile.write(f"Project '{project_name}' not found".encode("utf-8"))
                 return
             
-            cmd = ["graphify", "update", "."]
-            if force:
-                cmd.append("--force")
-            
-            result = subprocess.run(cmd, cwd=str(project_dir), capture_output=True, text=True)
-            
-            self.send_json(200, {
-                "status": "success" if result.returncode == 0 else "error",
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode
-            })
+            res = run_graphify_update(project_dir, force)
+            self.send_json(200, res)
         except Exception as e:
             self.send_error_json(500, str(e))
 
     def _handle_post_graphify_rebuild(self):
         try:
-            cmd = ["graphify", "update", "."]
-            result = subprocess.run(cmd, cwd=str(REPO_DIR), capture_output=True, text=True)
-            health = get_graphify_health()
-            
-            self.send_json(200, {
-                "status": "success" if result.returncode == 0 else "error",
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-                "health": health
-            })
+            res = run_graphify_update(REPO_DIR, force=False)
+            res["health"] = get_graphify_health()
+            self.send_json(200, res)
         except Exception as e:
             self.send_error_json(500, str(e))
 
@@ -504,48 +426,15 @@ class ConfigHandler(BaseHTTPRequestHandler):
             
             if action == "view_file":
                 file_path = args.get("AbsolutePath", "")
-                resolved_path = Path(file_path).resolve()
-                if not resolved_path.exists() or not resolved_path.is_file():
-                    self.send_json(200, {"status": "error", "message": f"File '{file_path}' does not exist or is not a file."})
-                    return
-                
-                try:
-                    with open(resolved_path, "r", encoding="utf-8") as f:
-                        lines = [f.readline() for _ in range(15)]
-                        content = "".join(lines)
-                        if f.readline():
-                            content += "\n... (truncated)"
-                    self.send_json(200, {"status": "success", "output": content})
-                except Exception as e:
-                    self.send_json(200, {"status": "error", "message": str(e)})
-            
+                res = read_simulator_file(Path(file_path))
+                self.send_json(200, res)
             elif action == "run_command":
                 cmd_line = args.get("CommandLine", "")
                 if not cmd_line:
                     self.send_json(200, {"status": "error", "message": "Command is empty."})
                     return
-                
-                try:
-                    proc = subprocess.run(
-                        cmd_line,
-                        shell=True,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        timeout=5.0,
-                        cwd=str(REPO_DIR)
-                    )
-                    stdout_str = proc.stdout.decode("utf-8", errors="replace")
-                    stderr_str = proc.stderr.decode("utf-8", errors="replace")
-                    output = stdout_str + stderr_str
-                    
-                    self.send_json(200, {
-                        "status": "success" if proc.returncode == 0 else "error",
-                        "output": output or "[No output generated]"
-                    })
-                except subprocess.TimeoutExpired:
-                    self.send_json(200, {"status": "error", "message": "Command execution timed out (5s limit)."})
-                except Exception as e:
-                    self.send_json(200, {"status": "error", "message": str(e)})
+                res = execute_simulator_command(cmd_line, REPO_DIR)
+                self.send_json(200, res)
             else:
                 self.send_response(400)
                 self.end_headers()
@@ -554,69 +443,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
 
     def _handle_post_mcp_test(self, payload):
         try:
-            name = payload.get("name", "unknown")
-            mcp_type = payload.get("type", "stdio")
-            
-            if mcp_type == "sse":
-                url = payload.get("url", "").strip()
-                if not url:
-                    self.send_json(200, {"status": "error", "message": "Error: SSE URL is empty."})
-                    return
-                
-                try:
-                    req = urllib.request.Request(url, method="GET")
-                    req.add_header("User-Agent", "Mozilla/5.0 (AI Config Dashboard)")
-                    with urllib.request.urlopen(req, timeout=3.0) as r:
-                        self.send_json(200, {
-                            "status": "success", 
-                            "message": f"Successfully connected to SSE URL (HTTP {r.status})"
-                        })
-                except Exception as conn_err:
-                    self.send_json(200, {
-                        "status": "error", 
-                        "message": f"Connection failed: {conn_err}"
-                    })
-            else:
-                command = payload.get("command", "").strip()
-                if not command:
-                    self.send_json(200, {"status": "error", "message": "Error: Command is empty."})
-                    return
-                
-                resolved_cmd = shutil.which(command)
-                if not resolved_cmd:
-                    self.send_json(200, {
-                        "status": "error", 
-                        "message": f"Command '{command}' not found in system PATH."
-                    })
-                else:
-                    try:
-                        test_args = [command]
-                        if command in ["npx", "uvx", "node", "python", "python3", "pip", "npm"]:
-                            test_args.append("--version")
-                        
-                        proc = subprocess.run(
-                            test_args, 
-                            stdout=subprocess.PIPE, 
-                            stderr=subprocess.PIPE, 
-                            timeout=2.0
-                        )
-                        version_info = proc.stdout.decode("utf-8").strip() or proc.stderr.decode("utf-8").strip()
-                        version_str = f" ({version_info[:30]}...)" if version_info else ""
-                        
-                        self.send_json(200, {
-                            "status": "success",
-                            "message": f"Command '{command}' is available and executable!{version_str}"
-                        })
-                    except subprocess.TimeoutExpired:
-                        self.send_json(200, {
-                            "status": "success",
-                            "message": f"Command '{command}' is available (launch test timed out)."
-                        })
-                    except Exception as exec_err:
-                        self.send_json(200, {
-                            "status": "warning",
-                            "message": f"Command found at {resolved_cmd}, but execution test failed: {exec_err}"
-                        })
+            res = test_mcp_server(payload)
+            self.send_json(200, res)
         except Exception as e:
             self.send_error_json(500, str(e))
 
@@ -788,70 +616,7 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.send_error_json(400, f"Unsupported conversation source: {source}")
             return
 
-        # Determine model rates
-        model_lower = model_name.lower()
-        if "pro" in model_lower:
-            input_rate = 1.25
-            output_rate = 5.00
-        elif "flash" in model_lower:
-            input_rate = 0.075
-            output_rate = 0.30
-        elif "sonnet" in model_lower or "claude-3-5" in model_lower or "claude-3.7" in model_lower:
-            input_rate = 3.00
-            output_rate = 15.00
-        elif "opus" in model_lower:
-            input_rate = 15.00
-            output_rate = 75.00
-        elif "haiku" in model_lower:
-            input_rate = 0.25
-            output_rate = 1.25
-        elif "gpt-5" in model_lower or "openai" in model_lower:
-            input_rate = 5.00
-            output_rate = 15.00
-        else:
-            input_rate = 1.25
-            output_rate = 5.00
-
-        stats = {
-            "total_steps": 0,
-            "user_messages": 0,
-            "tool_calls": 0,
-            "est_input_tokens": 0,
-            "est_output_tokens": 0,
-            "est_cost": 0.0,
-            "model_name": model_name,
-            "input_rate": input_rate,
-            "output_rate": output_rate
-        }
-        
-        for step in steps:
-            content = step.get("content")
-            if content is None:
-                content = ""
-            step["content"] = content
-            tokens = estimate_tokens(content)
-            step["est_tokens"] = tokens
-            
-            stats["total_steps"] += 1
-            step_type = step.get("type")
-            if step_type == "USER_INPUT":
-                stats["user_messages"] += 1
-                stats["est_input_tokens"] += 25000 + tokens
-            elif step_type == "PLANNER_RESPONSE":
-                stats["est_output_tokens"] += tokens
-            elif step_type in (
-                "RUN_COMMAND", "VIEW_FILE", "GREP_SEARCH", "LIST_DIRECTORY",
-                "MCP_TOOL", "CODE_ACTION", "SEARCH_WEB", "READ_URL_CONTENT",
-                "ASK_QUESTION", "INVOKE_SUBAGENT", "CHECKPOINT", "ERROR_MESSAGE",
-                "LIST_RESOURCES", "GENERIC"
-            ):
-                if step_type != "CHECKPOINT":
-                    stats["tool_calls"] += 1
-                stats["est_input_tokens"] += tokens
-
-        input_cost = (stats["est_input_tokens"] / 1_000_000.0) * input_rate
-        output_cost = (stats["est_output_tokens"] / 1_000_000.0) * output_rate
-        stats["est_cost"] = round(input_cost + output_cost, 4)
+        stats = calculate_session_stats(steps, model_name)
         
         payload = {
             "id": clean_id,

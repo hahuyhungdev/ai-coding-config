@@ -13,7 +13,7 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
 from server import ConfigHandler, get_all_conversations
-from server_hub.handler import describe_gemini_transcript_source, resolve_gemini_transcript_path
+from server_hub.metadata import describe_gemini_transcript_source, resolve_gemini_transcript_path
 
 INSPECT_CONVERSATION_SCRIPT = REPO_DIR / "scripts" / "inspect_conversation.py"
 inspect_spec = importlib.util.spec_from_file_location("inspect_conversation", INSPECT_CONVERSATION_SCRIPT)
@@ -121,6 +121,53 @@ class TestConversationsAPI(unittest.TestCase):
             self.assertEqual(result["total_steps"], 2)
             self.assertEqual(result["step"]["index"], 1)
             self.assertEqual(result["step"]["type"], "PLANNER_RESPONSE")
+            self.assertTrue(result["keyword"]["found"])
+
+    def test_inspect_claude_conversation_script(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            claude_dir = Path(tmp_dir)
+            log_dir = claude_dir / "my-project"
+            log_dir.mkdir(parents=True)
+            (log_dir / "session-abc.jsonl").write_text(
+                json.dumps({"type": "user", "message": {"role": "user", "content": "hello claude"}}) + "\n"
+                + json.dumps({"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "how can I help"}]}}) + "\n",
+                encoding="utf-8"
+            )
+            
+            result = inspect_conversation.inspect_conversation(
+                "claude__my-project__session-abc",
+                claude_dir=claude_dir,
+                step_index=0,
+                keyword="hello"
+            )
+            
+            self.assertEqual(result["source"], "claude")
+            self.assertEqual(result["total_steps"], 2)
+            self.assertEqual(result["step"]["index"], 0)
+            self.assertEqual(result["step"]["type"], "USER_INPUT")
+            self.assertTrue(result["keyword"]["found"])
+
+    def test_inspect_codex_conversation_script(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            codex_dir = Path(tmp_dir)
+            log_dir = codex_dir / "2026" / "06" / "17"
+            log_dir.mkdir(parents=True)
+            (log_dir / "rollout-xyz.jsonl").write_text(
+                json.dumps({"type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "text", "text": "run codex"}]}}) + "\n",
+                encoding="utf-8"
+            )
+            
+            result = inspect_conversation.inspect_conversation(
+                "codex__2026-06-17__rollout-xyz",
+                codex_dir=codex_dir,
+                step_index=0,
+                keyword="codex"
+            )
+            
+            self.assertEqual(result["source"], "codex")
+            self.assertEqual(result["total_steps"], 1)
+            self.assertEqual(result["step"]["index"], 0)
+            self.assertEqual(result["step"]["type"], "USER_INPUT")
             self.assertTrue(result["keyword"]["found"])
 
     def test_inspect_conversation_compares_compact_and_full_logs(self):

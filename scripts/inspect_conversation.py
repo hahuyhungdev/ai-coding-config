@@ -7,9 +7,9 @@ from pathlib import Path
 REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
-from server_hub.constants import BRAIN_DIR
-from server_hub.handler import describe_gemini_transcript_source, resolve_gemini_transcript_path
-from server_hub.parsers import parse_gemini_jsonl
+from server_hub.constants import BRAIN_DIR, CLAUDE_DIR, CODEX_DIR
+from server_hub.metadata import describe_gemini_transcript_source, resolve_gemini_transcript_path
+from server_hub.parsers import parse_gemini_jsonl, parse_claude_jsonl, parse_codex_jsonl
 
 
 def _clean_conversation_id(conversation_id):
@@ -113,24 +113,60 @@ def _compare_logs(gemini_id, brain_dir, step_index=None, keyword=None):
     return comparison
 
 
-def inspect_conversation(conversation_id, brain_dir=BRAIN_DIR, step_index=None, keyword=None, compare_logs=False):
+def inspect_conversation(conversation_id, brain_dir=BRAIN_DIR, claude_dir=CLAUDE_DIR, codex_dir=CODEX_DIR, step_index=None, keyword=None, compare_logs=False):
     clean_id = _clean_conversation_id(conversation_id)
     parts = clean_id.split("__")
     if len(parts) < 2:
         raise ValueError("Invalid conversation ID format")
-    if parts[0] != "gemini":
-        raise ValueError("Only gemini conversation IDs are supported")
+    
+    source = parts[0]
+    if source not in ("gemini", "claude", "codex"):
+        raise ValueError(f"Unsupported conversation source: {source}")
 
-    gemini_id = parts[1]
-    log_file = resolve_gemini_transcript_path(gemini_id, brain_dir=brain_dir)
-    if log_file is None:
-        raise FileNotFoundError("Gemini conversation log not found")
+    if source == "gemini":
+        gemini_id = parts[1]
+        log_file = resolve_gemini_transcript_path(gemini_id, brain_dir=brain_dir)
+        if log_file is None:
+            raise FileNotFoundError("Gemini conversation log not found")
+        steps = parse_gemini_jsonl(log_file)
+        log_source = describe_gemini_transcript_source(gemini_id, brain_dir=brain_dir)
+    elif source == "claude":
+        if len(parts) < 3:
+            raise ValueError("Invalid Claude conversation ID format")
+        project_dir_name = parts[1]
+        session_id = parts[2]
+        log_file = Path(claude_dir) / project_dir_name / f"{session_id}.jsonl"
+        if not log_file.exists():
+            raise FileNotFoundError(f"Claude conversation log not found at {log_file}")
+        steps = parse_claude_jsonl(log_file)
+        log_source = {
+            "kind": "standard",
+            "filename": log_file.name,
+            "relative_path": f"{project_dir_name}/{log_file.name}"
+        }
+    elif source == "codex":
+        if len(parts) < 3:
+            raise ValueError("Invalid Codex conversation ID format")
+        year_month_day = parts[1]
+        rollout_filename = parts[2]
+        y_m_d_parts = year_month_day.split("-")
+        if len(y_m_d_parts) != 3:
+            raise ValueError("Invalid Codex date format")
+        year, month, day = y_m_d_parts
+        log_file = Path(codex_dir) / year / month / day / f"{rollout_filename}.jsonl"
+        if not log_file.exists():
+            raise FileNotFoundError(f"Codex conversation log not found at {log_file}")
+        steps = parse_codex_jsonl(log_file)
+        log_source = {
+            "kind": "standard",
+            "filename": log_file.name,
+            "relative_path": f"{year}/{month}/{day}/{log_file.name}"
+        }
 
-    steps = parse_gemini_jsonl(log_file)
     result = {
         "id": clean_id,
-        "source": "gemini",
-        "log_source": describe_gemini_transcript_source(gemini_id, brain_dir=brain_dir),
+        "source": source,
+        "log_source": log_source,
         "total_steps": len(steps),
     }
 
@@ -147,7 +183,9 @@ def inspect_conversation(conversation_id, brain_dir=BRAIN_DIR, step_index=None, 
         }
 
     if compare_logs:
-        result["log_comparison"] = _compare_logs(gemini_id, brain_dir, step_index, keyword)
+        if source != "gemini":
+            raise ValueError("Log comparison is only supported for Gemini conversations")
+        result["log_comparison"] = _compare_logs(parts[1], brain_dir, step_index, keyword)
 
     return result
 

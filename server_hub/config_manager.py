@@ -30,6 +30,22 @@ def parse_markdown_frontmatter(path: Path) -> dict:
         pass
     return metadata
 
+def load_markdown_content(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        content = path.read_text()
+        metadata = parse_markdown_frontmatter(path)
+        prompt = content
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                prompt = parts[2].strip()
+        return {"metadata": metadata, "prompt": prompt}
+    except Exception:
+        return {"metadata": {}, "prompt": ""}
+
+
 def load_claude_settings() -> dict:
     template_path = REPO_DIR / "claude" / "settings.json"
     try:

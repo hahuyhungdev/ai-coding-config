@@ -27,7 +27,7 @@ def get_model_rates(model_name: str) -> tuple[float, float]:
         return 0.075, 0.30
     elif "pro" in model_lower:
         return 1.25, 5.00
-    elif "sonnet" in model_lower:
+    elif "sonnet" in model_lower or "claude-3-5" in model_lower or "claude-3.7" in model_lower:
         return 3.00, 15.00
     elif "opus" in model_lower:
         return 15.00, 75.00
@@ -38,23 +38,8 @@ def get_model_rates(model_name: str) -> tuple[float, float]:
     else:
         return 1.25, 5.00
 
-def get_session_analytics_stats(source: str, log_file: Path, model_name: str) -> dict:
-    if not log_file.exists():
-        return None
-        
-    mtime = log_file.stat().st_mtime
-    cache_key = (source, str(log_file), mtime)
-    if cache_key in ANALYTICS_CACHE:
-        return ANALYTICS_CACHE[cache_key]
-        
-    steps = []
-    if source == "gemini":
-        steps = parse_gemini_jsonl(log_file)
-    elif source == "claude":
-        steps = parse_claude_jsonl(log_file)
-    elif source == "codex":
-        steps = parse_codex_jsonl(log_file)
-        
+def calculate_session_stats(steps: list, model_name: str) -> dict:
+    """Calculate token usage and cost stats for a list of steps, enriching steps with est_tokens."""
     input_rate, output_rate = get_model_rates(model_name)
     
     total_steps = 0
@@ -64,8 +49,12 @@ def get_session_analytics_stats(source: str, log_file: Path, model_name: str) ->
     est_output_tokens = 0
     
     for step in steps:
-        content = step.get("content") or ""
+        content = step.get("content")
+        if content is None:
+            content = ""
+        step["content"] = content
         tokens = estimate_tokens(content)
+        step["est_tokens"] = tokens
         
         total_steps += 1
         step_type = step.get("type")
@@ -88,16 +77,57 @@ def get_session_analytics_stats(source: str, log_file: Path, model_name: str) ->
     output_cost = (est_output_tokens / 1_000_000.0) * output_rate
     est_cost = round(input_cost + output_cost, 4)
     
-    stats = {
+    return {
+        # Keys for handler.py
+        "total_steps": total_steps,
+        "user_messages": user_messages,
+        "tool_calls": tool_calls,
+        "est_input_tokens": est_input_tokens,
+        "est_output_tokens": est_output_tokens,
+        "est_cost": est_cost,
+        "model_name": model_name,
+        "input_rate": input_rate,
+        "output_rate": output_rate,
+        # Keys for analytics.py / get_session_analytics_stats
         "steps": total_steps,
         "turns": user_messages,
-        "tool_calls": tool_calls,
         "input_tokens": est_input_tokens,
         "output_tokens": est_output_tokens,
         "total_tokens": est_input_tokens + est_output_tokens,
         "cost": est_cost,
-        "model_name": model_name
+    }
+
+def get_session_analytics_stats(source: str, log_file: Path, model_name: str) -> dict:
+    if not log_file.exists():
+        return None
+        
+    mtime = log_file.stat().st_mtime
+    cache_key = (source, str(log_file), mtime)
+    if cache_key in ANALYTICS_CACHE:
+        return ANALYTICS_CACHE[cache_key]
+        
+    steps = []
+    if source == "gemini":
+        steps = parse_gemini_jsonl(log_file)
+    elif source == "claude":
+        steps = parse_claude_jsonl(log_file)
+    elif source == "codex":
+        steps = parse_codex_jsonl(log_file)
+        
+    stats = calculate_session_stats(steps, model_name)
+    
+    # Prune extra keys from calculate_session_stats to keep cache clean
+    analytics_stats = {
+        "steps": stats["steps"],
+        "turns": stats["turns"],
+        "tool_calls": stats["tool_calls"],
+        "input_tokens": stats["input_tokens"],
+        "output_tokens": stats["output_tokens"],
+        "total_tokens": stats["total_tokens"],
+        "cost": stats["cost"],
+        "model_name": stats["model_name"]
     }
     
-    ANALYTICS_CACHE[cache_key] = stats
-    return stats
+    ANALYTICS_CACHE[cache_key] = analytics_stats
+    return analytics_stats
+

@@ -11,9 +11,34 @@ def clean_project_name(folder_name: str) -> str:
             return parts[-1]
     return folder_name
 
+def resolve_gemini_transcript_path(gemini_id: str, brain_dir: Path = BRAIN_DIR) -> Path | None:
+    log_dir = brain_dir / gemini_id / ".system_generated" / "logs"
+    for filename in ("transcript_full.jsonl", "transcript.jsonl"):
+        log_file = log_dir / filename
+        if log_file.exists():
+            return log_file
+    return None
+
+def describe_gemini_transcript_source(gemini_id: str, brain_dir: Path = BRAIN_DIR) -> dict | None:
+    log_file = resolve_gemini_transcript_path(gemini_id, brain_dir=brain_dir)
+    if log_file is None:
+        return None
+
+    try:
+        relative_path = log_file.relative_to(brain_dir).as_posix()
+    except ValueError:
+        relative_path = log_file.name
+
+    return {
+        "kind": "full" if log_file.name == "transcript_full.jsonl" else "compact",
+        "filename": log_file.name,
+        "relative_path": relative_path,
+    }
+
+
 def get_gemini_metadata(conv_dir: Path) -> dict:
-    log_file = conv_dir / ".system_generated" / "logs" / "transcript.jsonl"
-    if not log_file.exists():
+    log_file = resolve_gemini_transcript_path(conv_dir.name, brain_dir=conv_dir.parent)
+    if not log_file or not log_file.exists():
         return None
         
     mtime = log_file.stat().st_mtime

@@ -4,17 +4,46 @@ import re
 from pathlib import Path
 from .constants import REPO_DIR, SHARED_DISABLED
 
+DEFAULT_CONFIGS = {
+    "playwright": {
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest", "--browser", "msedge",
+                 "--headless", "--ignore-https-errors", "--isolated",
+                 "--output-dir", ".playwright-mcp"]
+    },
+    "context7": {
+        "type": "sse",
+        "url": "https://mcp.context7.com/mcp"
+    },
+    "memory": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "sequential-thinking": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "postgres": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-postgres",
+                 "postgresql://localhost/postgres"]
+    },
+    "sqlite": {
+        "command": "npx",
+        "args": ["-y", "mcp-server-sqlite", "--db", "database.db"]
+    },
+    "docker": {
+        "command": "npx",
+        "args": ["-y", "mcp-server-docker"]
+    },
+    "aws": {
+        "command": "uvx",
+        "args": ["awslabs.aws-api-mcp-server@latest"]
+    },
+}
+
 def get_all_mcp_servers() -> list[str]:
-    defaults_path = REPO_DIR / "scripts" / "update-mcp-config.js"
-    if defaults_path.exists():
-        content = defaults_path.read_text()
-        block = re.search(r'defaultServers\s*=\s*\{(.+?)\n\s*\};', content, re.DOTALL)
-        if block:
-            matches = re.findall(r'(?:\"([^\"]+)\"|\'([^\']+)\'|(\w[\w-]*))\s*:\s*\{', block.group(1))
-            servers = [m[0] or m[1] or m[2] for m in matches]
-            if servers:
-                return servers
-    return ["playwright", "context7", "memory", "sequential-thinking", "postgres", "sqlite", "docker", "aws"]
+    return list(DEFAULT_CONFIGS.keys())
 
 def load_disabled() -> list[str]:
     try:
@@ -29,15 +58,34 @@ def save_disabled(disabled: list[str]) -> None:
         f.write("\n")
 
 def get_mcp_servers() -> dict:
+    configs = {}
+    
+    # Load from Claude
     try:
         with open(Path.home() / ".claude.json") as f:
             data = json.load(f)
-            configs = {}
             configs.update(data.get("disabledMcpServers", {}))
             configs.update(data.get("mcpServers", {}))
-            return configs
     except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+        pass
+
+    # Load from Gemini if not already loaded from Claude
+    try:
+        gemini_path = Path.home() / ".gemini" / "config" / "mcp_config.json"
+        with open(gemini_path) as f:
+            data = json.load(f)
+            for name, config in data.get("mcpServers", {}).items():
+                if name not in configs:
+                    configs[name] = config
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+        
+    # Merge with default configs
+    for name, config in DEFAULT_CONFIGS.items():
+        if name not in configs:
+            configs[name] = config
+            
+    return configs
 
 def save_mcp_configs(updated_configs: dict, disabled_list: list[str]) -> None:
     # 1. Save to Claude config (~/.claude.json)
@@ -58,7 +106,10 @@ def save_mcp_configs(updated_configs: dict, disabled_list: list[str]) -> None:
                 mcp_servers[name] = config
                 
         data["mcpServers"] = mcp_servers
-        data["disabledMcpServers"] = disabled_mcp_servers
+        if disabled_mcp_servers:
+            data["disabledMcpServers"] = disabled_mcp_servers
+        elif "disabledMcpServers" in data:
+            del data["disabledMcpServers"]
         
         with open(claude_json_path, "w") as f:
             json.dump(data, f, indent=2)
