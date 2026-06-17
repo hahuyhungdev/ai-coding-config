@@ -1,3 +1,4 @@
+<!-- GENERATED FILE - DO NOT EDIT DIRECTLY. EDIT templates/base_instructions.md INSTEAD -->
 # Global Claude Code Instructions
 
 ## 1. Core Workflow

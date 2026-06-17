@@ -1,3 +1,4 @@
+<!-- GENERATED FILE - DO NOT EDIT DIRECTLY. EDIT templates/base_instructions.md INSTEAD -->
 # ECC for Codex CLI
 
 ## 1. Core Workflow

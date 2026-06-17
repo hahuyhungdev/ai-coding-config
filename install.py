@@ -203,6 +203,14 @@ Examples:
     install_copilot = (args.all or args.copilot) and not args.none
     install_gemini = (args.all or args.gemini) and not args.none
 
+    # Compile instructions from templates
+    info("Compiling AI assistant instructions from templates...")
+    try:
+        subprocess.run([sys.executable, str(REPO_DIR / "scripts" / "compile_instructions.py")], check=True)
+        ok("Instructions compiled successfully")
+    except Exception as e:
+        warn(f"Failed to compile instructions: {e}")
+
     # Compile agents
     compile_agents(install_claude, install_codex, install_gemini)
 
