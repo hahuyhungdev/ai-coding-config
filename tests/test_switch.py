@@ -172,6 +172,8 @@ class TestSwitch(unittest.TestCase):
             # Case 2: Token file doesn't exist -> initialize to first account
             self.assertEqual(switch.auto_switch_account(quiet=True), "")
             self.assertTrue(os.path.exists(token_file))
+            if os.name == 'posix':
+                self.assertEqual(os.stat(token_file).st_mode & 0o777, 0o600)
             with open(token_file, "r") as f:
                 saved = json.load(f)
                 self.assertEqual(saved["token"]["refresh_token"], "rt1")
