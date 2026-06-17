@@ -33,6 +33,7 @@ from utils import AGY_DIR, TOKEN_FILE, sort_rows_by_remaining_quota
 TOP_LEVEL_COMMANDS = [
     "status", "account", "doctor", "backup", "restore", "weekly",
     "changelog", "install", "models", "plugin", "plugins", "update",
+    "compact", "clean", "cleanup",
 ]
 ACCOUNT_COMMANDS = ["list", "add", "current", "use", "rename", "remove"]
 
@@ -274,6 +275,7 @@ def translate_legacy_args(args):
         "week": ["weekly"],
         "usage-week": ["weekly"],
         "weekly-usage": ["weekly"],
+        "compact": ["clean"],
     }
     if args[0] in ("help", "guide"):
         if len(args) > 1:
@@ -298,7 +300,7 @@ def run_legacy_internal(args):
         if len(args) < 2:
             raise ValueError("Usage: agy import-file <path.json> [label]")
         import_from_file(args[1], args[2] if len(args) > 2 else None)
-    elif command in ("clean", "cleanup", "prune"):
+    elif command in ("clean", "cleanup", "prune", "compact"):
         clean_conversations()
     elif command in ("delete", "remove", "rm"):
         delete_conversation(args[1] if len(args) > 1 else None)

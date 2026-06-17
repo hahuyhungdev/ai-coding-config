@@ -179,6 +179,35 @@ def main():
     decision = "allow"
     context = None
     session = str(data.get("session_id") or data.get("conversationId") or "")
+
+    # Compaction suggestion tracking
+    if session:
+        safe_session = "".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
+        tool_state_file = pathlib.Path(tempfile.gettempdir()) / f"ai-coding-config-tools-{safe_session}.count"
+        
+        # Read and increment count
+        tool_count = 0
+        if tool_state_file.exists():
+            try:
+                with tool_state_file.open("r") as handle:
+                    tool_count = int(handle.read().strip() or "0")
+            except Exception:
+                pass
+        tool_count += 1
+        
+        try:
+            with tool_state_file.open("w") as handle:
+                handle.write(str(tool_count))
+        except Exception:
+            pass
+            
+        # Suggest compaction at threshold (50) and periodically (every 25 calls after)
+        threshold = 50
+        if tool_count >= threshold and (tool_count - threshold) % 25 == 0:
+            sys.stderr.write(
+                f"\n\033[1;33m⚠️ [COMPACTION SUGGESTION] Active session has reached {tool_count} tool calls.\033[0m\n"
+                f"\033[1;36m💡 Run `/compact` to save your session progress, then restart your CLI to clear token history.\033[0m\n\n"
+            )
     debug = os.environ.get("GRAPHIFY_DEBUG", "0") == "1"
     bypass = os.environ.get("GRAPHIFY_BYPASS", "0") == "1"
 

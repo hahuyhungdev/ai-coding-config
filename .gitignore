@@ -67,3 +67,7 @@ security_audit_report.md
 
 hook-debug-claude.json
 scratch/e2e_results/
+
+# Context Compaction
+.agy_progress.md
+
