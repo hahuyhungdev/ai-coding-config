@@ -1,7 +1,9 @@
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from .constants import BRAIN_DIR, CLAUDE_DIR, CODEX_DIR
+
 
 def clean_project_name(folder_name: str) -> str:
     """Extract a clean project name from URL-encoded folder names."""
@@ -185,3 +187,65 @@ def get_all_conversations():
                                         
     conversations.sort(key=lambda x: x["last_updated"], reverse=True)
     return conversations
+
+def resolve_conversation_log(conv_id: str) -> tuple[Path | None, str]:
+    clean_id = "".join(c for c in conv_id if c.isalnum() or c in "-_")
+    parts = clean_id.split("__")
+    if len(parts) < 2:
+        return None, "unknown"
+        
+    source = parts[0]
+    if source == "gemini":
+        gemini_id = parts[1]
+        log_file = resolve_gemini_transcript_path(gemini_id)
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+        return log_file, model_name
+        
+    elif source == "claude":
+        if len(parts) < 3:
+            return None, "unknown"
+        project_dir_name = parts[1]
+        session_id = parts[2]
+        log_file = CLAUDE_DIR / project_dir_name / f"{session_id}.jsonl"
+        
+        model_name = "claude-3-5-sonnet"
+        if log_file.exists():
+            try:
+                with log_file.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        data = json.loads(line)
+                        if data.get("type") == "assistant" and "message" in data:
+                            model_name = data["message"].get("model", model_name)
+                            break
+            except Exception:
+                pass
+        return log_file, model_name
+        
+    elif source == "codex":
+        if len(parts) < 3:
+            return None, "unknown"
+        year_month_day = parts[1]
+        rollout_filename = parts[2]
+        
+        y_m_d_parts = year_month_day.split("-")
+        if len(y_m_d_parts) != 3:
+            return None, "unknown"
+        year, month, day = y_m_d_parts
+        
+        log_file = CODEX_DIR / year / month / day / f"{rollout_filename}.jsonl"
+        
+        model_name = "gpt-5"
+        if log_file.exists():
+            try:
+                with log_file.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        data = json.loads(line)
+                        if data.get("type") == "session_meta" and "payload" in data:
+                            model_name = data["payload"].get("model_provider", model_name)
+                            break
+            except Exception:
+                pass
+        return log_file, model_name
+        
+    return None, "unknown"
+

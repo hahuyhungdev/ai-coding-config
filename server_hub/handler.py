@@ -12,6 +12,7 @@ from .metadata import (
     get_all_conversations,
     resolve_gemini_transcript_path,
     describe_gemini_transcript_source,
+    resolve_conversation_log,
 )
 from .token_estimator import calculate_session_stats
 from .analytics import get_aggregate_analytics
@@ -548,73 +549,39 @@ class ConfigHandler(BaseHTTPRequestHandler):
             return
             
         source = parts[0]
-        steps = []
-        model_name = "unknown"
-        log_source = None
-        
-        if source == "gemini":
-            gemini_id = parts[1]
-            log_file = resolve_gemini_transcript_path(gemini_id)
-            if log_file is None:
-                self.send_error_json(404, "Gemini conversation log not found")
-                return
-            log_source = describe_gemini_transcript_source(gemini_id)
-            steps = parse_gemini_jsonl(log_file)
-            model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+        if source not in ("gemini", "claude", "codex"):
+            self.send_error_json(400, f"Unsupported conversation source: {source}")
+            return
             
-        elif source == "claude":
-            if len(parts) < 3:
-                self.send_error_json(400, "Invalid Claude conversation ID format")
-                return
-            project_dir_name = parts[1]
-            session_id = parts[2]
-            log_file = CLAUDE_DIR / project_dir_name / f"{session_id}.jsonl"
-            if not log_file.exists():
-                self.send_error_json(404, "Claude conversation log not found")
-                return
-            steps = parse_claude_jsonl(log_file)
-            model_name = "claude-3-5-sonnet"
-            try:
-                with log_file.open("r", encoding="utf-8") as f:
-                    for line in f:
-                        data = json.loads(line)
-                        if data.get("type") == "assistant" and "message" in data:
-                            model_name = data["message"].get("model", model_name)
-                            break
-            except Exception:
-                pass
+        if source == "claude" and len(parts) < 3:
+            self.send_error_json(400, "Invalid Claude conversation ID format")
+            return
             
-        elif source == "codex":
+        if source == "codex":
             if len(parts) < 3:
                 self.send_error_json(400, "Invalid Codex conversation ID format")
                 return
             year_month_day = parts[1]
-            rollout_filename = parts[2]
-            
-            y_m_d_parts = year_month_day.split("-")
-            if len(y_m_d_parts) != 3:
+            if len(year_month_day.split("-")) != 3:
                 self.send_error_json(400, "Invalid Codex date format")
                 return
-            year, month, day = y_m_d_parts
-            
-            log_file = CODEX_DIR / year / month / day / f"{rollout_filename}.jsonl"
-            if not log_file.exists():
-                self.send_error_json(404, "Codex conversation log not found")
-                return
-            steps = parse_codex_jsonl(log_file)
-            model_name = "gpt-5"
-            try:
-                with log_file.open("r", encoding="utf-8") as f:
-                    for line in f:
-                        data = json.loads(line)
-                        if data.get("type") == "session_meta" and "payload" in data:
-                            model_name = data["payload"].get("model_provider", model_name)
-                            break
-            except Exception:
-                pass
-        else:
-            self.send_error_json(400, f"Unsupported conversation source: {source}")
+
+        log_file, model_name = resolve_conversation_log(conv_id)
+        if log_file is None or not log_file.exists():
+            source_cap = source.capitalize() if source != "gemini" else "Gemini"
+            self.send_error_json(404, f"{source_cap} conversation log not found")
             return
+            
+        steps = []
+        log_source = None
+        
+        if source == "gemini":
+            log_source = describe_gemini_transcript_source(parts[1])
+            steps = parse_gemini_jsonl(log_file)
+        elif source == "claude":
+            steps = parse_claude_jsonl(log_file)
+        elif source == "codex":
+            steps = parse_codex_jsonl(log_file)
 
         stats = calculate_session_stats(steps, model_name)
         
