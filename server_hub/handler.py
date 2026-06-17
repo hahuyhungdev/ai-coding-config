@@ -70,6 +70,8 @@ def is_safe_path(requested_path, allowed_bases):
         return False
 
 class ConfigHandler(BaseHTTPRequestHandler):
+    session_token = None
+
     def log_message(self, format, *args):
         # Override to suppress standard HTTP logging to keep console clean
         pass
@@ -105,6 +107,37 @@ class ConfigHandler(BaseHTTPRequestHandler):
                     self.wfile.write(b"Forbidden: Cross-Origin referer blocked")
                     return False
         return True
+
+    def verify_session_token(self):
+        # If no session token is configured, skip verification
+        if not getattr(self, "session_token", None):
+            return True
+            
+        # 1. Check X-Session-Token header
+        x_token = self.headers.get("X-Session-Token")
+        if x_token and x_token == self.session_token:
+            return True
+            
+        # 2. Check Authorization header (Bearer token)
+        auth_header = self.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            bearer_token = auth_header[7:].strip()
+            if bearer_token == self.session_token:
+                return True
+                
+        # 3. Check Cookie header
+        cookie_header = self.headers.get("Cookie")
+        if cookie_header:
+            from http.cookies import SimpleCookie
+            try:
+                cookie = SimpleCookie()
+                cookie.load(cookie_header)
+                if "session_token" in cookie and cookie["session_token"].value == self.session_token:
+                    return True
+            except Exception:
+                pass
+                
+        return False
 
     def do_GET(self):
         if not self.validate_host_and_origin(check_origin=False):
@@ -178,6 +211,9 @@ class ConfigHandler(BaseHTTPRequestHandler):
         elif path == "/api/graphify/rebuild":
             self._handle_post_graphify_rebuild()
         elif path == "/api/simulator/execute":
+            if not self.verify_session_token():
+                self.send_error_json(401, "Unauthorized: Invalid or missing session token")
+                return
             self._handle_post_simulator_execute(payload)
         elif path == "/api/mcp/test":
             self._handle_post_mcp_test(payload)
@@ -631,6 +667,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             if file_to_serve.suffix == ".html":
                 self.send_header("Content-Type", "text/html")
+                if getattr(self, "session_token", None):
+                    self.send_header("Set-Cookie", f"session_token={self.session_token}; Path=/; HttpOnly; SameSite=Strict")
             elif file_to_serve.suffix == ".js":
                 self.send_header("Content-Type", "application/javascript")
             elif file_to_serve.suffix == ".css":
@@ -651,6 +689,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
         if not path.startswith("/api/") and dist_dir.exists() and (dist_dir / "index.html").exists():
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
+            if getattr(self, "session_token", None):
+                self.send_header("Set-Cookie", f"session_token={self.session_token}; Path=/; HttpOnly; SameSite=Strict")
             self.end_headers()
             self.wfile.write((dist_dir / "index.html").read_bytes())
             return
@@ -659,6 +699,8 @@ class ConfigHandler(BaseHTTPRequestHandler):
         if (path == "/" or path == "/index.html") and not dist_dir.exists():
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
+            if getattr(self, "session_token", None):
+                self.send_header("Set-Cookie", f"session_token={self.session_token}; Path=/; HttpOnly; SameSite=Strict")
             self.end_headers()
             self.wfile.write((REPO_DIR / "index.html").read_bytes())
             return
