@@ -64,3 +64,90 @@ class TestMCPPermissions(unittest.TestCase):
                 self.assertEqual(os.stat(claude_json).st_mode & 0o777, 0o600)
                 self.assertEqual(os.stat(gemini_json).st_mode & 0o777, 0o600)
                 self.assertEqual(os.stat(codex_toml).st_mode & 0o777, 0o600)
+
+import threading
+import json
+import urllib.request
+import urllib.error
+from http.server import HTTPServer
+
+class TestSimulatorExecuteSecurity(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Import ConfigHandler
+        from server_hub.handler import ConfigHandler
+        
+        # We set a test session token
+        cls.token = "test-security-token-123456"
+        ConfigHandler.session_token = cls.token
+        
+        # Start server on a free port (port 0)
+        cls.server = HTTPServer(("127.0.0.1", 0), ConfigHandler)
+        cls.port = cls.server.server_address[1]
+        cls.server_thread = threading.Thread(target=cls.server.serve_forever)
+        cls.server_thread.daemon = True
+        cls.server_thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.server_thread.join()
+
+    def test_execute_fails_without_token(self):
+        url = f"http://127.0.0.1:{self.port}/api/simulator/execute"
+        payload = {"action": "run_command", "args": {"CommandLine": "echo hello"}}
+        data = json.dumps(payload).encode("utf-8")
+        
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "Origin": "http://127.0.0.1"
+            }
+        )
+        
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            urllib.request.urlopen(req)
+        self.assertEqual(cm.exception.code, 401)
+
+    def test_execute_succeeds_with_header_token(self):
+        url = f"http://127.0.0.1:{self.port}/api/simulator/execute"
+        payload = {"action": "run_command", "args": {"CommandLine": "echo hello"}}
+        data = json.dumps(payload).encode("utf-8")
+        
+        # Test X-Session-Token
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "X-Session-Token": self.token,
+                "Origin": "http://127.0.0.1"
+            }
+        )
+        response = urllib.request.urlopen(req)
+        self.assertEqual(response.status, 200)
+        res_data = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(res_data.get("status"), "success")
+
+    def test_execute_succeeds_with_cookie_token(self):
+        url = f"http://127.0.0.1:{self.port}/api/simulator/execute"
+        payload = {"action": "run_command", "args": {"CommandLine": "echo hello"}}
+        data = json.dumps(payload).encode("utf-8")
+        
+        # Test Cookie header
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "Cookie": f"session_token={self.token}",
+                "Origin": "http://127.0.0.1"
+            }
+        )
+        response = urllib.request.urlopen(req)
+        self.assertEqual(response.status, 200)
+        res_data = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(res_data.get("status"), "success")
