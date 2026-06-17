@@ -69,29 +69,38 @@ import threading
 import json
 import urllib.request
 import urllib.error
-from http.server import HTTPServer
 
 class TestSimulatorExecuteSecurity(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Import ConfigHandler
-        from server_hub.handler import ConfigHandler
+        # Import app
+        from server import app
+        import uvicorn
+        import socket
+        import time
+        import threading
         
         # We set a test session token
         cls.token = "test-security-token-123456"
-        ConfigHandler.session_token = cls.token
+        app.state.session_token = cls.token
         
-        # Start server on a free port (port 0)
-        cls.server = HTTPServer(("127.0.0.1", 0), ConfigHandler)
-        cls.port = cls.server.server_address[1]
-        cls.server_thread = threading.Thread(target=cls.server.serve_forever)
+        # Find a free port
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("127.0.0.1", 0))
+        cls.port = s.getsockname()[1]
+        s.close()
+        
+        # Start server using uvicorn
+        config = uvicorn.Config(app, host="127.0.0.1", port=cls.port, log_level="error")
+        cls.server = uvicorn.Server(config)
+        cls.server_thread = threading.Thread(target=cls.server.run)
         cls.server_thread.daemon = True
         cls.server_thread.start()
+        time.sleep(0.5)
 
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown()
-        cls.server.server_close()
+        cls.server.should_exit = True
         cls.server_thread.join()
 
     def test_execute_fails_without_token(self):

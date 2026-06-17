@@ -15,7 +15,7 @@ Commands:
 
 Rules:
 - For codebase exploration, use **Graphify-only**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to explore.
-- Use at most **10 Graphify calls** total per question. After 10 calls, hard stop and synthesize from available context.
+- Use at most **20 Graphify calls** total per question. After 20 calls, hard stop and synthesize from available context.
 - **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
 - **Synthesize from Graphify context only.** Answer based on what Graphify returns. Do not supplement with direct file reads for exploration.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
