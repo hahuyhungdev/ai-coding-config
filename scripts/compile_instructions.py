@@ -69,7 +69,7 @@ TARGETS = {
         },
         "extra_middle": "",
         "include_graphify": True,
-        "graphify_header": "## 6. Graphify — Knowledge Graph Navigation\n\n",
+        "graphify_header": "## 6. Graphify — Knowledge Graph Navigation\n",
         "suffix": "",
     },
     "ide-copilot": {
@@ -85,7 +85,7 @@ TARGETS = {
         },
         "extra_middle": "",
         "include_graphify": False,
-        "graphify_header": "## 6. Graphify — Knowledge Graph Navigation\n\n",
+        "graphify_header": "## 6. Graphify — Knowledge Graph Navigation\n",
         "suffix": "",
     },
 }

@@ -71,3 +71,9 @@ scratch/e2e_results/
 # Context Compaction
 .agy_progress.md
 
+# Generated instructions files
+/claude/CLAUDE.md
+/codex/AGENTS.md
+/gemini/ANTIGRAVITY.md
+/copilot/copilot-instructions.md
+
