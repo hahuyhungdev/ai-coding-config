@@ -2,20 +2,21 @@ import os
 import json
 import re
 import sys
+import time
 from datetime import datetime, timedelta
 from utils import (
     JSON_FILE, TOKEN_FILE, LOG_DIR, AGY_DIR,
     GEMINI_FALLBACK_MODEL, CLAUDE_FALLBACK_MODEL,
     GEMINI_MODELS, CLAUDE_MODELS,
     get_username, parse_duration, parse_log_timestamp,
-    get_model_pct, format_exact_reset_time
+    get_model_pct, format_exact_reset_time, remaining_quota_value
 )
 from parser import get_remaining_reset_from_logs
 
-def has_model_quota(acc, model_name, threshold=10):
+def has_model_quota(acc, model_name, threshold=30):
     return get_model_pct(acc.get("model_quotas", {}), model_name) > threshold
 
-def model_group_exhausted(model_quotas, model_names, threshold=10):
+def model_group_exhausted(model_quotas, model_names, threshold=30):
     present = [name for name in model_names if name in model_quotas]
     return bool(present) and all(get_model_pct(model_quotas, name) <= threshold for name in present)
 
@@ -91,11 +92,9 @@ def is_account_blocked_or_low(acc, accounts):
     # Check cached quota percentage
     quota_val = acc.get("quota")
     if quota_val:
-        m = re.search(r"(\d+)%", quota_val)
-        if m:
-            pct = int(m.group(1))
-            if pct <= 10:  # Switch when quota is running low (<= 10%)
-                return True
+        pct = remaining_quota_value(quota_val)
+        if pct != -1 and pct <= 30:  # Switch when quota is running low (<= 30%)
+            return True
 
     return False
 
@@ -203,26 +202,27 @@ def auto_switch_account(quiet=False):
 
     if is_account_blocked_or_low(active_acc, accounts):
         if not quiet:
-            print(f"⚠️ Current account '{active_email}' is blocked or has low quota (<=10%). Searching for replacement...")
-
-        # Detect which model was blocked (from recent logs)
-        _, _, blocked_model = check_last_log_for_quota_error()
-        if not blocked_model or blocked_model == "unknown":
-            blocked_model = active_acc.get("last_blocked_model", "")
-
-        suggestion = get_model_suggestion(active_acc, blocked_model=blocked_model)
-        if suggestion:
-            print(f"MODEL:{suggestion}")
-            return suggestion
+            print(f"⚠️ Current account '{active_email}' is blocked or has low quota (<=30%). Searching for replacement...")
 
         # Search circularly for a good account starting from the next index
         found_idx = None
         for i in range(1, len(accounts)):
             candidate_idx = (active_idx + i) % len(accounts)
             candidate_acc = accounts[candidate_idx]
+            candidate_email = candidate_acc.get("email") or candidate_acc.get("name") or f"Account {candidate_idx + 1}"
+            
+            if not quiet:
+                print(f"  🔍 Checking replacement: {candidate_email}...", end="\r", flush=True)
+                time.sleep(0.12)
+            
             if not is_account_blocked_or_low(candidate_acc, accounts):
                 found_idx = candidate_idx
+                if not quiet:
+                    print(f"  ✅ Found healthy replacement: {candidate_email}!      ", flush=True)
                 break
+            else:
+                if not quiet:
+                    print(f"  ❌ Skipped (low quota/blocked): {candidate_email}      ", flush=True)
 
         if found_idx is not None:
             # Switch to this account!
@@ -235,13 +235,29 @@ def auto_switch_account(quiet=False):
                 f.write(str((found_idx + 1) % len(accounts)))
 
             new_email = selected_acc.get("email") or selected_acc.get("name")
-            print(f"🔄 Auto-switched account to: {new_email} (Index: [{found_idx + 1}])")
+            quota = selected_acc.get("quota", "?")
+            reset_info = selected_acc.get("reset_info", "")
+            quota_str = f" - Quota: {quota}"
+            if reset_info:
+                quota_str += f" ({reset_info})"
+            print(f"🔄 Auto-switched account to: {new_email} (Index: [{found_idx + 1}]){quota_str}")
 
-            suggestion = get_model_suggestion(selected_acc, blocked_model=blocked_model)
+            # Suggest model for the newly switched account if needed
+            suggestion = get_model_suggestion(selected_acc)
             if suggestion:
                 print(f"MODEL:{suggestion}")
                 return suggestion
         else:
+            # All accounts are low or blocked. Try model fallback on the current account.
+            _, _, blocked_model = check_last_log_for_quota_error()
+            if not blocked_model or blocked_model == "unknown":
+                blocked_model = active_acc.get("last_blocked_model", "")
+
+            suggestion = get_model_suggestion(active_acc, blocked_model=blocked_model)
+            if suggestion:
+                print(f"MODEL:{suggestion}")
+                return suggestion
+
             if not quiet:
                 print("⚠️ All accounts are currently blocked or low on quota! Staying on the current account.")
     else:
@@ -267,18 +283,6 @@ def post_check_and_switch():
         sys.exit(1)
 
     print(f"⚠️ Quota exhausted on {blocked_model} model! {reset_time}")
-
-    if blocked_model == "gemini":
-        fallback_model = CLAUDE_FALLBACK_MODEL
-        fallback_label = "claude"
-    else:
-        fallback_model = None
-        fallback_label = None
-
-    if fallback_model:
-        print(f"🔄 Trying {fallback_label} model on same account...")
-        print(f"SWITCH_MODEL:{fallback_model}")
-        sys.exit(0)
 
     if not os.path.exists(JSON_FILE):
         sys.exit(1)
@@ -326,9 +330,17 @@ def post_check_and_switch():
     for i in range(1, len(accounts)):
         candidate_idx = (active_idx + i) % len(accounts)
         candidate_acc = accounts[candidate_idx]
+        candidate_email = candidate_acc.get("email") or candidate_acc.get("name") or f"Account {candidate_idx + 1}"
+        
+        print(f"  🔍 Checking replacement: {candidate_email}...", end="\r", flush=True)
+        time.sleep(0.12)
+        
         if not is_account_blocked_or_low(candidate_acc, accounts):
             found_idx = candidate_idx
+            print(f"  ✅ Found healthy replacement: {candidate_email}!      ", flush=True)
             break
+        else:
+            print(f"  ❌ Skipped (low quota/blocked): {candidate_email}      ", flush=True)
 
     if found_idx is not None:
         selected_acc = accounts[found_idx]
@@ -340,10 +352,28 @@ def post_check_and_switch():
             f.write(str((found_idx + 1) % len(accounts)))
 
         new_email = selected_acc.get("email") or selected_acc.get("name")
-        print(f"🔄 Switched to: {new_email} (Index: [{found_idx + 1}]) — retrying...")
+        quota = selected_acc.get("quota", "?")
+        reset_info = selected_acc.get("reset_info", "")
+        quota_str = f" - Quota: {quota}"
+        if reset_info:
+            quota_str += f" ({reset_info})"
+        print(f"🔄 Switched to: {new_email} (Index: [{found_idx + 1}]){quota_str} — retrying...")
         print("SWITCH_ACCOUNT")
         sys.exit(0)
     else:
+        # No healthy replacement account found. Try same-account model fallback.
+        if blocked_model == "gemini":
+            fallback_model = CLAUDE_FALLBACK_MODEL
+            fallback_label = "claude"
+        else:
+            fallback_model = None
+            fallback_label = None
+
+        if fallback_model:
+            print(f"🔄 Trying {fallback_label} model on same account...")
+            print(f"SWITCH_MODEL:{fallback_model}")
+            sys.exit(0)
+
         print("❌ All accounts are blocked! Cannot retry.")
         sys.exit(2)
 
@@ -387,4 +417,9 @@ def rotate_account():
         f.write(str((next_idx + 1) % len(accounts)))
 
     email = selected_acc.get("email") or selected_acc.get("name") or f"Account {next_idx + 1}"
-    print(f"🔄 Manually rotated active account to: {email} (Index: [{next_idx + 1} / {len(accounts)}])")
+    quota = selected_acc.get("quota", "?")
+    reset_info = selected_acc.get("reset_info", "")
+    quota_str = f" - Quota: {quota}"
+    if reset_info:
+        quota_str += f" ({reset_info})"
+    print(f"🔄 Manually rotated active account to: {email} (Index: [{next_idx + 1} / {len(accounts)}]){quota_str}")

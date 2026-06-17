@@ -117,7 +117,10 @@ def account_use(target, json_output=False):
     if json_output:
         emit_json({"account": row})
     else:
-        print(f"Switched active account to {row['display']} ({row['email']})")
+        quota_str = f" - Quota: {row['quota']}"
+        if row.get("reset_time"):
+            quota_str += f" ({row['reset_time']})"
+        print(f"Switched active account to {row['display']} ({row['email']}){quota_str}")
 
 
 def account_rename(target, label, json_output=False):

@@ -84,17 +84,17 @@ class TestSwitch(unittest.TestCase):
         }
         self.assertFalse(switch.is_account_blocked_or_low(acc, []))
 
-        # Case 5: Quota is low (<=10%)
+        # Case 5: Quota is low (<=30%)
         acc = {
             "email": "test@gmail.com",
-            "quota": "10%"
+            "quota": "30%"
         }
         self.assertTrue(switch.is_account_blocked_or_low(acc, []))
 
-        # Case 6: Quota is ready (>10%)
+        # Case 6: Quota is ready (>30%)
         acc = {
             "email": "test@gmail.com",
-            "quota": "80%"
+            "quota": "31%"
         }
         self.assertFalse(switch.is_account_blocked_or_low(acc, []))
 
