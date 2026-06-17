@@ -10,55 +10,52 @@
 
 A comprehensive security scan and codebase audit was performed using Graphify analysis and security best practice guidelines. The scan focused on local HTTP endpoints, subprocess execution, credential storage, path validation, and file permissions.
 
-The review revealed that while standard user permissions are configured for some token writes, the codebase contains major architectural vulnerabilities within the local HTTP server (`server.py` / `server_hub`) and configuration utilities:
-- **Two Critical vulnerabilities** regarding unauthenticated command execution and arbitrary sensitive file reads (Local File Inclusion) via local HTTP endpoints.
-- **One Medium vulnerability** regarding insecure permission settings on sensitive token and configuration file writes.
+All identified vulnerabilities have been successfully resolved using a strict Test-Driven Development (TDD) workflow:
+- **SEC-001 (File Permissions)**: Enforced strict `0o600` permissions on all OAuth token and configuration writes.
+- **SEC-002 (Unauthenticated Command Execution)**: Secured the simulator execution endpoint with a startup-generated random session token checked via Headers/Cookies.
+- **SEC-003 (Local File Inclusion)**: Restricted file serving to safe directories using the `is_safe_path()` resolver.
 
 ---
 
-## Detailed Findings
+## Detailed Findings & Resolution Status
 
 ### SEC-001: Inconsistent File Permissions on Sensitive Token and Configuration Writes (Medium)
 
 - **Severity:** Medium
+- **Status:** ✅ Resolved (Fixed on June 17, 2026)
 - **Target Files:** 
-  - [tools/agy/switch.py](tools/agy/switch.py#L217-L220) (Lines 217-220, 339-340, 411-413)
-  - [server_hub/mcp_manager.py](server_hub/mcp_manager.py#L62-L86) (Lines 62-63, 84-85)
+  - [tools/agy/switch.py](tools/agy/switch.py)
+  - [server_hub/mcp_manager.py](server_hub/mcp_manager.py)
 
 #### Impact Statement
 OAuth credentials and configuration files containing system paths and server secrets can be created with world-readable permissions (e.g. `0644`), exposing credentials to other local users on the same machine.
 
-#### Description
-While `agy-status.py` sets written tokens to `0600` permissions, `switch.py` and `mcp_manager.py` write OAuth tokens (`antigravity-oauth-token`) and system-wide configuration files (`~/.claude.json`, `~/.gemini/config/mcp_config.json`) using standard `open()` writes. This leaves them vulnerable to default system umask permissions.
-
-#### Recommendation
-Enforce strict user-only permissions (`0600`) after writing any credential or configuration payload:
-```python
-os.chmod(file_path, 0o600)
-```
+#### Resolution Details
+Implemented strict `0o600` permission enforcement. Whenever `switch.py` writes the `TOKEN_FILE` or updates the accounts database (`JSON_FILE`), and whenever `mcp_manager.py` updates client configurations (`~/.claude.json`, `~/.gemini/config/mcp_config.json`, and `~/.codex/config.toml`), `os.chmod(..., 0o600)` is applied on POSIX systems immediately after writing. Unit tests were added in `tests/test_switch.py` and `tests/test_security.py` to assert correct permission modes.
 
 ---
 
 ### SEC-002: Unauthenticated Arbitrary Command Execution via Local HTTP Endpoint (Critical)
 
 - **Severity:** Critical
-- **Target File:** [server_hub/handler.py](server_hub/handler.py#L482-L489)
+- **Status:** ✅ Resolved (Fixed on June 17, 2026)
+- **Target Files:**
+  - [server.py](server.py)
+  - [server_hub/handler.py](server_hub/handler.py)
 
 #### Impact Statement
 A local attacker or malicious application can send unauthenticated HTTP POST requests to `/api/simulator/execute` to run arbitrary shell commands on the host under the server user's privileges.
 
-#### Description
-The local server runs `/api/simulator/execute` to simulate runs. It takes a raw `CommandLine` string and executes it via `subprocess.run(shell=True)`. The endpoint lacks API key or session validation, and the origin validation check can be bypassed simply by omitting the `Origin` and `Referer` headers from the request.
-
-#### Recommendation
-Disable this endpoint in non-developer/production environments. If execution is required, enforce a random API key authentication header and avoid `shell=True` entirely by splitting arguments safely.
+#### Resolution Details
+Implemented a secure session token authentication scheme. The server generates a random, cryptographically secure 32-byte hex token on startup. The endpoint `/api/simulator/execute` validates that this token is provided in the `X-Session-Token` or `Authorization: Bearer` headers, or inside the browser `session_token` cookie. The cookie is automatically set on clients via a secure `Set-Cookie` header when loading HTML pages (like `index.html`), ensuring seamless frontend integration with zero client modifications.
 
 ---
 
 ### SEC-003: Unauthenticated Sensitive File Read / Local File Inclusion (Critical)
 
 - **Severity:** Critical
-- **Target File:** [server_hub/handler.py](server_hub/handler.py#L580-L585)
+- **Status:** ✅ Resolved (Fixed on June 17, 2026)
+- **Target File:** [server_hub/handler.py](server_hub/handler.py)
 
 #### Impact Statement
 An unauthenticated local attacker or malicious website (via DNS rebinding) can read sensitive credentials like Google OAuth tokens and client databases directly via static HTTP GET routes.
@@ -66,5 +63,5 @@ An unauthenticated local attacker or malicious website (via DNS rebinding) can r
 #### Description
 In `_serve_static_resources`, the handler checks if a URL path contains sensitive keywords like `".gemini"` or `".claude"`. If it does, it dynamically resolves the path to the user's home directory (`Path.home() / unquoted_path`) and returns the raw file contents (e.g. `/api/.gemini/antigravity-cli/accounts.json`), bypassing all sandbox directory boundaries.
 
-#### Recommendation
-Never dynamically resolve file paths from home directories based on substring keywords. Restrict file serving exclusively to a whitelist of public subdirectories (such as `REPO_DIR / "frontend/dist"` or a designated screenshots directory), and strictly validate that resolving files stay within those paths using `os.path.commonpath`.
+#### Resolution Details
+Developed and integrated a directory traversal validator helper `is_safe_path(path, allowed_bases)`. When static resources or media files are requested, the resolved canonical absolute path is verified to ensure it is nested under safe directories (the repository workspace root and explicit application configuration folders). Safe path unit tests were implemented in `tests/test_security.py`.
