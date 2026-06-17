@@ -8,7 +8,11 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
 from server_hub.constants import BRAIN_DIR, CLAUDE_DIR, CODEX_DIR
-from server_hub.metadata import describe_gemini_transcript_source, resolve_gemini_transcript_path
+from server_hub.metadata import (
+    describe_gemini_transcript_source,
+    resolve_gemini_transcript_path,
+    resolve_conversation_log,
+)
 from server_hub.parsers import parse_gemini_jsonl, parse_claude_jsonl, parse_codex_jsonl
 
 
@@ -123,40 +127,33 @@ def inspect_conversation(conversation_id, brain_dir=BRAIN_DIR, claude_dir=CLAUDE
     if source not in ("gemini", "claude", "codex"):
         raise ValueError(f"Unsupported conversation source: {source}")
 
+    log_file, _ = resolve_conversation_log(
+        clean_id,
+        brain_dir=Path(brain_dir) if brain_dir else None,
+        claude_dir=Path(claude_dir) if claude_dir else None,
+        codex_dir=Path(codex_dir) if codex_dir else None,
+    )
+    if log_file is None or not log_file.exists():
+        source_cap = source.capitalize() if source != "gemini" else "Gemini"
+        raise FileNotFoundError(f"{source_cap} conversation log not found")
+
     if source == "gemini":
         gemini_id = parts[1]
-        log_file = resolve_gemini_transcript_path(gemini_id, brain_dir=brain_dir)
-        if log_file is None:
-            raise FileNotFoundError("Gemini conversation log not found")
         steps = parse_gemini_jsonl(log_file)
-        log_source = describe_gemini_transcript_source(gemini_id, brain_dir=brain_dir)
+        log_source = describe_gemini_transcript_source(gemini_id, brain_dir=Path(brain_dir) if brain_dir else None)
     elif source == "claude":
-        if len(parts) < 3:
-            raise ValueError("Invalid Claude conversation ID format")
-        project_dir_name = parts[1]
-        session_id = parts[2]
-        log_file = Path(claude_dir) / project_dir_name / f"{session_id}.jsonl"
-        if not log_file.exists():
-            raise FileNotFoundError(f"Claude conversation log not found at {log_file}")
         steps = parse_claude_jsonl(log_file)
+        project_dir_name = parts[1]
         log_source = {
             "kind": "standard",
             "filename": log_file.name,
             "relative_path": f"{project_dir_name}/{log_file.name}"
         }
     elif source == "codex":
-        if len(parts) < 3:
-            raise ValueError("Invalid Codex conversation ID format")
-        year_month_day = parts[1]
-        rollout_filename = parts[2]
-        y_m_d_parts = year_month_day.split("-")
-        if len(y_m_d_parts) != 3:
-            raise ValueError("Invalid Codex date format")
-        year, month, day = y_m_d_parts
-        log_file = Path(codex_dir) / year / month / day / f"{rollout_filename}.jsonl"
-        if not log_file.exists():
-            raise FileNotFoundError(f"Codex conversation log not found at {log_file}")
         steps = parse_codex_jsonl(log_file)
+        year_month_day = parts[1]
+        y_m_d_parts = year_month_day.split("-")
+        year, month, day = y_m_d_parts
         log_source = {
             "kind": "standard",
             "filename": log_file.name,

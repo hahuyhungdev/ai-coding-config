@@ -188,7 +188,12 @@ def get_all_conversations():
     conversations.sort(key=lambda x: x["last_updated"], reverse=True)
     return conversations
 
-def resolve_conversation_log(conv_id: str) -> tuple[Path | None, str]:
+def resolve_conversation_log(
+    conv_id: str,
+    brain_dir: Path | None = None,
+    claude_dir: Path | None = None,
+    codex_dir: Path | None = None,
+) -> tuple[Path | None, str]:
     clean_id = "".join(c for c in conv_id if c.isalnum() or c in "-_")
     parts = clean_id.split("__")
     if len(parts) < 2:
@@ -197,7 +202,7 @@ def resolve_conversation_log(conv_id: str) -> tuple[Path | None, str]:
     source = parts[0]
     if source == "gemini":
         gemini_id = parts[1]
-        log_file = resolve_gemini_transcript_path(gemini_id)
+        log_file = resolve_gemini_transcript_path(gemini_id, brain_dir=brain_dir or BRAIN_DIR)
         model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
         return log_file, model_name
         
@@ -206,7 +211,8 @@ def resolve_conversation_log(conv_id: str) -> tuple[Path | None, str]:
             return None, "unknown"
         project_dir_name = parts[1]
         session_id = parts[2]
-        log_file = CLAUDE_DIR / project_dir_name / f"{session_id}.jsonl"
+        c_dir = claude_dir or CLAUDE_DIR
+        log_file = c_dir / project_dir_name / f"{session_id}.jsonl"
         
         model_name = "claude-3-5-sonnet"
         if log_file.exists():
@@ -232,7 +238,8 @@ def resolve_conversation_log(conv_id: str) -> tuple[Path | None, str]:
             return None, "unknown"
         year, month, day = y_m_d_parts
         
-        log_file = CODEX_DIR / year / month / day / f"{rollout_filename}.jsonl"
+        cx_dir = codex_dir or CODEX_DIR
+        log_file = cx_dir / year / month / day / f"{rollout_filename}.jsonl"
         
         model_name = "gpt-5"
         if log_file.exists():
@@ -248,4 +255,5 @@ def resolve_conversation_log(conv_id: str) -> tuple[Path | None, str]:
         return log_file, model_name
         
     return None, "unknown"
+
 
