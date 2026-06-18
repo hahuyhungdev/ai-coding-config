@@ -221,7 +221,11 @@ def setup_cli_wrapper(repo_dir: Path) -> None:
 REPO_DIR="{repo_dir.resolve()}"
 
 if [ "$1" = "init" ]; then
-    python3 "$REPO_DIR/install.py" --all --project "$PWD" --force
+    if [ "$2" = "ai" ]; then
+        python3 "$REPO_DIR/install.py" --init-ai --project "$PWD" --backend gemini-cli "${{@:3}}"
+    else
+        python3 "$REPO_DIR/install.py" --all --project "$PWD" --force
+    fi
 elif [ "$1" = "init-ai" ]; then
     python3 "$REPO_DIR/install.py" --init-ai --project "$PWD" "${{@:2}}"
 elif [ "$1" = "uninstall" ]; then
@@ -254,7 +258,12 @@ if %ERRORLEVEL% neq 0 (
 )
 
 if "%1"=="init" (
-    %PYTHON_BIN% "%REPO_DIR%\\install.py" --all --project "%CD%" --force
+    if "%2"=="ai" (
+        shift
+        %PYTHON_BIN% "%REPO_DIR%\\install.py" --init-ai --project "%CD%" --backend gemini-cli %2 %3 %4 %5 %6 %7 %8 %9
+    ) else (
+        %PYTHON_BIN% "%REPO_DIR%\\install.py" --all --project "%CD%" --force
+    )
 ) else if "%1"=="init-ai" (
     shift
     %PYTHON_BIN% "%REPO_DIR%\\install.py" --init-ai --project "%CD%" %1 %2 %3 %4 %5 %6 %7 %8 %9

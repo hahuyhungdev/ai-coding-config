@@ -68,7 +68,7 @@ Examples:
     parser.add_argument("--uninstall", action="store_true", help="Uninstall all global and/or project-level configurations and hooks")
     parser.add_argument("--status", action="store_true", help="Show configuration status, active account, and token usage")
     parser.add_argument("--init-ai", action="store_true", help="Initialize Graphify graph with AI semantic extraction")
-    parser.add_argument("--backend", type=str, default="gemini", help="LLM backend for AI extraction (default: gemini)")
+    parser.add_argument("--backend", type=str, default="gemini-cli", help="LLM backend for AI extraction (default: gemini-cli)")
 
     args = parser.parse_args()
 
@@ -133,43 +133,58 @@ Examples:
         # Validate and configure keys based on selected backend
         api_key = None
         selected_model = None
-        if backend == "claude":
-            api_key = claude_key
-            selected_model = claude_model
-            key_var = "ANTHROPIC_API_KEY"
-            alt_key_var = None
-        else:
-            api_key = gemini_key
-            selected_model = gemini_model
-            key_var = "GEMINI_API_KEY"
-            alt_key_var = "GOOGLE_API_KEY"
+        key_var = None
+        
+        needs_key = backend not in ("claude-cli", "ollama", "bedrock", "gemini-cli")
+        if needs_key:
+            if backend == "claude":
+                api_key = claude_key
+                selected_model = claude_model
+                key_var = "ANTHROPIC_API_KEY"
+            else:
+                key_mapping = {
+                    "openai": "OPENAI_API_KEY",
+                    "deepseek": "DEEPSEEK_API_KEY",
+                    "kimi": "MOONSHOT_API_KEY",
+                    "azure": "AZURE_OPENAI_API_KEY",
+                    "gemini": "GEMINI_API_KEY",
+                }
+                key_var = key_mapping.get(backend, "GEMINI_API_KEY")
+                api_key = os.environ.get(key_var)
+                if not api_key:
+                    if key_var == "GEMINI_API_KEY":
+                        api_key = gemini_key
+                        selected_model = gemini_model
             
-        # Try prompting the user if we are in an interactive terminal
-        if not api_key and sys.stdin.isatty():
-            print(f"\n[WARN] API key for {backend.upper()} is not set in your environment or configs.")
-            try:
-                val = input(f"Enter your API key for {backend.upper()} (will not be stored on disk): ").strip()
-                if val:
-                    api_key = val
-            except (KeyboardInterrupt, EOFError):
-                pass
-                
-        if not api_key:
-            print(f"\n[ERROR] API key for {backend.upper()} is required. Set {key_var} and try again.")
-            sys.exit(1)
+            # Try prompting the user if we are in an interactive terminal
+            if not api_key and sys.stdin.isatty():
+                print(f"\n[WARN] API key for {backend.upper()} is not set in your environment or configs.")
+                try:
+                    val = input(f"Enter your API key for {backend.upper()} (will not be stored on disk): ").strip()
+                    if val:
+                        api_key = val
+                except (KeyboardInterrupt, EOFError):
+                    pass
+                    
+            if not api_key:
+                print(f"\n[ERROR] API key for {backend.upper()} is required. Set {key_var} and try again.")
+                sys.exit(1)
             
         # Set the environment variables for the subprocess
         env = os.environ.copy()
-        if backend == "claude":
-            env["ANTHROPIC_API_KEY"] = api_key
+        if backend in ("claude", "claude-cli"):
+            if api_key:
+                env["ANTHROPIC_API_KEY"] = api_key
             if claude_base_url:
                 env["ANTHROPIC_BASE_URL"] = claude_base_url
             if claude_model:
                 env["ANTHROPIC_MODEL"] = claude_model
         else:
-            env["GEMINI_API_KEY"] = api_key
-            env["GOOGLE_API_KEY"] = api_key
-            if gemini_model:
+            if api_key and key_var:
+                env[key_var] = api_key
+                if key_var == "GEMINI_API_KEY":
+                    env["GOOGLE_API_KEY"] = api_key
+            if gemini_model and backend == "gemini":
                 env["GEMINI_MODEL"] = gemini_model
             
         # Run graphify extract

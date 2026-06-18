@@ -38,9 +38,20 @@ Navigate to any project directory and run:
 
 *   **AI Semantic Mode (Deep Extraction):**
     ```bash
-    ai-config init-ai [--backend <gemini|openai|claude>]
+    ai-config init ai
     ```
-    Performs deep semantic indexing using LLM API keys. It automatically scans active environment variables or prompts for temporary input if keys are not set.
+    Performs deep semantic indexing. By default, this runs in **zero-API-key mode** using your **Antigravity CLI (Gemini) quota** (`gemini-cli` backend). To use a paid API key or another provider, pass the `--backend` flag (e.g. `ai-config init ai --backend openai`).
+
+#### 🚀 Optimization Tips (Speed Boost for AI Mode)
+To run AI semantic extraction up to **10x faster**, you can enable parallel execution, increase token budget, or use a faster model:
+```bash
+# Enable parallel processing & set model to Gemini 3.5 Flash (Low)
+export GRAPHIFY_GEMINI_CLI_PARALLEL=1
+export GRAPHIFY_GEMINI_CLI_MODEL="Gemini 3.5 Flash (Low)"
+
+# Run extraction with 4 workers and a larger chunk budget
+ai-config init ai --max-concurrency 4 --token-budget 120000
+```
 
 ---
 
