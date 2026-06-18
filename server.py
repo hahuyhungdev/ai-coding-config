@@ -3,10 +3,10 @@ import sys
 import argparse
 import secrets
 import uvicorn
-from server_hub.app import create_app
-from server_hub.handler import ConfigHandler
-from server_hub.metadata import get_all_conversations
-from server_hub.parsers import parse_gemini_jsonl, parse_claude_jsonl, parse_codex_jsonl
+from backend.app import create_app
+from backend.handler import ConfigHandler
+from backend.metadata import get_all_conversations
+from backend.parsers import parse_gemini_jsonl, parse_claude_jsonl, parse_codex_jsonl
 
 app = create_app()
 

@@ -7,13 +7,13 @@ from pathlib import Path
 REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
-from server_hub.constants import BRAIN_DIR, CLAUDE_DIR, CODEX_DIR
-from server_hub.metadata import (
+from backend.constants import BRAIN_DIR, CLAUDE_DIR, CODEX_DIR
+from backend.metadata import (
     describe_gemini_transcript_source,
     resolve_gemini_transcript_path,
     resolve_conversation_log,
 )
-from server_hub.parsers import parse_gemini_jsonl, parse_claude_jsonl, parse_codex_jsonl
+from backend.parsers import parse_gemini_jsonl, parse_claude_jsonl, parse_codex_jsonl
 
 
 def _clean_conversation_id(conversation_id):

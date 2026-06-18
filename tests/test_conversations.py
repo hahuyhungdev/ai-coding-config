@@ -13,7 +13,7 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
 from server import app, get_all_conversations
-from server_hub.metadata import describe_gemini_transcript_source, resolve_gemini_transcript_path
+from backend.metadata import describe_gemini_transcript_source, resolve_gemini_transcript_path
 
 INSPECT_CONVERSATION_SCRIPT = REPO_DIR / "scripts" / "inspect_conversation.py"
 inspect_spec = importlib.util.spec_from_file_location("inspect_conversation", INSPECT_CONVERSATION_SCRIPT)

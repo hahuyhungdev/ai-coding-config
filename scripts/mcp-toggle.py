@@ -4,17 +4,17 @@
 import sys
 from pathlib import Path
 
-# Setup sys.path appropriately so server_hub is importable
+# Setup sys.path appropriately so backend is importable
 REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
-from server_hub.mcp_manager import (
+from backend.mcp_manager import (
     load_disabled,
     save_disabled,
     get_mcp_servers,
     save_mcp_configs,
 )
-from server_hub.constants import SHARED_DISABLED
+from backend.constants import SHARED_DISABLED
 
 GREEN = "\033[0;32m"
 RED = "\033[0;31m"

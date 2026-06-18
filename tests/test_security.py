@@ -3,10 +3,10 @@ from pathlib import Path
 import os
 import sys
 
-# Add server_hub to path if needed
+# Add backend to path if needed
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from server_hub.handler import is_safe_path
+from backend.handler import is_safe_path
 
 class TestSecurityPathValidation(unittest.TestCase):
     def test_is_safe_path_validates_correctly(self):
@@ -35,7 +35,7 @@ class TestSecurityPathValidation(unittest.TestCase):
 
 from unittest.mock import patch
 import tempfile
-from server_hub.mcp_manager import save_mcp_configs
+from backend.mcp_manager import save_mcp_configs
 
 class TestMCPPermissions(unittest.TestCase):
     def test_mcp_configs_have_strict_permissions(self):

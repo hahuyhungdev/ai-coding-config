@@ -25,7 +25,7 @@ All identified vulnerabilities have been successfully resolved using a strict Te
 - **Status:** ✅ Resolved (Fixed on June 17, 2026)
 - **Target Files:** 
   - [tools/agy/switch.py](tools/agy/switch.py)
-  - [server_hub/mcp_manager.py](server_hub/mcp_manager.py)
+  - [backend/mcp_manager.py](backend/mcp_manager.py)
 
 #### Impact Statement
 OAuth credentials and configuration files containing system paths and server secrets can be created with world-readable permissions (e.g. `0644`), exposing credentials to other local users on the same machine.
@@ -41,7 +41,7 @@ Implemented strict `0o600` permission enforcement. Whenever `switch.py` writes t
 - **Status:** ✅ Resolved (Fixed on June 17, 2026)
 - **Target Files:**
   - [server.py](server.py)
-  - [server_hub/handler.py](server_hub/handler.py)
+  - [backend/handler.py](backend/handler.py)
 
 #### Impact Statement
 A local attacker or malicious application can send unauthenticated HTTP POST requests to `/api/simulator/execute` to run arbitrary shell commands on the host under the server user's privileges.
@@ -55,7 +55,7 @@ Implemented a secure session token authentication scheme. The server generates a
 
 - **Severity:** Critical
 - **Status:** ✅ Resolved (Fixed on June 17, 2026)
-- **Target File:** [server_hub/handler.py](server_hub/handler.py)
+- **Target File:** [backend/handler.py](backend/handler.py)
 
 #### Impact Statement
 An unauthenticated local attacker or malicious website (via DNS rebinding) can read sensitive credentials like Google OAuth tokens and client databases directly via static HTTP GET routes.
