@@ -40,7 +40,7 @@ Navigate to any project directory and run:
     ```bash
     ai-config init ai
     ```
-    Performs deep semantic indexing. By default, this runs in **zero-API-key mode** using your **Antigravity CLI (Gemini) quota** (`gemini-cli` backend). To use a paid API key or another provider, pass the `--backend` flag (e.g. `ai-config init ai --backend openai`).
+    Performs deep semantic indexing. By default, this runs in **zero-API-key mode** using your **Antigravity CLI (Gemini) quota** (`gemini-cli` backend).
 
 #### 🚀 Optimization Tips (Speed Boost for AI Mode)
 To run AI semantic extraction up to **10x faster**, you can enable parallel execution, increase token budget, or use a faster model:
