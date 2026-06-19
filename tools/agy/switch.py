@@ -217,25 +217,35 @@ def auto_switch_account(quiet=False):
         if not quiet:
             print(f"⚠️ Current account '{active_email}' is blocked or has low quota (<=30%). Searching for replacement...")
 
-        # Search circularly for a good account starting from the next index
+        # Search for healthy candidate with the highest remaining quota
         found_idx = None
+        best_idx = None
+        best_quota = -2
         for i in range(1, len(accounts)):
             candidate_idx = (active_idx + i) % len(accounts)
             candidate_acc = accounts[candidate_idx]
             candidate_email = candidate_acc.get("email") or candidate_acc.get("name") or f"Account {candidate_idx + 1}"
             
             if not quiet:
-                print(f"  🔍 Checking replacement: {candidate_email}...", end="\r", flush=True)
+                print(f"  🔍 Checking candidate: {candidate_email}...", end="\r", flush=True)
                 time.sleep(0.12)
             
             if not is_account_blocked_or_low(candidate_acc, accounts):
-                found_idx = candidate_idx
+                q_val = remaining_quota_value(candidate_acc.get("quota"))
+                if q_val > best_quota:
+                    best_quota = q_val
+                    best_idx = candidate_idx
                 if not quiet:
-                    print(f"  ✅ Found healthy replacement: {candidate_email}!      ", flush=True)
-                break
+                    print(f"  ✅ Eligible (quota {q_val}%): {candidate_email}      ", flush=True)
             else:
                 if not quiet:
                     print(f"  ❌ Skipped (low quota/blocked): {candidate_email}      ", flush=True)
+
+        if best_idx is not None:
+            found_idx = best_idx
+            best_email = accounts[best_idx].get("email") or accounts[best_idx].get("name") or f"Account {best_idx + 1}"
+            if not quiet:
+                print(f"  ✅ Selected replacement with highest quota ({best_quota}%): {best_email}!      ", flush=True)
 
         if found_idx is not None:
             # Switch to this account!
@@ -349,20 +359,29 @@ def post_check_and_switch():
         active_idx = 0
 
     found_idx = None
+    best_idx = None
+    best_quota = -2
     for i in range(1, len(accounts)):
         candidate_idx = (active_idx + i) % len(accounts)
         candidate_acc = accounts[candidate_idx]
         candidate_email = candidate_acc.get("email") or candidate_acc.get("name") or f"Account {candidate_idx + 1}"
         
-        print(f"  🔍 Checking replacement: {candidate_email}...", end="\r", flush=True)
+        print(f"  🔍 Checking candidate: {candidate_email}...", end="\r", flush=True)
         time.sleep(0.12)
         
         if not is_account_blocked_or_low(candidate_acc, accounts):
-            found_idx = candidate_idx
-            print(f"  ✅ Found healthy replacement: {candidate_email}!      ", flush=True)
-            break
+            q_val = remaining_quota_value(candidate_acc.get("quota"))
+            if q_val > best_quota:
+                best_quota = q_val
+                best_idx = candidate_idx
+            print(f"  ✅ Eligible (quota {q_val}%): {candidate_email}      ", flush=True)
         else:
             print(f"  ❌ Skipped (low quota/blocked): {candidate_email}      ", flush=True)
+
+    if best_idx is not None:
+        found_idx = best_idx
+        best_email = accounts[best_idx].get("email") or accounts[best_idx].get("name") or f"Account {best_idx + 1}"
+        print(f"  ✅ Selected replacement with highest quota ({best_quota}%): {best_email}!      ", flush=True)
 
     if found_idx is not None:
         selected_acc = accounts[found_idx]

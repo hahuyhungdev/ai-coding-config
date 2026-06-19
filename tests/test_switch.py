@@ -303,6 +303,54 @@ Rate limit reached on model
                 with open(progress_path, "w", encoding="utf-8") as f:
                     f.write(backup_content)
 
+    @patch("switch.check_last_log_for_quota_error")
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_auto_switch_selects_highest_quota(self, mock_reset_logs, mock_quota_err):
+        mock_reset_logs.return_value = None
+        mock_quota_err.return_value = (False, "", "")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file = os.path.join(tmpdir, "accounts.json")
+            token_file = os.path.join(tmpdir, "token")
+
+            switch.JSON_FILE = json_file
+            switch.TOKEN_FILE = token_file
+            switch.AGY_DIR = tmpdir
+
+            accounts = [
+                {
+                    "email": "acc1@gmail.com",
+                    "token": {"refresh_token": "rt1"},
+                    "quota": "0%",
+                    "status": "🔴 Blocked",
+                    "model_quotas": {}
+                },
+                {
+                    "email": "acc2@gmail.com",
+                    "token": {"refresh_token": "rt2"},
+                    "quota": "50%",
+                    "status": "🟢 Ready",
+                    "model_quotas": {}
+                },
+                {
+                    "email": "acc3@gmail.com",
+                    "token": {"refresh_token": "rt3"},
+                    "quota": "90%",
+                    "status": "🟢 Ready",
+                    "model_quotas": {}
+                }
+            ]
+            with open(json_file, "w") as f:
+                json.dump(accounts, f)
+
+            with open(token_file, "w") as f:
+                json.dump(accounts[0], f)
+
+            self.assertEqual(switch.auto_switch_account(quiet=True), "")
+            with open(token_file, "r") as f:
+                saved = json.load(f)
+                self.assertEqual(saved["token"]["refresh_token"], "rt3")
+
 
 if __name__ == "__main__":
     unittest.main()
