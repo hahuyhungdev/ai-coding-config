@@ -437,7 +437,7 @@ def rotate_account():
         print("❌ No accounts in accounts.json!")
         return
 
-    active_idx = None
+    active_idx = 0
     if os.path.exists(TOKEN_FILE):
         try:
             with open(TOKEN_FILE, "r") as f:
@@ -451,12 +451,38 @@ def rotate_account():
         except:
             pass
 
-    if active_idx is None:
-        next_idx = 0
-    else:
-        next_idx = (active_idx + 1) % len(accounts)
+    if len(accounts) <= 1:
+        print("ℹ️ Only one account in accounts.json. No rotation needed.")
+        return
 
-    selected_acc = accounts[next_idx]
+    # Find candidate with highest quota that is not the current active one
+    best_idx = None
+    best_quota = -2
+    
+    # First pass: look for healthy candidates (not blocked or low)
+    for i in range(1, len(accounts)):
+        candidate_idx = (active_idx + i) % len(accounts)
+        candidate_acc = accounts[candidate_idx]
+        if not is_account_blocked_or_low(candidate_acc, accounts):
+            q_val = remaining_quota_value(candidate_acc.get("quota"))
+            if q_val > best_quota:
+                best_quota = q_val
+                best_idx = candidate_idx
+
+    # Second pass: if no healthy candidate, pick the best among low/blocked accounts (excluding active one)
+    if best_idx is None:
+        for i in range(1, len(accounts)):
+            candidate_idx = (active_idx + i) % len(accounts)
+            candidate_acc = accounts[candidate_idx]
+            q_val = remaining_quota_value(candidate_acc.get("quota"))
+            if q_val > best_quota:
+                best_quota = q_val
+                best_idx = candidate_idx
+
+    if best_idx is None:
+        best_idx = (active_idx + 1) % len(accounts)
+
+    selected_acc = accounts[best_idx]
     with open(TOKEN_FILE, "w") as f:
         json.dump(selected_acc, f)
     if os.name == 'posix':
@@ -467,15 +493,15 @@ def rotate_account():
 
     INDEX_FILE = os.path.join(AGY_DIR, ".current_index")
     with open(INDEX_FILE, "w") as f:
-        f.write(str((next_idx + 1) % len(accounts)))
+        f.write(str((best_idx + 1) % len(accounts)))
 
-    email = selected_acc.get("email") or selected_acc.get("name") or f"Account {next_idx + 1}"
+    email = selected_acc.get("email") or selected_acc.get("name") or f"Account {best_idx + 1}"
     quota = selected_acc.get("quota", "?")
     reset_info = selected_acc.get("reset_info", "")
     quota_str = f" - Quota: {quota}"
     if reset_info:
         quota_str += f" ({reset_info})"
-    print(f"🔄 Manually rotated active account to: {email} (Index: [{next_idx + 1} / {len(accounts)}]){quota_str}")
+    print(f"🔄 Manually rotated active account to: {email} (Index: [{best_idx + 1} / {len(accounts)}]){quota_str}")
 
 
 def generate_quota_rollover():
