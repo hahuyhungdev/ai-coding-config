@@ -77,6 +77,243 @@ def get_graphify_count(session):
     return 0
 
 
+# Cross-platform file locking
+try:
+    import fcntl
+    def lock_file(f):
+        fcntl.flock(f, fcntl.LOCK_EX)
+    def lock_shared_file(f):
+        fcntl.flock(f, fcntl.LOCK_SH)
+    def unlock_file(f):
+        fcntl.flock(f, fcntl.LOCK_UN)
+except ImportError:
+    try:
+        import msvcrt
+        def lock_file(f):
+            try:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+            except Exception:
+                pass
+        def lock_shared_file(f):
+            try:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+            except Exception:
+                pass
+        def unlock_file(f):
+            try:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+            except Exception:
+                pass
+    except ImportError:
+        def lock_file(f): pass
+        def lock_shared_file(f): pass
+        def unlock_file(f): pass
+
+
+def extract_graphify_scope(command, cwd):
+    import shlex
+    try:
+        tokens = shlex.split(command)
+    except Exception:
+        return None
+    
+    graph_path = None
+    for i, token in enumerate(tokens):
+        if token == "--graph" and i + 1 < len(tokens):
+            graph_path = tokens[i+1]
+            break
+            
+    scope_dir = None
+    subcommands = {"update", "extract", "cluster-only", "label", "check-update", "tree"}
+    for i, token in enumerate(tokens):
+        if token in subcommands and i + 1 < len(tokens):
+            next_token = tokens[i+1]
+            if not next_token.startswith("-"):
+                scope_dir = next_token
+                break
+                
+    if graph_path:
+        try:
+            g_path = pathlib.Path(cwd).joinpath(graph_path).resolve()
+            if g_path.name == "graph.json" and g_path.parent.name == "graphify-out":
+                return str(g_path.parent.parent)
+            return str(g_path.parent)
+        except Exception:
+            pass
+            
+    if scope_dir:
+        try:
+            return str(pathlib.Path(cwd).joinpath(scope_dir).resolve())
+        except Exception:
+            pass
+            
+    try:
+        curr = pathlib.Path(cwd).resolve()
+        for parent in [curr, *curr.parents]:
+            if parent.joinpath("graphify-out", "graph.json").exists():
+                return str(parent)
+    except Exception:
+        pass
+        
+    return str(pathlib.Path(cwd).resolve())
+
+
+def add_allowed_scope(session, scope_path):
+    if not session or not scope_path:
+        return
+    safe = "".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
+    state_file = pathlib.Path(tempfile.gettempdir()) / f"ai-coding-config-graphify-scopes-{safe}.json"
+    
+    try:
+        if not state_file.exists():
+            state_file.touch()
+        with state_file.open("r+") as handle:
+            try:
+                lock_file(handle)
+            except Exception:
+                pass
+            
+            content = handle.read().strip()
+            data = {}
+            if content:
+                try:
+                    data = json.loads(content)
+                except Exception:
+                    pass
+            
+            scopes = data.setdefault("allowed_scopes", [])
+            normalized = str(pathlib.Path(scope_path).resolve())
+            if normalized not in scopes:
+                scopes.append(normalized)
+                
+            handle.seek(0)
+            handle.truncate()
+            handle.write(json.dumps(data))
+            handle.flush()
+            
+            try:
+                unlock_file(handle)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def get_allowed_scopes(session):
+    if not session:
+        return []
+    safe = "".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
+    state_file = pathlib.Path(tempfile.gettempdir()) / f"ai-coding-config-graphify-scopes-{safe}.json"
+    if not state_file.exists():
+        return []
+    try:
+        with state_file.open("r") as handle:
+            try:
+                lock_shared_file(handle)
+            except Exception:
+                pass
+            content = handle.read().strip()
+            data = {}
+            if content:
+                try:
+                    data = json.loads(content)
+                except Exception:
+                    pass
+            try:
+                unlock_file(handle)
+            except Exception:
+                pass
+            return data.get("allowed_scopes", [])
+    except Exception:
+        return []
+
+
+def is_path_in_allowed_scopes(target_path, allowed_scopes):
+    if not allowed_scopes:
+        return False
+    try:
+        resolved_target = pathlib.Path(target_path).resolve()
+        for scope in allowed_scopes:
+            resolved_scope = pathlib.Path(scope).resolve()
+            try:
+                if hasattr(resolved_target, "is_relative_to"):
+                    if resolved_target.is_relative_to(resolved_scope):
+                        return True
+                else:
+                    resolved_target.relative_to(resolved_scope)
+                    return True
+            except ValueError:
+                pass
+    except Exception:
+        pass
+    return False
+
+
+def is_system_or_temp_path(resolved_p):
+    try:
+        for parent in [resolved_p, *resolved_p.parents]:
+            if parent.joinpath("graphify-out", "graph.json").exists():
+                return False
+    except Exception:
+        pass
+
+    try:
+        temp_dir = pathlib.Path(tempfile.gettempdir()).resolve()
+        if hasattr(resolved_p, "is_relative_to"):
+            if resolved_p.is_relative_to(temp_dir):
+                return True
+        else:
+            resolved_p.relative_to(temp_dir)
+            return True
+    except Exception:
+        pass
+
+    parts = resolved_p.parts
+    # Check parts for tmp or temp (case-insensitive)
+    lower_parts = [p.lower() for p in parts]
+    if "tmp" in lower_parts or "temp" in lower_parts:
+        return True
+
+    # Check standard system directories (Unix and Windows compatibility)
+    if len(parts) > 1:
+        top_dir = parts[1].lower()
+        if top_dir in {"usr", "lib", "lib64", "etc", "opt", "var", "proc", "sys", "dev"}:
+            return True
+
+    return False
+
+
+def extract_paths_from_input(tool_input):
+    paths = []
+    fields = ["file_path", "path", "pattern", "AbsolutePath", "DirectoryPath", "SearchPath"]
+    for field in fields:
+        val = tool_input.get(field)
+        if val:
+            paths.append(str(val))
+    return paths
+
+
+def extract_paths_from_command(command, cwd):
+    import shlex
+    try:
+        tokens = shlex.split(command)
+    except Exception:
+        return []
+    paths = []
+    for token in tokens:
+        if token.startswith("-"):
+            continue
+        try:
+            p = pathlib.Path(cwd).joinpath(token)
+            if p.suffix in E or p.exists():
+                paths.append(str(p))
+        except Exception:
+            pass
+    return paths
+
 
 def main():
     parser = argparse.ArgumentParser(description="Graphify Hook Classifier")
@@ -362,6 +599,11 @@ def main():
                             msvcrt.locking(handle.fileno(), 0, 1)
                         except (ImportError, PermissionError, OSError):
                             pass
+                if not over_quota:
+                    cmd_cwd = data.get("cwd") or t.get("cwd") or os.getcwd()
+                    scope = extract_graphify_scope(raw, cmd_cwd)
+                    if scope:
+                        add_allowed_scope(session, scope)
             if over_quota:
                 decision = "deny"
                 context = "❌ BLOCKED: Maximum 20 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
@@ -389,6 +631,57 @@ def main():
                     if g_count == 0 and tool_ctx not in {"editing", "planning", "debugging"} and not is_config_or_doc:
                         decision = "deny"
                         context = "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
+
+        # Scope-Aware Caching verification for g_count >= 1
+        if decision == "allow" and session and tool_ctx == "exploration":
+            g_count = get_graphify_count(session)
+            if g_count >= 1:
+                is_read_like = False
+                paths = []
+                if TOOL in {"Read", "Glob", "Grep"}:
+                    is_read_like = True
+                    paths = extract_paths_from_input(t)
+                elif TOOL == "Bash":
+                    raw_cmd = sq(str(t.get("command") or t.get("CommandLine") or ""))
+                    try:
+                        lx = shlex.shlex(raw_cmd, posix=True, punctuation_chars="|&;()")
+                        lx.whitespace_split = True
+                        tokens = list(lx)
+                    except ValueError:
+                        tokens = []
+                    ex = []
+                    expect = True
+                    for token in tokens:
+                        if token in {"|", "||", "&&", ";", "(", ")", "&"}:
+                            expect = True
+                            continue
+                        if not expect or ("=" in token and not token.startswith(("/", "./"))):
+                            continue
+                        word = pathlib.Path(token).name
+                        if word in {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}:
+                            continue
+                        ex.append(word.lower())
+                        expect = False
+                    
+                    if any(word in B for word in ex):
+                        is_read_like = True
+                        cmd_cwd = data.get("cwd") or t.get("cwd") or os.getcwd()
+                        paths = extract_paths_from_command(raw_cmd, cmd_cwd)
+                
+                if is_read_like and paths:
+                    allowed_scopes = get_allowed_scopes(session)
+                    for path in paths:
+                        resolved_p = pathlib.Path(path).resolve()
+                        if is_system_or_temp_path(resolved_p):
+                            continue
+                        # Skip config or doc flags/files
+                        is_config_or_doc = resolved_p.suffix in {".md", ".json", ".toml", ".yaml", ".yml", ".txt"}
+                        if is_config_or_doc:
+                            continue
+                        if not is_path_in_allowed_scopes(resolved_p, allowed_scopes):
+                            decision = "deny"
+                            context = f"❌ BLOCKED: Target path '{path}' is outside the explored Graphify scope for this session.\n💡 TIP: Run a Graphify query first on the target directory/workspace to index it before reading or searching."
+                            break
 
     if CLAUDE:
         out = {}
