@@ -46,6 +46,7 @@ REQUIRED_SKILLS = {
     "security-review",
     "compact",
     "tdd-workflow",
+    "ui-ux-pro-max",
     "verification-loop",
 }
 

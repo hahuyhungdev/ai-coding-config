@@ -57,6 +57,14 @@
       "triggers": {
         "keywords": ["resolve-library-id", "query-docs", "Context7"]
       }
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "path": "skills/ui-ux-pro-max/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["ui-ux-pro-max", "color contrast", "touch-target-size", "loading-buttons", "cursor-pointer"]
+      }
     }
   ]
 }

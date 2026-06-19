@@ -4,7 +4,7 @@ This report details the newly added skills and enabled MCP server for the AI cod
 
 ## 1. Newly Added Skills
 
-Three high-value skills have been integrated into the workspace to enhance architectural tracking, user interface behavioral testing, and live API references.
+Four high-value skills have been integrated into the workspace to enhance architectural tracking, user interface behavioral testing, live API references, and comprehensive design intelligence.
 
 ### A. Architecture Decision Records (`architecture-decision-records`)
 * **Path**: `skills/architecture-decision-records/SKILL.md`
@@ -20,6 +20,11 @@ Three high-value skills have been integrated into the workspace to enhance archi
 * **Path**: `skills/documentation-lookup/SKILL.md`
 * **Purpose & Description**: Directs the AI agent to query live, up-to-date framework and library documentation using the Context7 MCP server, instead of relying on stale training data or hallucinating API details.
 * **Why it was added**: Modern frameworks (like Next.js 15, React 19, Prisma, or Supabase) evolve rapidly, rendering offline LLM knowledge bases obsolete. This skill instructs the agent to use dynamic, version-specific queries to get exact configuration standards and code snippets directly from verified docs.
+
+### D. UI/UX Pro Max (`ui-ux-pro-max`)
+* **Path**: `skills/ui-ux-pro-max/SKILL.md`
+* **Purpose & Description**: Installs comprehensive design intelligence database containing 50+ styles, 161 color palettes, 57 font pairings, and 99 UX guidelines to guide creation of visual elements, responsive structures, and accessibility checklists.
+* **Why it was added**: Integrates design system standards directly into the workspace config, preventing common AI styling slop (such as purple gradients or unpolished default layouts) and ensuring WCAG AA contrast ratios, responsive viewport targets, and micro-interaction timings.
 
 ---
 
@@ -37,3 +42,4 @@ Three high-value skills have been integrated into the workspace to enhance archi
 * **Reduced AI Hallucinations**: By linking `documentation-lookup` with the `context7` MCP server, the agent uses live API documentation instead of outdated patterns, resulting in more accurate Next.js configurations, TypeScript typings, and setup scripts.
 * **Traceable Architecture Decisions**: Since ADRs are accepted and updated in `docs/adr/`, all major changes to system prompts, skill triggers, and tools are documented. This avoids re-litigating design decisions and ensures alignment among contributors.
 * **Robust Behavioral Verification**: Integrating `click-path-audit` protects the project's interactive components from silent UI state failures, closing testing gaps where code executes cleanly but leaves the UI in a broken state.
+* **Visually Stunning Interface Guidelines**: The `ui-ux-pro-max` skill ensures the agent builds professional, accessibility-compliant web interfaces that are responsive and polished from the start.
