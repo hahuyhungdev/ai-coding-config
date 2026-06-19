@@ -32,6 +32,31 @@
         "pathPatterns": ["**/e2e/**", "**/tests/**"],
         "keywords": ["playwright", "page.goto", "expect(page)"]
       }
+    },
+    {
+      "name": "architecture-decision-records",
+      "path": "skills/architecture-decision-records/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "pathPatterns": ["**/docs/adr/**", "**/adr/**"],
+        "keywords": ["ADR", "Architecture Decision Record", "deciders", "Nygard"]
+      }
+    },
+    {
+      "name": "click-path-audit",
+      "path": "skills/click-path-audit/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["click-path", "state interaction", "Zustand", "Redux", "onClick", "shared state side effects"]
+      }
+    },
+    {
+      "name": "documentation-lookup",
+      "path": "skills/documentation-lookup/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["resolve-library-id", "query-docs", "Context7"]
+      }
     }
   ]
 }

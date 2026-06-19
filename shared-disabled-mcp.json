@@ -4,7 +4,6 @@
     "docker",
     "postgres",
     "sqlite",
-    "memory",
-    "context7"
+    "memory"
   ]
 }

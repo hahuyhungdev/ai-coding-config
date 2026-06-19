@@ -24,11 +24,14 @@ SKILLS_DIR = REPO_DIR / "skills"
 # Skills that should always exist
 REQUIRED_SKILLS = {
     "api-design",
+    "architecture-decision-records",
     "backend-patterns",
+    "click-path-audit",
     "coding-standards",
     "context-budget",           # newly added
     "council",                  # newly added
     "design-system",
+    "documentation-lookup",
     "eval-harness",
     "frontend-design",
     "frontend-guide",
