@@ -1,11 +1,11 @@
 ---
-name: switch
+name: switch-account
 description: "Check current account quota and switch to a better account if quota is low. Triggers session rollover to apply the new account."
 ---
 
 # Account Switch (agy CLI)
 
-You are executing the `/switch` command in the Antigravity CLI (`agy`). This command checks the current account's quota and switches to a healthier account if needed.
+You are executing the `/switch-account` command in the Antigravity CLI (`agy`). This command checks the current account's quota and switches to a healthier account if needed.
 
 ## Procedure
 
