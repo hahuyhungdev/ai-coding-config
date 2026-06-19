@@ -10,7 +10,7 @@
 ## 2. Token & Context Management
 - **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors).{{RTK_REFERENCE}}
 - **On-Demand Skills (Balanced)**: To preserve context and avoid token bloat, load and read specific skills under `{{SKILLS_PATH}}` when the current task aligns with the skill's domain. **Inspect the local `skills/` or global skills folder first to discover available skills (e.g., `frontend-design`, `design-system`, `frontend-patterns` for UI tasks).** Avoid pre-loading unrelated skills at startup.
-- **Avoid Dual-Calling Skills**: Avoid loading overlapping skills in the same turn. For example, use `tdd-workflow` during active development, and `verification-loop` for final verification (build/lint/typecheck) at the end of a task rather than calling both concurrently. Refer to `security-review` as a checklist for sensitive paths, and `security-best-practices` only for deep, language-specific security reviews.
+- **Avoid Dual-Calling Skills**: Avoid loading overlapping skills in the same turn. For example, use `tdd-workflow` during active development, and `verification-loop` for final verification (build/lint/typecheck) at the end of a task rather than calling both concurrently. Refer to `security-review` as a checklist for sensitive paths and for deep, language-specific security reviews.
 - **Strategic Compaction**: For long-running tasks, proactively call the `compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 2.5. Anti-Loop Debugging

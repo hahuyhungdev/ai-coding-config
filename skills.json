@@ -65,6 +65,60 @@
       "triggers": {
         "keywords": ["ui-ux-pro-max", "color contrast", "touch-target-size", "loading-buttons", "cursor-pointer"]
       }
+    },
+    {
+      "name": "api-design",
+      "path": "skills/api-design/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "fileExtensions": ["ts", "js", "go", "py"],
+        "pathPatterns": ["**/api/**", "**/routes/**", "**/controllers/**", "**/handlers/**"],
+        "keywords": ["REST", "API", "endpoint", "NextResponse.json", "express", "router", "GET", "POST", "PUT", "DELETE"]
+      }
+    },
+    {
+      "name": "backend-patterns",
+      "path": "skills/backend-patterns/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "fileExtensions": ["ts", "js", "py", "go"],
+        "pathPatterns": ["**/backend/**", "**/services/**", "**/models/**", "**/db/**"],
+        "keywords": ["db", "query", "cache", "Redis", "Postgres", "SQL", "Prisma", "caching", "optimization", "error handling"]
+      }
+    },
+    {
+      "name": "coding-standards",
+      "path": "skills/coding-standards/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["naming", "readability", "convention", "clean code", "standards", "lint", "eslint", "prettier"]
+      }
+    },
+    {
+      "name": "graphify",
+      "path": "skills/graphify/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["graphify", "knowledge graph", "rtk graphify", "dependencies", "affected", "import map"]
+      }
+    },
+    {
+      "name": "security-review",
+      "path": "skills/security-review/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["security", "vulnerability", "auth", "login", "password", "crypto", "encryption", "SSL", "TLS", "sanitize", "CSRF", "XSS", "token", "injection", "OWASP"]
+      }
+    },
+    {
+      "name": "tdd-workflow",
+      "path": "skills/tdd-workflow/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "fileExtensions": ["test.ts", "spec.ts", "test.js", "spec.js", "test.py", "test_*.py", "*_test.go"],
+        "pathPatterns": ["**/tests/**", "**/test/**", "**/__tests__/**"],
+        "keywords": ["tdd", "test-driven", "red-green-refactor", "pytest", "jest", "vitest", "mocha", "unittest", "testing", "coverage"]
+      }
     }
   ]
 }

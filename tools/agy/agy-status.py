@@ -297,6 +297,9 @@ def run_legacy_internal(args):
         auto_switch_account()
     elif command == "post-check":
         post_check_and_switch()
+    elif command in ("daemon", "auto"):
+        from auto_rotate_daemon import main as daemon_main
+        daemon_main()
     elif command in ("add-token", "paste", "new-token"):
         add_token_from_input(args[1] if len(args) > 1 else None)
     elif command in ("import-file", "add-file", "load"):

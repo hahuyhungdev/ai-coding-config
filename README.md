@@ -145,7 +145,6 @@ Reusable instruction modules loaded on-demand by AI assistants. Located in [`ski
 | [`coding-standards`](./skills/coding-standards) | Cross-project naming, readability, and immutability conventions. |
 | [`karpathy-guidelines`](./skills/karpathy-guidelines) | Behavioral rules to reduce LLM coding mistakes. |
 | [`security-review`](./skills/security-review) | Security checklist for auth, APIs, user input, and sensitive features. |
-| [`security-best-practices`](./skills/security-best-practices) | Language-specific security best practices (Python, JS/TS, Go). |
 | [`click-path-audit`](./skills/click-path-audit) | Trace handler→state side effects to find silent undos in shared state. *(adapted from ECC)* |
 | [`architecture-decision-records`](./skills/architecture-decision-records) | Capture architectural decisions as `docs/adr/` files during sessions. *(adapted from ECC)* |
 

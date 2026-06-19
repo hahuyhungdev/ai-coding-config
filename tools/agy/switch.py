@@ -52,12 +52,19 @@ def is_account_blocked_or_low(acc, accounts):
     if not email:
         return True
     
-    # 1. Real-time log check (most accurate for active blocks)
+    # 1. Check cached quota percentage first (proactive check before expensive log scan)
+    quota_val = acc.get("quota")
+    if quota_val:
+        pct = remaining_quota_value(quota_val)
+        if pct != -1 and pct <= 30:  # Switch when quota is running low (<= 30%)
+            return True
+        
+    # 2. Real-time log check (most accurate for active blocks)
     reset_time = get_remaining_reset_from_logs(email, accounts)
     if reset_time:
         return True
         
-    # 2. Check cached status & quota
+    # 3. Check cached status
     status = acc.get("status")
     if status == "🔴 Blocked":
         # Check if the block has expired (prefer blocked_until timestamp)
@@ -87,13 +94,6 @@ def is_account_blocked_or_low(acc, accounts):
             except:
                 return True
         else:
-            return True
-            
-    # Check cached quota percentage
-    quota_val = acc.get("quota")
-    if quota_val:
-        pct = remaining_quota_value(quota_val)
-        if pct != -1 and pct <= 30:  # Switch when quota is running low (<= 30%)
             return True
 
     return False

@@ -52,7 +52,7 @@ Sort every component into a bucket:
 
 ## Common Issues to Detect
 
-- **Overlap between skills**: two skills giving similar guidance (e.g. `security-review` + `security-best-practices` — both exist in this repo, verify they don't repeat rules)
+- **Overlap between skills**: two skills giving similar guidance (e.g. `frontend-design` + `design-system` — both exist in this repo, verify they don't repeat rules)
 - **MCP over-provisioning**: optional MCPs left enabled when not needed (`postgres`, `sqlite`, `docker`) → disable with `python3 scripts/mcp-toggle.py disable <name>`
 - **Dead agents**: agent files that exist but are never invoked
 - **Bloated AGENTS.md**: rules that repeat what's already in individual SKILL.md files
@@ -65,7 +65,7 @@ Produce a table:
 | Component | Type | Est. Tokens | Flag | Recommendation |
 |-----------|------|-------------|------|----------------|
 | frontend-design | skill | ~1200 | - | Keep (always-on) |
-| security-review | skill | ~900 | overlap with security-best-practices | Merge or lazy-load |
+| security-review | skill | ~900 | - | Keep (lazy-load) |
 | postgres MCP | mcp | ~3000 | disabled but registered | OK — disabled |
 | ... | | | | |
 ```

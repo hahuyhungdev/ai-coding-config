@@ -138,6 +138,15 @@ Existing commands remain available:
 
 The `agy` CLI wrapper includes an automated, smart quota management system to handle rate-limits and usage caps across multiple accounts seamlessly.
 
+### Background Daemon Monitoring (`agy auto` / `agy daemon`)
+To monitor and automatically rotate accounts for subagents running in the background, you can launch the auto-rotate daemon:
+```bash
+agy auto
+```
+*(Note: `agy daemon` is also supported as an alias for compatibility).*
+
+The daemon scans CLI logs (`log/cli-*.log`) and subagent transcripts (`brain/**/*.jsonl`) every 5 minutes (`--interval 300`) to immediately switch accounts upon detecting any `429` or `RESOURCE_EXHAUSTED` API errors.
+
 ### Auto-Switching Strategy (Highest Quota First)
 - When starting a session, the wrapper checks if the active account is blocked or running low on quota ($\le 30\%$).
 - If a switch is needed, `agy` evaluates all configured accounts and selects the **healthy candidate with the highest remaining quota** (parsed from `agy status`). This avoids selecting nearly exhausted accounts.

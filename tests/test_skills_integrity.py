@@ -42,7 +42,6 @@ REQUIRED_SKILLS = {
     "nextjs-turbopack",
     "playwright",
     "product-lens",
-    "security-best-practices",
     "security-review",
     "compact",
     "tdd-workflow",
@@ -143,7 +142,7 @@ class TestSkillsStructure(unittest.TestCase):
         )
         # Skills that use a non-standard but acceptable structure
         EXEMPT = {"graphify", "frontend-design", "playwright", "next-best-practices",
-                  "security-best-practices", "karpathy-guidelines", "cli-creator",
+                  "karpathy-guidelines", "cli-creator",
                   "gh-fix-ci"}
         for skill in REQUIRED_SKILLS:
             if skill in EXEMPT:

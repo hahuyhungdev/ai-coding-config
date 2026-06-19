@@ -85,6 +85,25 @@ if [ "$has_prompt_flag" = false ]; then
     esac
 fi
 
+# 'auto' mode: spawn rotate daemon in background, then launch agy-bin as normal
+if [[ "$subcmd" == "auto" ]]; then
+    # Kill any existing daemon first
+    pkill -f 'auto_rotate_daemon\.py' 2>/dev/null
+    # Spawn daemon in background (fully detached from parent process group)
+    DAEMON_LOG="$AGY_DIR/auto_daemon.log"
+    setsid python3 "$AGY_DIR/auto_rotate_daemon.py" > "$DAEMON_LOG" 2>&1 &
+    DAEMON_PID=$!
+    disown $DAEMON_PID 2>/dev/null
+    # Auto-kill daemon when CLI exits
+    trap "kill $DAEMON_PID 2>/dev/null; echo '🛑 Auto-rotate daemon stopped.'" EXIT
+    echo "🚀 Auto-rotate daemon started (PID: $DAEMON_PID). Checking every 5m in background."
+    echo "   Log: $DAEMON_LOG"
+    echo "   Daemon will auto-stop when you exit the CLI."
+    # Remove 'auto' from args so agy-bin launches clean
+    shift
+    subcmd=""
+fi
+
 # Management commands are handled by the Python CLI; everything else launches agy-bin.
 if [[ "$has_prompt_flag" == false && "$native_command" == false && ( -n "$subcmd" || "$has_help_flag" == true || "$has_json_flag" == true ) ]]; then
     is_mgmt_cmd=false
@@ -92,7 +111,7 @@ if [[ "$has_prompt_flag" == false && "$native_command" == false && ( -n "$subcmd
         is_mgmt_cmd=true
     else
         case "$subcmd" in
-            status|account|doctor|backup|restore|current|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|next)
+            status|account|doctor|backup|restore|current|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|next|daemon)
                 is_mgmt_cmd=true
                 ;;
         esac

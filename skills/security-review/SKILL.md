@@ -1,12 +1,18 @@
 ---
 name: security-review
-description: Use this skill when adding authentication, handling user input, working with secrets, creating API endpoints, or implementing payment/sensitive features. Provides comprehensive security checklist and patterns.
+description: Perform language and framework specific security reviews, verify authentication, handle user input, work with secrets, and manage sensitive features. Provides comprehensive security checklist, patterns, and workflow guidance.
 origin: ECC
 ---
 
 # Security Review Skill
 
 This skill ensures all code follows security best practices and identifies potential vulnerabilities.
+
+## Overview
+
+This skill provides a description of how to identify the language and frameworks used by the current context, and then to load information from this skill's references directory about the security best practices for this language and or frameworks.
+
+This information, if present, can be used to write new secure by default code, or to passively detect major issues within existing code, or (if requested by the user) provide a vulnerability report and suggest fixes.
 
 ## When to Activate
 
@@ -17,6 +23,58 @@ This skill ensures all code follows security best practices and identifies poten
 - Implementing payment features
 - Storing or transmitting sensitive data
 - Integrating third-party APIs
+- Performing language/framework specific security best-practice reviews
+
+## Workflow & Decision Tree
+
+### Step 1: Identification
+Identify ALL languages and ALL frameworks which you are being asked to use or already exist in the scope of the project you are working in. Focus on the primary core frameworks, identifying both frontend and backend languages and frameworks.
+- If the language/framework is unclear, inspect the repo to determine it and list your evidence.
+
+### Step 2: Load Guidance
+Check this skill's `references/` directory to see if there is any relevant documentation for the identified languages or frameworks. Read ALL reference files which relate to the specific framework or language.
+- The format of the filenames is `<language>-<framework>-<stack>-security.md`. You should also check if there is a `<language>-general-<stack>-security.md` which is agnostic to the framework you may be using.
+- If working on a web application which includes a frontend and a backend, check for reference documents for BOTH the frontend and backend.
+- If you are asked to make a web app which will include both a frontend and backend, but the frontend framework is not specified, also check out `javascript-general-web-frontend-security.md`.
+- If matching guidance exists in `references/`, load only the relevant files and follow their instructions.
+- If no matching guidance exists, consider what you know about the language, the framework, and all well-known security best practices for it. If asked to generate a report, let the user know that concrete guidance is not available in local references (though you can still generate the report or detect critical vulnerabilities).
+
+### Step 3: Execution Modes
+From there, this skill can operate in three ways:
+1. **Secure Development**: Use the loaded information to write secure-by-default code from this point forward.
+2. **Passive Detection**: Passively detect vulnerabilities while working in the project. Critical or major issues going against security guidance should be flagged and reported to the user. Focus on high-impact vulnerabilities and secure defaults.
+3. **Active Review (Security Report)**: When requested by the user, produce a prioritized security report and offer to start working on fixes.
+
+### Overrides & Custom Rules
+Customers may have cases where they need to bypass or override these practices. Pay attention to specific rules and instructions in the project's documentation and prompt files.
+- When overriding a best practice, you MAY report it to the user, but do not fight with them.
+- If a security best practice needs to be bypassed / ignored for a project-specific reason, suggest adding documentation to the project so the rationale is clear.
+
+### Report Format
+When producing a report:
+- Write the report as a markdown file in `security_best_practices_report.md` (or another location if specified by the user).
+- Include a short executive summary at the top.
+- Delineate findings into multiple sections based on severity (focusing on the most critical findings).
+- Note all findings with a numeric ID to make them easy to reference.
+- For critical findings, include a one-sentence impact statement.
+- When referencing code, make sure to find and include line numbers.
+- Summarize the findings to the user directly and tell them where the report file was written.
+
+### Fixes
+- If you produced a report, let the user read the report and ask to begin performing fixes.
+- If you passively found a critical finding, notify the user and ask if they would like you to fix it.
+- Focus on fixing a single finding at a time.
+- Provide concise, clear comments explaining that the new code is based on a specific security best practice and why it is necessary.
+- Consider second-order impacts on functionality and regressions. Avoid breaking the project.
+- Follow the normal change/commit flow (e.g. separate, clear commits) and testing flows to confirm no regressions are introduced.
+
+## General Security Advice
+
+### Avoid Using Incrementing IDs for Public IDs of Resources
+When assigning an ID for some resource which will be exposed to the internet, avoid using small auto-incrementing IDs. Use longer, random UUID4 or random hex strings instead. This prevents users from learning the quantity of a resource and guessing other valid IDs.
+
+### A Note on TLS
+While TLS is important for production, most development work is done with TLS disabled or terminated by a proxy. Do not report lack of TLS as a security issue for development. Be careful with "secure" cookies; only set them if the application will actually run over TLS. In local dev, secure cookies can break the application. Recommend environment flags to toggle "secure" cookies. Additionally, avoid recommending HSTS unless there is a clear understanding of its lasting impacts (as it can cause lockout).
 
 ## Security Checklist
 
