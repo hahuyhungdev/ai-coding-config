@@ -13,6 +13,16 @@ def _copy_skills(target_dir: Path, force: bool) -> None:
     """Helper to copy skills from repository to target directory."""
     skills_dir = REPO_DIR / "skills"
     if skills_dir.exists():
+        # Clean up stale directories in the target skills folder
+        dst_skills = target_dir / "skills"
+        if dst_skills.exists():
+            for d in dst_skills.iterdir():
+                if d.is_dir() and not (skills_dir / d.name).exists():
+                    try:
+                        import shutil
+                        shutil.rmtree(d)
+                    except Exception:
+                        pass
         for d in skills_dir.iterdir():
             if d.is_dir():
                 copy_config(d, target_dir / "skills" / d.name, force)
