@@ -208,5 +208,53 @@ class TestSwitch(unittest.TestCase):
                 saved = json.load(f)
                 self.assertEqual(saved["token"]["refresh_token"], "rt2")
 
+    def test_check_last_log_for_quota_error(self):
+        import time
+        orig_log_dir = switch.LOG_DIR
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                switch.LOG_DIR = tmpdir
+                
+                # Case 1: No log files
+                res = switch.check_last_log_for_quota_error()
+                self.assertEqual(res, (False, "", ""))
+                
+                # Case 2: Log file exists but is too old (>15 mins)
+                log_path = os.path.join(tmpdir, "cli-old.log")
+                with open(log_path, "w") as f:
+                    f.write('''label="Gemini 3.5 Flash (High)"
+RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 4h47m6s.
+''')
+                # set modification time to 20 minutes ago
+                old_time = time.time() - 1200
+                os.utime(log_path, (old_time, old_time))
+                
+                res = switch.check_last_log_for_quota_error()
+                self.assertEqual(res, (False, "", ""))
+                
+                # Case 3: Recent log file with quota error and model override
+                log_path_recent = os.path.join(tmpdir, "cli-recent.log")
+                with open(log_path_recent, "w") as f:
+                    f.write('''label="Gemini 3.5 Flash (High)"
+RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 4h47m6s.
+''')
+                recent_time = time.time() - 10
+                os.utime(log_path_recent, (recent_time, recent_time))
+                
+                res = switch.check_last_log_for_quota_error()
+                self.assertEqual(res, (True, "In 4h47m6s", "gemini"))
+
+                # Case 4: Recent log file with "Rate limit" and no "Resets in"
+                with open(log_path_recent, "w") as f:
+                    f.write('''label="Claude Opus 4.6 (Thinking)"
+Rate limit reached on model
+''')
+                os.utime(log_path_recent, (recent_time, recent_time))
+                
+                res = switch.check_last_log_for_quota_error()
+                self.assertEqual(res, (True, "", "claude"))
+        finally:
+            switch.LOG_DIR = orig_log_dir
+
 if __name__ == "__main__":
     unittest.main()
