@@ -134,6 +134,26 @@ Existing commands remain available:
 | `agy remove-account 2 --yes` | `agy account remove 2 --yes` |
 | `agy info` / `agy show` | `agy status --refresh` |
 
+## Quota Management & Auto-Switching
+
+The `agy` CLI wrapper includes an automated, smart quota management system to handle rate-limits and usage caps across multiple accounts seamlessly.
+
+### Auto-Switching Strategy (Highest Quota First)
+- When starting a session, the wrapper checks if the active account is blocked or running low on quota ($\le 30\%$).
+- If a switch is needed, `agy` evaluates all configured accounts and selects the **healthy candidate with the highest remaining quota** (parsed from `agy status`). This avoids selecting nearly exhausted accounts.
+- If all accounts are depleted, it attempts a same-account model fallback (e.g. falling back from Gemini to Claude) before prompting.
+
+### Real-Time Session Rescue (Quota Rollover)
+If a quota/rate-limit error occurs *during* an active interactive session:
+1. The session exits with an error. The wrapper immediately triggers a `post-check` recovery.
+2. It parses the newest log file (modified in the last 15 minutes) to identify the quota error, block duration, and active model.
+3. **Context Recovery**: The script reads the interrupted session's `transcript.jsonl` from the brain cache and extracts the **last 6 turns (3 full exchanges)** of conversation history.
+4. **Auto-Resume**: The wrapper switches to the highest-quota account and restarts the session, pre-loading the extracted conversation history under an automatic rollover prompt. This allows you to continue working seamlessly without losing your active context.
+
+### Safe Block Expirations
+- Accounts marked as `"🔴 Blocked"` are assigned a `blocked_until` ISO timestamp based on the API's reset time parsed from the logs.
+- If the logs do not specify a reset time, the account is temporarily blocked for a **safe default of 2 hours**, after which it automatically becomes eligible for selection again.
+
 ## Uninstall Safety
 
 ```bash
