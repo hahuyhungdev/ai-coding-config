@@ -256,5 +256,53 @@ Rate limit reached on model
         finally:
             switch.LOG_DIR = orig_log_dir
 
+    def test_generate_quota_rollover(self):
+        # Backup existing .agy_progress.md if it exists
+        progress_path = ".agy_progress.md"
+        backup_content = None
+        if os.path.exists(progress_path):
+            with open(progress_path, "r", encoding="utf-8") as f:
+                backup_content = f.read()
+            os.unlink(progress_path)
+            
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with patch("os.path.expanduser") as mock_expanduser:
+                    mock_expanduser.return_value = tmpdir
+                    
+                    # Create session directory
+                    session_dir = os.path.join(tmpdir, "session-123")
+                    os.makedirs(session_dir)
+                    
+                    # Create logs directory
+                    logs_dir = os.path.join(session_dir, ".system_generated/logs")
+                    os.makedirs(logs_dir)
+                    
+                    # Write transcript.jsonl
+                    transcript_path = os.path.join(logs_dir, "transcript.jsonl")
+                    with open(transcript_path, "w", encoding="utf-8") as f:
+                        f.write(json.dumps({"type": "USER_INPUT", "content": "<USER_REQUEST>How to compile?</USER_REQUEST>"}) + "\n")
+                        f.write(json.dumps({"type": "PLANNER_RESPONSE", "content": "You run make command."}) + "\n")
+                        f.write(json.dumps({"type": "USER_INPUT", "content": "<USER_REQUEST>It failed with error.</USER_REQUEST>"}) + "\n")
+                        
+                    switch.generate_quota_rollover()
+                    
+                    # Verify .agy_progress.md contents
+                    self.assertTrue(os.path.exists(progress_path))
+                    with open(progress_path, "r", encoding="utf-8") as pf:
+                        content = pf.read().strip()
+                    
+                    self.assertIn("User: How to compile?", content)
+                    self.assertIn("Assistant: You run make command.", content)
+                    self.assertIn("User: It failed with error.", content)
+        finally:
+            # Cleanup and restore
+            if os.path.exists(progress_path):
+                os.unlink(progress_path)
+            if backup_content is not None:
+                with open(progress_path, "w", encoding="utf-8") as f:
+                    f.write(backup_content)
+
+
 if __name__ == "__main__":
     unittest.main()

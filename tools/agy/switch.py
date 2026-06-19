@@ -384,6 +384,7 @@ def post_check_and_switch():
         quota_str = f" - Quota: {quota}"
         if reset_info:
             quota_str += f" ({reset_info})"
+        generate_quota_rollover()
         print(f"🔄 Switched to: {new_email} (Index: [{found_idx + 1}]){quota_str} — retrying...")
         print("SWITCH_ACCOUNT")
         sys.exit(0)
@@ -397,6 +398,7 @@ def post_check_and_switch():
             fallback_label = None
 
         if fallback_model:
+            generate_quota_rollover()
             print(f"🔄 Trying {fallback_label} model on same account...")
             print(f"SWITCH_MODEL:{fallback_model}")
             sys.exit(0)
@@ -455,3 +457,66 @@ def rotate_account():
     if reset_info:
         quota_str += f" ({reset_info})"
     print(f"🔄 Manually rotated active account to: {email} (Index: [{next_idx + 1} / {len(accounts)}]){quota_str}")
+
+
+def generate_quota_rollover():
+    brain_dir = os.path.expanduser("~/.gemini/antigravity-cli/brain")
+    if not os.path.exists(brain_dir):
+        return
+        
+    subdirs = []
+    for d in os.listdir(brain_dir):
+        path = os.path.join(brain_dir, d)
+        if os.path.isdir(path) and not d.startswith("."):
+            try:
+                subdirs.append((path, os.path.getmtime(path)))
+            except OSError:
+                pass
+            
+    if not subdirs:
+        return
+        
+    subdirs.sort(key=lambda x: x[1], reverse=True)
+    latest_session_dir = subdirs[0][0]
+    
+    transcript_path = os.path.join(latest_session_dir, ".system_generated/logs/transcript.jsonl")
+    if not os.path.exists(transcript_path):
+        return
+        
+    # Read the transcript and extract the last few turns
+    turns = []
+    try:
+        with open(transcript_path, "r", errors="ignore") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                data = json.loads(line)
+                step_type = data.get("type")
+                content = data.get("content")
+                if not content:
+                    continue
+                if step_type == "USER_INPUT":
+                    # Remove XML tags if present
+                    clean_content = content
+                    m = re.search(r"<USER_REQUEST>(.*?)</USER_REQUEST>", content, re.DOTALL)
+                    if m:
+                        clean_content = m.group(1).strip()
+                    turns.append(f"User: {clean_content}")
+                elif step_type == "PLANNER_RESPONSE":
+                    turns.append(f"Assistant: {content}")
+    except Exception:
+        return
+        
+    if not turns:
+        return
+        
+    # Take the last 6 turns (3 exchanges)
+    recent_history = "\n\n".join(turns[-6:])
+    
+    # Write to .agy_progress.md in the current directory
+    progress_file = ".agy_progress.md"
+    try:
+        with open(progress_file, "w", encoding="utf-8") as f:
+            f.write(recent_history)
+    except Exception:
+        pass
