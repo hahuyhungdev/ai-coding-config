@@ -119,18 +119,18 @@ def check_last_log_for_quota_error():
     log_files.sort(key=lambda x: x[1], reverse=True)
     latest_log = log_files[0][0]
 
-    # Only check logs modified in the last 2 minutes (recent session)
-    if datetime.fromtimestamp(log_files[0][1]) < datetime.now() - timedelta(minutes=2):
+    # Only check logs modified in the last 15 minutes (recent session)
+    if datetime.fromtimestamp(log_files[0][1]) < datetime.now() - timedelta(minutes=15):
         return False, "", ""
 
     try:
         with open(latest_log, "r", errors="ignore") as f:
             lines = f.readlines()
 
-        # Step 1: Find which model was being used (look for model label before error)
+        # Step 1: Find which model was being used (look for model label from the bottom of log)
         blocked_model = "unknown"
-        for line in reversed(lines[-80:]):
-            m = re.search(r'Propagating selected model override.*label="(.*?)"', line)
+        for line in reversed(lines):
+            m = re.search(r'label="([^"]+)"', line)
             if m:
                 label = m.group(1).lower()
                 if "claude" in label:
@@ -139,10 +139,18 @@ def check_last_log_for_quota_error():
                     blocked_model = "gemini"
                 break
 
-        # Step 2: Scan last 50 lines for quota error
-        for line in reversed(lines[-50:]):
-            if "RESOURCE_EXHAUSTED" in line or "Quota exceeded" in line:
-                m = re.search(r"Resets in\s*([0-9hms]+)", line)
+        # Step 2: Scan lines for quota error
+        for line in reversed(lines):
+            line_lower = line.lower()
+            if (
+                "resource_exhausted" in line_lower
+                or "quota exceeded" in line_lower
+                or "429" in line_lower
+                or "individual quota reached" in line_lower
+                or "too many tokens" in line_lower
+                or "rate limit" in line_lower
+            ):
+                m = re.search(r"resets in\s*([0-9hms]+)", line, re.IGNORECASE)
                 reset_str = ""
                 if m:
                     reset_str = "In " + m.group(1)
@@ -326,9 +334,8 @@ def post_check_and_switch():
             except:
                 pass
         else:
-            accounts[active_idx]["reset_info"] = ""
-            if "blocked_until" in accounts[active_idx]:
-                del accounts[active_idx]["blocked_until"]
+            accounts[active_idx]["reset_info"] = "In 2h"
+            accounts[active_idx]["blocked_until"] = (datetime.now() + timedelta(hours=2)).isoformat()
         accounts[active_idx]["last_checked"] = datetime.now().isoformat()
         with open(JSON_FILE, "w") as f:
             json.dump(accounts, f, indent=2)

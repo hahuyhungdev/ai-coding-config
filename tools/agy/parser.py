@@ -172,8 +172,16 @@ def get_remaining_reset_from_logs(email, accounts):
             with open(log_path, "r", errors="ignore") as lf:
                 lines = lf.readlines()
             for line in reversed(lines):
-                if "RESOURCE_EXHAUSTED" in line or "Quota exceeded" in line or "429" in line:
-                    m = re.search(r"Resets in ([0-9hms]+)", line)
+                line_lower = line.lower()
+                if (
+                    "resource_exhausted" in line_lower
+                    or "quota exceeded" in line_lower
+                    or "429" in line_lower
+                    or "individual quota reached" in line_lower
+                    or "too many tokens" in line_lower
+                    or "rate limit" in line_lower
+                ):
+                    m = re.search(r"resets in ([0-9hms]+)", line, re.IGNORECASE)
                     if m:
                         duration_str = m.group(1)
                         log_dt = parse_log_timestamp(line)
