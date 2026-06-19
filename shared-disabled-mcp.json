@@ -3,6 +3,8 @@
     "aws",
     "docker",
     "postgres",
-    "sqlite"
+    "sqlite",
+    "memory",
+    "context7"
   ]
 }
