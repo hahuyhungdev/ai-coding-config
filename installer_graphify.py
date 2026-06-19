@@ -8,7 +8,7 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from installer.constants import CLAUDE_DIR, GEMINI_DIR, GEMINI_CLI_DIR, REPO_DIR
+from installer.constants import CLAUDE_DIR, GEMINI_DIR, GEMINI_CLI_DIR, REPO_DIR, REAL_HOME
 
 
 MANAGED_GRAPHIFY_MARKER = "ai-coding-config:graphify-managed"
@@ -251,7 +251,7 @@ def _python_hook_command(tool_name: str, claude: bool, project_level: bool = Fal
         hook_path = f".{actual_client}/hooks/graphify_pre_tool.py"
     else:
         # Global path
-        home_str = str(Path.home().as_posix())
+        home_str = str(REAL_HOME.as_posix())
         if actual_client == "claude":
             hook_path = f"{home_str}/.claude/hooks/graphify_pre_tool.py"
         elif actual_client == "gemini":

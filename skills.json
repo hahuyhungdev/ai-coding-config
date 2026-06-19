@@ -1,0 +1,37 @@
+{
+  "$schema": "./skills.schema.json",
+  "skills": [
+    {
+      "name": "frontend-guide",
+      "path": "skills/frontend-guide/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "fileExtensions": ["tsx", "jsx", "ts", "js"],
+        "pathPatterns": ["**/components/**", "**/pages/**", "**/app/**", "**/frontend/**"],
+        "keywords": ["use client", "use server", "createContext", "useState", "useEffect", "useContext", "framer-motion"]
+      },
+      "dependencies": ["design-system"]
+    },
+    {
+      "name": "next-best-practices",
+      "path": "skills/next-best-practices/SKILL.md",
+      "userInvocable": false,
+      "triggers": {
+        "fileExtensions": ["ts", "tsx", "js", "json"],
+        "pathPatterns": ["**/app/**", "**/pages/**", "next.config.*"],
+        "keywords": ["proxy.ts", "middleware.ts", "getServerSideProps", "generateStaticParams", "use cache"]
+      },
+      "dependencies": ["frontend-guide"]
+    },
+    {
+      "name": "playwright",
+      "path": "skills/playwright/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "fileExtensions": ["spec.ts", "test.ts"],
+        "pathPatterns": ["**/e2e/**", "**/tests/**"],
+        "keywords": ["playwright", "page.goto", "expect(page)"]
+      }
+    }
+  ]
+}

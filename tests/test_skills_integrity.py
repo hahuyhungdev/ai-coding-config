@@ -28,7 +28,6 @@ REQUIRED_SKILLS = {
     "cli-creator",
     "codebase-onboarding",
     "coding-standards",
-    "composition-patterns",
     "context-budget",           # newly added
     "council",                  # newly added
     "click-path-audit",         # newly added
@@ -37,7 +36,7 @@ REQUIRED_SKILLS = {
     "documentation-lookup",
     "eval-harness",
     "frontend-design",
-    "frontend-patterns",
+    "frontend-guide",
     "gh-fix-ci",
     "graphify",
     "karpathy-guidelines",

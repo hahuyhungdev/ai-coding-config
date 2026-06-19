@@ -153,9 +153,8 @@ Reusable instruction modules loaded on-demand by AI assistants. Located in [`ski
 | Skill | Description |
 | :--- | :--- |
 | [`frontend-design`](./skills/frontend-design) | Premium interface design avoiding AI slop aesthetics. |
-| [`frontend-patterns`](./skills/frontend-patterns) | React, Next.js, state management, and UI best practices. |
+| [`frontend-guide`](./skills/frontend-guide) | Unified guidelines for React component composition, state management, React 19 APIs, and performance optimization. |
 | [`design-system`](./skills/design-system) | Design system audit: visual consistency, tokens, and typography. |
-| [`composition-patterns`](./skills/composition-patterns) | React composition patterns: compound components, render props, context providers. |
 | [`next-best-practices`](./skills/next-best-practices) | Next.js App Router conventions, RSC boundaries, data patterns. |
 | [`nextjs-turbopack`](./skills/nextjs-turbopack) | Next.js 16+ and Turbopack incremental bundling. |
 

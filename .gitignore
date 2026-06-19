@@ -77,3 +77,9 @@ scratch/e2e_results/
 /gemini/ANTIGRAVITY.md
 /copilot/copilot-instructions.md
 
+# Agent temporary execution files
+.agents/
+/ORIGINAL_REQUEST.md
+/PROJECT.md
+
+

@@ -6,11 +6,13 @@ import shutil
 import sys
 from pathlib import Path
 
+from installer.constants import REAL_HOME
+
 def uninstall():
     print("🗑️ Uninstalling Antigravity CLI (agy) standalone...")
     
     # Define paths
-    home = Path.home()
+    home = REAL_HOME
     gemini_dir = home / ".gemini" / "config"
     agy_cli_dir = home / ".gemini" / "antigravity-cli"
     bin_dir = home / ".local" / "bin"
@@ -96,7 +98,7 @@ def main():
     
     # Define paths
     repo_dir = Path(__file__).resolve().parent
-    home = Path.home()
+    home = REAL_HOME
     gemini_dir = home / ".gemini" / "config"
     agy_cli_dir = home / ".gemini" / "antigravity-cli"
     bin_dir = home / ".local" / "bin"
