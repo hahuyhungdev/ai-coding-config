@@ -27,43 +27,17 @@ You are executing the `/switch` command in the Antigravity CLI (`agy`). This com
    - This will automatically select the account with the highest available quota.
    - Display the switch result to the user.
 
-4. **Trigger Session Rollover** (to apply new account):
-   - Since the current session is authenticated with the old account's token, a session restart is needed.
-   - Save current session progress to `.agy_progress.md` (same format as `/compact`):
-     ```markdown
-     # Session Progress Summary
-
-     **Date:** YYYY-MM-DD HH:MM
-     **Goal:** <Brief description of the main task>
-     **Account Switch:** Switched from <old_account> to <new_account> due to low quota.
-
-     ## Completed
-     - [x] Task 1
-     - [x] Task 2
-
-     ## Pending / Next Steps
-     - [ ] Task 3
-     ```
-   - Then trigger auto-compaction:
-     ```bash
-     touch ~/.gemini/antigravity-cli/.compact_signal
-     PID=$$
-     while [ -n "$PID" ] && [ "$PID" -gt 1 ]; do
-         if ps -p "$PID" -o comm= | grep -q "agy-bin"; then
-             kill "$PID"
-             break
-         fi
-         PID=$(ps -p "$PID" -o ppid= | tr -d ' ')
-     done
-     ```
-   - Inform the user that the session will auto-restart with the new account.
+4. **Inform the User**:
+   - Tell the user: "✅ Account rotated on disk. The new account will be used on the **next session**."
+   - Explain: The current session still uses the old account's cached token in memory. This is normal.
+   - Suggest: "Run `/compact` now if you want to restart immediately with the new account."
 
 ## Important Notes
 
 - **Always show status first** before deciding to switch. The user should see the quota numbers.
 - **If `agy status --json` fails**, fall back to `agy status` (text mode) and parse visually.
-- **The session rollover is necessary** because the agy-bin process caches the OAuth token in memory. Switching the token file alone won't affect the current session.
-- **Don't switch if quota is healthy** — unnecessary switches waste the user's time on a session restart.
+- **No session restart** — `agy-bin` caches the OAuth token in memory, so the current session continues with the old account. The new account applies on the next session start (or after `/compact`).
+- **Don't switch if quota is healthy** — unnecessary switches waste rotation cycles.
 
 ## Example Output
 
@@ -75,5 +49,6 @@ You are executing the `/switch` command in the Antigravity CLI (`agy`). This com
 
 🔄 Switched to: 01073463578a (Quota: 5H:100%/W:100%)
 
-💾 Saving session progress and restarting to apply new account...
+✅ Account rotated on disk. The new account will be used on the next session.
+💡 Run /compact now if you want to restart immediately with the new account.
 ```
