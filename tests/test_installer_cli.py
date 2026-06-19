@@ -24,6 +24,7 @@ class TestInstallerCli(unittest.TestCase):
         self._write_executable(
             "graphify",
             """#!/bin/sh
+echo "$@" >> graphify_args.txt
 if [ "$1" = "update" ]; then
   mkdir -p graphify-out
   printf '{}' > graphify-out/graph.json
@@ -31,6 +32,7 @@ fi
 exit 0
 """,
             r"""@echo off
+echo %* >> graphify_args.txt
 if "%1" == "update" (
   mkdir graphify-out 2>nul
   echo {} > graphify-out\graph.json
@@ -557,6 +559,25 @@ exit /b 0
         self.assertFalse((agy_dir / "agy-status.py").exists())
         for name in user_files:
             self.assertTrue((agy_dir / name).exists(), name)
+
+    def test_init_ai_forwards_unknown_arguments(self):
+        log_path = self.project / "graphify_args.txt"
+        if log_path.exists():
+            log_path.unlink()
+            
+        result = self._run("--init-ai", "--backend", "gemini-cli", "--max-concurrency", "4", "--token-budget", "120000")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        
+        self.assertTrue(log_path.exists())
+        args_logged = log_path.read_text().strip()
+        self.assertIn("extract . --mode deep --backend gemini-cli", args_logged)
+        self.assertIn("--max-concurrency 4", args_logged)
+        self.assertIn("--token-budget 120000", args_logged)
+
+    def test_unrecognized_arguments_fail_on_standard_run(self):
+        result = self._run("--claude", "--max-concurrency", "4")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unrecognized arguments", result.stderr)
 
 
 if __name__ == "__main__":

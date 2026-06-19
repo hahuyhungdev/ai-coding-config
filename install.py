@@ -70,7 +70,10 @@ Examples:
     parser.add_argument("--init-ai", action="store_true", help="Initialize Graphify graph with AI semantic extraction")
     parser.add_argument("--backend", type=str, default="gemini-cli", help="LLM backend for AI extraction (default: gemini-cli)")
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+
+    if unknown and not args.init_ai:
+        parser.error(f"unrecognized arguments: {' '.join(unknown)}")
 
     if args.status:
         show_status()
@@ -192,6 +195,8 @@ Examples:
         cmd = ["graphify", "extract", ".", "--mode", "deep", "--backend", backend]
         if selected_model:
             cmd.extend(["--model", selected_model])
+        if unknown:
+            cmd.extend(unknown)
             
         try:
             subprocess.run(cmd, cwd=str(target_project_dir), env=env, check=True)
