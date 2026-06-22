@@ -10,4 +10,5 @@ Rules:
 - After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, and **config review** of specific files identified by Graphify.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or a broad report is requested.
 - If a tool is blocked, do not retry. Run `graphify update .` after code edits.
+- Blocked Tool Recovery: Do not create one-off scratch scripts. Use scripts/inspect_conversation.py to debug.
 <!-- ai-coding-config:graphify-end -->

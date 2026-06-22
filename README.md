@@ -81,8 +81,9 @@ Instead of dumping full files and burning thousands of tokens, redirect broad qu
 ### 🛡️ Hook Enforcement & Quota Policies
 To protect API tokens and keep context windows compact, the configuration engine installs a unified pre-tool execution hook (`claude/hooks/graphify_pre_tool.py`) for all AI assistants. This hook enforces the following security and exploration rules:
 *   **Graphify-First Exploration**: Blocks broad exploration commands (e.g. `ls`, `find`, `grep`, inline Python/Node file reads) and forces the assistant to use Graphify queries first.
-*   **Path Leak Protection**: Intercepts edits or file writes containing absolute home directory paths (e.g. `/home/username/...`) and prompts the assistant to use relative paths instead.
-*   **Session Graphify Quota**: Restricts the maximum number of Graphify discovery calls to **10 calls per conversation session** to prevent token bloat while allowing sufficient follow-ups during long sessions.
+*   **State & Scope-Aware Caching**: Restricts exploratory reads/searches (e.g. `cat`, `view_file`, `grep`) to workspace directories that have been actively queried and indexed by Graphify during the session, isolating cross-project file leaks.
+*   **Path Leak Protection**: Intercepts edits or file writes containing absolute home directory paths and prompts the assistant to use relative paths instead.
+*   **Session Graphify Quota**: Restricts the maximum number of Graphify discovery calls to **20 calls per conversation session** to prevent token bloat while allowing sufficient follow-ups during long sessions.
 
 ### ⚙️ Pre-configured MCP Servers
 The engine registers and configures key MCP servers system-wide:
