@@ -372,6 +372,143 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertEqual(data_grep["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIn("Direct search/read tools are not available", data_grep["hookSpecificOutput"]["permissionDecisionReason"])
 
+    def test_claude_hook_scope_aware_caching(self):
+        from installer_graphify import _hook_classifier_script
+        script_bash = _hook_classifier_script("Bash", True)
+        script_read = _hook_classifier_script("Read", True)
+
+        project_b = Path(tempfile.mkdtemp())
+        try:
+            (project_b / "graphify-out").mkdir()
+            (project_b / "graphify-out" / "graph.json").write_text("{}")
+
+            session_a = f"session-a-{uuid.uuid4()}"
+            session_b = f"session-b-{uuid.uuid4()}"
+
+            # Create some source files in both projects
+            file_a = self.project / "src" / "main.py"
+            file_a.parent.mkdir(parents=True, exist_ok=True)
+            file_a.write_text("print('hello A')")
+
+            file_b = project_b / "src" / "main.py"
+            file_b.parent.mkdir(parents=True, exist_ok=True)
+            file_b.write_text("print('hello B')")
+
+            # 1. Running a Graphify query in Project A for Session A
+            payload_graphify_a = {
+                "conversationId": session_a,
+                "tool_input": {"command": "rtk graphify query 'architecture'"},
+                "cwd": str(self.project)
+            }
+            subprocess.run(
+                args=[sys.executable, "-c", script_bash],
+                cwd=self.project,
+                input=json.dumps(payload_graphify_a),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            # 2. Reading file_a (in Project A) in Session A should be ALLOWED
+            payload_read_a = {
+                "conversationId": session_a,
+                "tool_input": {"AbsolutePath": str(file_a), "toolAction": "Exploring codebase"},
+                "cwd": str(self.project)
+            }
+            res_read_a = subprocess.run(
+                args=[sys.executable, "-c", script_read],
+                cwd=self.project,
+                input=json.dumps(payload_read_a),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_read_a.stdout.strip(), "")
+
+            # 3. Reading file_b (in Project B) in Session A should be BLOCKED
+            payload_read_b_in_a = {
+                "conversationId": session_a,
+                "tool_input": {"AbsolutePath": str(file_b), "toolAction": "Exploring codebase"},
+                "cwd": str(self.project)
+            }
+            res_read_b_in_a = subprocess.run(
+                args=[sys.executable, "-c", script_read],
+                cwd=self.project,
+                input=json.dumps(payload_read_b_in_a),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            data_read_b_in_a = json.loads(res_read_b_in_a.stdout.strip())
+            self.assertEqual(data_read_b_in_a["hookSpecificOutput"]["permissionDecision"], "deny")
+            self.assertIn("outside the explored Graphify scope", data_read_b_in_a["hookSpecificOutput"]["permissionDecisionReason"])
+
+            # 4. Reading file_b (in Project B) in Session B (g_count = 0) should be BLOCKED (standard deny for exploration)
+            payload_read_b_in_b_0 = {
+                "conversationId": session_b,
+                "tool_input": {"AbsolutePath": str(file_b), "toolAction": "Exploring codebase"},
+                "cwd": str(project_b)
+            }
+            res_read_b_in_b_0 = subprocess.run(
+                args=[sys.executable, "-c", script_read],
+                cwd=project_b,
+                input=json.dumps(payload_read_b_in_b_0),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            data_read_b_in_b_0 = json.loads(res_read_b_in_b_0.stdout.strip())
+            self.assertEqual(data_read_b_in_b_0["hookSpecificOutput"]["permissionDecision"], "deny")
+            self.assertIn("Direct search/read tools are not available", data_read_b_in_b_0["hookSpecificOutput"]["permissionDecisionReason"])
+
+            # 5. Running Graphify query in Project B for Session B
+            payload_graphify_b = {
+                "conversationId": session_b,
+                "tool_input": {"command": "rtk graphify query 'architecture'"},
+                "cwd": str(project_b)
+            }
+            subprocess.run(
+                args=[sys.executable, "-c", script_bash],
+                cwd=project_b,
+                input=json.dumps(payload_graphify_b),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            # 6. Reading file_b (in Project B) in Session B should now be ALLOWED
+            res_read_b_in_b_1 = subprocess.run(
+                args=[sys.executable, "-c", script_read],
+                cwd=project_b,
+                input=json.dumps(payload_read_b_in_b_0),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res_read_b_in_b_1.stdout.strip(), "")
+
+            # 7. Reading file_a (in Project A) in Session B should be BLOCKED (since Project A is not in Session B's scopes)
+            payload_read_a_in_b = {
+                "conversationId": session_b,
+                "tool_input": {"AbsolutePath": str(file_a), "toolAction": "Exploring codebase"},
+                "cwd": str(project_b)
+            }
+            res_read_a_in_b = subprocess.run(
+                args=[sys.executable, "-c", script_read],
+                cwd=project_b,
+                input=json.dumps(payload_read_a_in_b),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            data_read_a_in_b = json.loads(res_read_a_in_b.stdout.strip())
+            self.assertEqual(data_read_a_in_b["hookSpecificOutput"]["permissionDecision"], "deny")
+            self.assertIn("outside the explored Graphify scope", data_read_a_in_b["hookSpecificOutput"]["permissionDecisionReason"])
+
+        finally:
+            import shutil
+            shutil.rmtree(project_b, ignore_errors=True)
+
     def test_gemini_merge_preserves_settings_and_is_idempotent(self):
         settings_path = self.project / ".gemini" / "settings.json"
         settings_path.parent.mkdir()

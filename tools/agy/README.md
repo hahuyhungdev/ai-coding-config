@@ -27,7 +27,7 @@ The installed runtime lives outside this repo at:
 - `status_refresh.py`: live quota refresh, duplicate-token detection, token restoration, and status table updates.
 - `token_import.py`: token import flows from the active token file, pasted JSON, and token JSON files.
 - `conversation_commands.py`: local conversation/session cleanup and delete helpers.
-- `switch.py`: model fallback and account rotation policy. Current policy is Gemini High first, Claude Opus second, then account rotation.
+- `switch.py`: account rotation policy. Current policy is to rotate to the healthiest account when the active account's quota is low or blocked.
 - `parser.py`: parsers for Antigravity quota screens and local log-derived usage signals.
 - `pty_client.py`: pseudo-terminal runner used to query live quota screens.
 - `storage.py`: account file loading, backups, public redaction, restore, token normalization, and token upsert helpers.
@@ -69,7 +69,7 @@ If a quota error occurs mid-session (or during model/account switching), the wra
 - Intercepts the failure.
 - Marks the account as blocked with an estimated reset time (updating `accounts.json`).
 - Automatically exports the last few turns of recent conversation history into `.agy_progress.md`.
-- Selects the next best account (or model fallback).
+- Selects the next best account.
 - Launches a new session, feeding the previous conversation context into a `<compaction_rollover>` prompt to resume the task seamlessly.
 
 ## Refactor Boundaries
@@ -89,7 +89,7 @@ High-risk areas:
 - PTY lifecycle in `pty_client.py`.
 - Token restoration during `status_refresh.get_account_status`.
 - Wrapper retry behavior in `agy`.
-- Model/account fallback order in `switch.py`.
+- Account selection and rotation order in `switch.py`.
 
 For high-risk changes, run both unit tests and a live smoke command after reinstalling with `python3 install-agy.py`.
 

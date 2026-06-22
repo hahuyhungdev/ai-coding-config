@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
-export interface ToastItem {
+interface ToastItem {
   id: number;
   message: string;
   type: 'success' | 'error' | 'warning';

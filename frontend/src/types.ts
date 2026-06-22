@@ -1,11 +1,11 @@
-export interface Targets {
+interface Targets {
   claude: boolean;
   codex: boolean;
   agy: boolean;
   [key: string]: boolean;
 }
 
-export interface ClaudeConfig {
+interface ClaudeConfig {
   env?: {
     MAX_THINKING_TOKENS?: string;
     CLAUDE_CODE_MAX_OUTPUT_TOKENS?: string;
@@ -39,7 +39,7 @@ export interface CodexConfig {
   };
 }
 
-export interface GeminiConfig {
+interface GeminiConfig {
   enableTelemetry?: boolean;
   model?: string;
   toolPermission?: string;

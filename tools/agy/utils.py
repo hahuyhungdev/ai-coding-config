@@ -3,11 +3,11 @@ import re
 from datetime import datetime, timedelta
 
 # Constants
-AGY_DIR = os.path.expanduser("~/.gemini/antigravity-cli")
+AGY_DIR = os.environ.get("AGY_TEST_DIR") or os.path.expanduser("~/.gemini/antigravity-cli")
 JSON_FILE = os.path.join(AGY_DIR, "accounts.json")
 TOKEN_FILE = os.path.join(AGY_DIR, "antigravity-oauth-token")
 LOG_DIR = os.path.join(AGY_DIR, "log")
-REAL_AGY = os.path.expanduser("~/.local/bin/agy-bin")
+REAL_AGY = os.environ.get("AGY_TEST_REAL_BIN") or os.path.expanduser("~/.local/bin/agy-bin")
 
 GEMINI_FALLBACK_MODEL = "Gemini 3.5 Flash (High)"
 CLAUDE_FALLBACK_MODEL = "Claude Opus 4.6 (Thinking)"

@@ -54,7 +54,7 @@ def _original_token_state(accounts):
 
 
 def _quota_summary(model_quotas):
-    for rep_model in ["Gemini 3.5 Flash (Medium)", "Gemini 3.5 Flash (High)"]:
+    for rep_model in ["Gemini 3.5 Flash (High)", "Gemini 3.5 Flash (Medium)"]:
         if rep_model not in model_quotas:
             continue
         quota = model_quotas[rep_model]

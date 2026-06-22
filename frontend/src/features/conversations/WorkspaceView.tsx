@@ -21,7 +21,7 @@ function getToolIcon(type: string) {
   }
 }
 
-export function getToolLabel(step: ConversationStep): string {
+function getToolLabel(step: ConversationStep): string {
   const type = step.type;
   const args = step.resolved_args;
 

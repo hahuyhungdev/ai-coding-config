@@ -6,46 +6,10 @@ import time
 from datetime import datetime, timedelta
 from utils import (
     JSON_FILE, TOKEN_FILE, LOG_DIR, AGY_DIR,
-    GEMINI_FALLBACK_MODEL, CLAUDE_FALLBACK_MODEL,
-    GEMINI_MODELS, CLAUDE_MODELS,
     get_username, parse_duration, parse_log_timestamp,
-    get_model_pct, format_exact_reset_time, remaining_quota_value
+    format_exact_reset_time, remaining_quota_value
 )
 from parser import get_remaining_reset_from_logs
-
-def has_model_quota(acc, model_name, threshold=30):
-    return get_model_pct(acc.get("model_quotas", {}), model_name) > threshold
-
-def model_group_exhausted(model_quotas, model_names, threshold=30):
-    present = [name for name in model_names if name in model_quotas]
-    return bool(present) and all(get_model_pct(model_quotas, name) <= threshold for name in present)
-
-def choose_same_account_fallback(acc, blocked_model=""):
-    """Prefer Gemini first, then Claude Opus; never fall back from Claude to Gemini."""
-    model_quotas = acc.get("model_quotas", {})
-
-    if blocked_model == "gemini":
-        if not model_quotas or has_model_quota(acc, CLAUDE_FALLBACK_MODEL):
-            return CLAUDE_FALLBACK_MODEL
-        return ""
-
-    if blocked_model == "claude":
-        return ""
-
-    if model_quotas:
-        if has_model_quota(acc, GEMINI_FALLBACK_MODEL):
-            return GEMINI_FALLBACK_MODEL
-
-        gemini_exhausted = model_group_exhausted(model_quotas, GEMINI_MODELS)
-        opus_available = has_model_quota(acc, CLAUDE_FALLBACK_MODEL)
-        claude_exhausted = model_group_exhausted(model_quotas, [CLAUDE_FALLBACK_MODEL])
-
-        if gemini_exhausted and opus_available:
-            return CLAUDE_FALLBACK_MODEL
-        if claude_exhausted:
-            return ""
-
-    return ""
 
 def is_account_blocked_or_low(acc, accounts):
     email = acc.get("email") or acc.get("name")
@@ -118,18 +82,39 @@ def check_last_log_for_quota_error():
 
     log_files.sort(key=lambda x: x[1], reverse=True)
     latest_log = log_files[0][0]
+    latest_log_mtime = log_files[0][1]
+
+    # Ignore logs modified before the current active account was set/switched
+    if os.path.exists(TOKEN_FILE):
+        try:
+            if latest_log_mtime < os.path.getmtime(TOKEN_FILE):
+                return False, "", ""
+        except OSError:
+            pass
 
     # Only check logs modified in the last 15 minutes (recent session)
-    if datetime.fromtimestamp(log_files[0][1]) < datetime.now() - timedelta(minutes=15):
+    if datetime.fromtimestamp(latest_log_mtime) < datetime.now() - timedelta(minutes=15):
         return False, "", ""
 
     try:
         with open(latest_log, "r", errors="ignore") as f:
             lines = f.readlines()
 
+        token_mtime = None
+        if os.path.exists(TOKEN_FILE):
+            try:
+                token_mtime = datetime.fromtimestamp(os.path.getmtime(TOKEN_FILE))
+            except OSError:
+                pass
+
         # Step 1: Find which model was being used (look for model label from the bottom of log)
         blocked_model = "unknown"
         for line in reversed(lines):
+            if token_mtime:
+                ts = parse_log_timestamp(line)
+                if ts and ts < token_mtime:
+                    break
+
             m = re.search(r'label="([^"]+)"', line)
             if m:
                 label = m.group(1).lower()
@@ -141,6 +126,11 @@ def check_last_log_for_quota_error():
 
         # Step 2: Scan lines for quota error
         for line in reversed(lines):
+            if token_mtime:
+                ts = parse_log_timestamp(line)
+                if ts and ts < token_mtime:
+                    break
+
             line_lower = line.lower()
             if (
                 "resource_exhausted" in line_lower
@@ -160,11 +150,7 @@ def check_last_log_for_quota_error():
 
     return False, "", ""
 
-def get_model_suggestion(acc, blocked_model=""):
-    """Check per-model quota cached in accounts.json and suggest an available model.
-    Returns model label string or empty string if no suggestion.
-    """
-    return choose_same_account_fallback(acc, blocked_model=blocked_model)
+
 
 def auto_switch_account(quiet=False):
     if not os.path.exists(JSON_FILE):
@@ -211,6 +197,34 @@ def auto_switch_account(quiet=False):
         return ""
 
     active_acc = accounts[active_idx]
+
+    # Trigger background quota refresh if cooldown has expired
+    lock_file = os.path.join(AGY_DIR, ".last_bg_refresh")
+    now_t = time.time()
+    should_refresh = True
+    if os.path.exists(lock_file):
+        try:
+            with open(lock_file, "r") as lf:
+                last_time = float(lf.read().strip())
+                if now_t - last_time < 300:  # 5 minutes cooldown
+                    should_refresh = False
+        except:
+            pass
+    if should_refresh:
+        try:
+            with open(lock_file, "w") as lf:
+                lf.write(str(now_t))
+            import subprocess
+            cmd = [sys.executable, os.path.join(AGY_DIR, "agy-status.py"), "status"]
+            subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True,
+                start_new_session=True
+            )
+        except:
+            pass
     active_email = active_acc.get("email") or active_acc.get("name") or f"Account {active_idx + 1}"
 
     if is_account_blocked_or_low(active_acc, accounts):
@@ -269,39 +283,9 @@ def auto_switch_account(quiet=False):
             if reset_info:
                 quota_str += f" ({reset_info})"
             print(f"🔄 Auto-switched account to: {new_email} (Index: [{found_idx + 1}]){quota_str}")
-
-            # Suggest model for the newly switched account if needed
-            suggestion = get_model_suggestion(selected_acc)
-            if suggestion:
-                print(f"MODEL:{suggestion}")
-                return suggestion
         else:
-            # All accounts are low or blocked. Try model fallback on the current account.
-            _, _, blocked_model = check_last_log_for_quota_error()
-            if not blocked_model or blocked_model == "unknown":
-                blocked_model = active_acc.get("last_blocked_model", "")
-
-            suggestion = get_model_suggestion(active_acc, blocked_model=blocked_model)
-            if suggestion:
-                print(f"MODEL:{suggestion}")
-                return suggestion
-
             if not quiet:
                 print("⚠️ All accounts are currently blocked or low on quota! Staying on the current account.")
-    else:
-        had_error, _, blocked_model = check_last_log_for_quota_error()
-        if had_error and blocked_model and blocked_model != "unknown":
-            suggestion = get_model_suggestion(active_acc, blocked_model=blocked_model)
-            if suggestion:
-                print(f"MODEL:{suggestion}")
-                return suggestion
-
-        model_quotas = active_acc.get("model_quotas", {})
-        if model_quotas:
-            suggestion = get_model_suggestion(active_acc)
-            if suggestion:
-                print(f"MODEL:{suggestion}")
-                return suggestion
 
     return ""
 
@@ -408,20 +392,6 @@ def post_check_and_switch():
         print("SWITCH_ACCOUNT")
         sys.exit(0)
     else:
-        # No healthy replacement account found. Try same-account model fallback.
-        if blocked_model == "gemini":
-            fallback_model = CLAUDE_FALLBACK_MODEL
-            fallback_label = "claude"
-        else:
-            fallback_model = None
-            fallback_label = None
-
-        if fallback_model:
-            generate_quota_rollover()
-            print(f"🔄 Trying {fallback_label} model on same account...")
-            print(f"SWITCH_MODEL:{fallback_model}")
-            sys.exit(0)
-
         print("❌ All accounts are blocked! Cannot retry.")
         sys.exit(2)
 
