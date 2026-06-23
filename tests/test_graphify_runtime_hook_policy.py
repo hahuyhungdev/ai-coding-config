@@ -77,6 +77,23 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
         self.assertEqual(_decision(output), "deny")
         self.assertIn("Graphify", _context(output))
 
+    def test_gemini_directory_path_reads_before_graphify_are_denied(self):
+        output = _run_hook(
+            "Read",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "DirectoryPath": str(self.project),
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertEqual(_decision(output), "deny")
+        self.assertIn("Graphify", _context(output))
+
     def test_docs_file_reads_before_graphify_are_allowed(self):
         output = _run_hook(
             "Read",
