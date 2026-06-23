@@ -74,6 +74,19 @@ class TestGraphifyCommandClassification(unittest.TestCase):
                 )
                 self.assertEqual(result["decision"], "allow")
 
+    def test_graph_json_manual_reads_are_denied(self):
+        read_result = install.classify_graphify_tool_use(
+            "Read", {"file_path": "graphify-out/graph.json"}, graph_exists=True
+        )
+        self.assertEqual(read_result["decision"], "deny")
+        self.assertIn("graphify CLI", read_result["additionalContext"])
+
+        bash_result = install.classify_graphify_tool_use(
+            "Bash", {"command": "cat graphify-out/graph.json"}, graph_exists=True
+        )
+        self.assertEqual(bash_result["decision"], "deny")
+        self.assertIn("graphify CLI", bash_result["additionalContext"])
+
     def test_normal_test_ls_and_which_commands_are_allowed(self):
         for command in ("test -f package.json", "which node", "which graphify", "command -v graphify"):
             with self.subTest(command=command):
