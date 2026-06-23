@@ -77,13 +77,29 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
         self.assertEqual(_decision(output), "deny")
         self.assertIn("Graphify", _context(output))
 
-    def test_docs_reads_before_graphify_are_denied(self):
+    def test_docs_file_reads_before_graphify_are_allowed(self):
         output = _run_hook(
             "Read",
             {
                 "conversationId": self.session,
                 "tool_input": {
                     "file_path": str(self.project / "docs" / "spec.md"),
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertIsNone(_decision(output))
+
+    def test_source_file_reads_before_graphify_are_denied(self):
+        output = _run_hook(
+            "Read",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "file_path": str(self.project / "app" / "main.py"),
                     "toolAction": "Exploring codebase",
                 },
                 "Cwd": str(self.project),
