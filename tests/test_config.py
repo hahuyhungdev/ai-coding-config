@@ -38,6 +38,7 @@ class TestAiCodingConfig(unittest.TestCase):
         self.assertIn("Blocked Tool Recovery", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not create one-off scratch scripts", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not manually read or parse graphify-out/graph.json", installer_graphify.GRAPHIFY_INSTRUCTIONS)
+        self.assertIn("do not list parent directories", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Explicit docs files may be read", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not spawn subagents or fresh sessions to bypass", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("scripts/inspect_conversation.py", installer_graphify.GRAPHIFY_INSTRUCTIONS)
