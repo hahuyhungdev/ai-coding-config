@@ -26,6 +26,8 @@ SOURCE_EXTENSIONS = {
 IGNORED_SOURCE_PARTS = {
     "graphify-out", "skills", ".claude", ".gemini", ".codex", ".git", "node_modules",
 }
+DOC_CONTEXT_PARTS = {"docs", "doc", "documentation"}
+DOC_CONTEXT_EXTENSIONS = {".md", ".mdx", ".rst", ".txt"}
 GRAPHIFY_GUIDANCE = (
     "⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):\n\n"
     "**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `rtk graphify query \"<question>\"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**\n\n"
@@ -47,6 +49,7 @@ Rules:
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
+- Explicit docs files may be read as user-provided context before Graphify. Mapping those docs to source code, routes, components, or architecture still requires Graphify first.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
@@ -202,11 +205,19 @@ def graph_json_denial_context() -> str:
     )
 
 
+def is_doc_context_file(raw_path: object) -> bool:
+    normalized = str(raw_path or "").lower().replace("\\", "/")
+    path = Path(normalized)
+    return path.suffix in DOC_CONTEXT_EXTENSIONS and bool(set(path.parts) & DOC_CONTEXT_PARTS)
+
+
 def is_source_tool_input(tool_input: dict) -> bool:
     for raw_path in (
         tool_input.get("file_path"), tool_input.get("path"), tool_input.get("pattern")
     ):
         if not raw_path:
+            continue
+        if is_doc_context_file(raw_path):
             continue
         normalized = str(raw_path).lower().replace("\\", "/")
         if set(Path(normalized).parts) & IGNORED_SOURCE_PARTS:
