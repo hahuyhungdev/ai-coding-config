@@ -56,6 +56,14 @@ class TestGraphifyCommandClassification(unittest.TestCase):
         self.assertIn("additionalContext", result)
         self.assertIn("BLOCKED", result["additionalContext"])
 
+    def test_directory_listing_requests_guidance(self):
+        result = install.classify_graphify_tool_use(
+            "Read", {"DirectoryPath": "/repo"}, graph_exists=True
+        )
+        self.assertEqual(result["decision"], "deny")
+        self.assertIn("additionalContext", result)
+        self.assertIn("BLOCKED", result["additionalContext"])
+
     def test_builtin_grep_is_denied_when_graph_exists(self):
         result = install.classify_graphify_tool_use(
             "Grep", {"pattern": "Router", "path": "src"}, graph_exists=True
