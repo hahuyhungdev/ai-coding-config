@@ -19,6 +19,7 @@ Rules:
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
+- Explicit docs files may be read as user-provided context before Graphify. Mapping those docs to source code, routes, components, or architecture still requires Graphify first.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
