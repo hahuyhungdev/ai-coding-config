@@ -104,6 +104,12 @@ class TestGraphifyCommandClassification(unittest.TestCase):
         )
         self.assertEqual(
             install.classify_graphify_tool_use(
+                "Read", {"file_path": "docs/specs_next_index.md"}, graph_exists=True
+            ),
+            {"decision": "allow"},
+        )
+        self.assertEqual(
+            install.classify_graphify_tool_use(
                 "Bash", {"command": "rg Router src"}, graph_exists=False
             ),
             {"decision": "allow"},
