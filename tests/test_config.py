@@ -30,12 +30,15 @@ class TestAiCodingConfig(unittest.TestCase):
         self.assertIn("do not retry the same blocked tool call", content)
         self.assertIn("diagnostic scripts", content)
         self.assertIn("scratch scripts", content)
+        self.assertIn("Do not spawn subagents or fresh sessions to bypass", content)
 
     def test_project_graphify_block_includes_blocked_tool_recovery(self):
         import installer_graphify
 
         self.assertIn("Blocked Tool Recovery", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not create one-off scratch scripts", installer_graphify.GRAPHIFY_INSTRUCTIONS)
+        self.assertIn("Do not manually read or parse graphify-out/graph.json", installer_graphify.GRAPHIFY_INSTRUCTIONS)
+        self.assertIn("Do not spawn subagents or fresh sessions to bypass", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("scripts/inspect_conversation.py", installer_graphify.GRAPHIFY_INSTRUCTIONS)
 
 
