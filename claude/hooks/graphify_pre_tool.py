@@ -416,7 +416,14 @@ def main():
                     decision = "deny"
                     context = "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
         elif TOOL in {"Read", "Glob"}:
-            fp = str(t.get("file_path") or t.get("AbsolutePath") or t.get("path") or "")
+            fp = str(
+                t.get("file_path")
+                or t.get("AbsolutePath")
+                or t.get("DirectoryPath")
+                or t.get("SearchPath")
+                or t.get("path")
+                or ""
+            )
             if fp:
                 p = fp.lower().replace(chr(92), "/")
                 parts = set(pathlib.Path(p).parts)

@@ -213,7 +213,12 @@ def is_doc_context_file(raw_path: object) -> bool:
 
 def is_source_tool_input(tool_input: dict) -> bool:
     for raw_path in (
-        tool_input.get("file_path"), tool_input.get("path"), tool_input.get("pattern")
+        tool_input.get("file_path"),
+        tool_input.get("path"),
+        tool_input.get("pattern"),
+        tool_input.get("AbsolutePath"),
+        tool_input.get("DirectoryPath"),
+        tool_input.get("SearchPath"),
     ):
         if not raw_path:
             continue
@@ -222,7 +227,7 @@ def is_source_tool_input(tool_input: dict) -> bool:
         normalized = str(raw_path).lower().replace("\\", "/")
         if set(Path(normalized).parts) & IGNORED_SOURCE_PARTS:
             continue
-        if Path(normalized).suffix in SOURCE_EXTENSIONS:
+        if Path(normalized).suffix in SOURCE_EXTENSIONS or not Path(normalized).suffix:
             return True
     return False
 
