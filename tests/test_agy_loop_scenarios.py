@@ -18,6 +18,7 @@ def test_scenarios_cover_known_loop_triggers():
         "substring-truncation",
         "hook-bypass-pressure",
         "two-failed-attempts",
+        "graph-json-loop",
     }.issubset(scenario_ids)
 
 
