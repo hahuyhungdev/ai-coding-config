@@ -17,6 +17,8 @@ B = (
 )
 E = ('.c', '.cc', '.cpp', '.cs', '.go', '.h', '.hpp', '.java', '.js', '.json', '.jsx', '.kt', '.lua', '.md', '.mdx', '.php', '.py', '.rb', '.rs', '.rst', '.scala', '.sh', '.swift', '.toml', '.ts', '.tsx', '.txt', '.yaml', '.yml')
 I = ('.claude', '.codex', '.gemini', '.git', 'graphify-out', 'node_modules', 'skills')
+DOC_CONTEXT_PARTS = {'docs', 'doc', 'documentation'}
+DOC_CONTEXT_EXTENSIONS = {'.md', '.mdx', '.rst', '.txt'}
 G = '⚠️ GRAPHIFY WORKFLOW RULES:\n- Architecture questions → rtk graphify query "question"\n- Code relationships → rtk graphify path "A" "B"\n- Deep-dive concepts → rtk graphify explain "concept"\n- Impact analysis / reverse dependencies → rtk graphify affected "SymbolName"\n- Direct reads are ONLY for editing specific files.'
 
 
@@ -99,6 +101,12 @@ def graph_json_denial():
         "`rtk graphify explain`, or `rtk graphify affected`. Existence probes like "
         "`test -f graphify-out/graph.json` are allowed."
     )
+
+
+def is_doc_context_file(raw_path):
+    normalized = str(raw_path or "").lower().replace("\\", "/")
+    path = pathlib.Path(normalized)
+    return path.suffix in DOC_CONTEXT_EXTENSIONS and bool(set(path.parts) & DOC_CONTEXT_PARTS)
 
 
 
@@ -420,7 +428,12 @@ def main():
                     looks_like_directory = not suffix
                     is_source_or_doc = suffix in E or looks_like_directory
                     g_count = get_graphify_count(session)
-                    if is_source_or_doc and g_count == 0 and tool_ctx not in {"editing", "planning", "debugging"}:
+                    if (
+                        is_source_or_doc
+                        and g_count == 0
+                        and tool_ctx not in {"editing", "planning", "debugging"}
+                        and not is_doc_context_file(p)
+                    ):
                         decision = "deny"
                         context = "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
 
