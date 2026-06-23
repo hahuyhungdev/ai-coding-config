@@ -46,6 +46,7 @@ Rules:
 - **Synthesize from Graphify context only.** Answer based on what Graphify returns. Do not supplement with direct file reads for exploration.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
+- Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
@@ -57,6 +58,7 @@ Post-Discovery Reads (exceptions):
 
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.
+- Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions.
 - Do not create one-off scratch scripts to inspect facts that a project diagnostic already covers.
 - For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - When debugging truncation, measure full content length and keyword presence; do not use substring-only previews as evidence.
@@ -186,6 +188,20 @@ def is_graphify_probe_command(command: str) -> bool:
     return probes_graph_file
 
 
+def is_graph_json_path(raw_path: object) -> bool:
+    normalized = str(raw_path or "").lower().replace("\\", "/")
+    return normalized.endswith("graphify-out/graph.json") or "/graphify-out/graph.json" in normalized
+
+
+def graph_json_denial_context() -> str:
+    return (
+        "❌ BLOCKED: `graphify-out/graph.json` is an internal Graphify artifact and must not be read manually.\n"
+        "💡 TIP: Use the graphify CLI instead: `rtk graphify query`, `rtk graphify path`, "
+        "`rtk graphify explain`, or `rtk graphify affected`. Existence probes like "
+        "`test -f graphify-out/graph.json` are allowed."
+    )
+
+
 def is_source_tool_input(tool_input: dict) -> bool:
     for raw_path in (
         tool_input.get("file_path"), tool_input.get("path"), tool_input.get("pattern")
@@ -213,6 +229,11 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
         command = str(tool_input.get("command") or tool_input.get("CommandLine") or "")
         if is_graphify_probe_command(command):
             return {"decision": "allow"}
+        if is_graph_json_path(command):
+            return {
+                "decision": "deny",
+                "additionalContext": graph_json_denial_context(),
+            }
         executables = _command_words(command)
         if is_inline_python_file_read(command, executables):
             return {
@@ -223,6 +244,12 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
             return {
                 "decision": "deny",
                 "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
+            }
+    if tool_name.lower() in {"read", "glob", "read_file", "list_directory"}:
+        if any(is_graph_json_path(value) for value in tool_input.values()):
+            return {
+                "decision": "deny",
+                "additionalContext": graph_json_denial_context(),
             }
     if tool_name.lower() in {"read", "glob", "read_file", "list_directory"} and is_source_tool_input(tool_input):
         return {

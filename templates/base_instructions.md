@@ -15,6 +15,7 @@
 
 ## 2.5. Anti-Loop Debugging
 - **Blocked Tool Recovery**: If a hook or policy blocks a tool call, do not retry the same blocked tool call or attempt equivalent bypasses. Use the context already available, run the required Graphify query if applicable, or switch to a documented diagnostic command.
+- **No Fresh-Session Bypasses**: Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions. If the current session is blocked, report the blocker and the next safe diagnostic path.
 - **Prefer Existing Diagnostics**: Before creating any temporary debugging helper, check for existing diagnostic scripts, tests, or project utilities that already answer the question. For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - **No Scratch Script Loops**: Do not create repeated one-off scratch scripts for the same inspection. Scratch scripts are allowed only when no project diagnostic exists, and they must not hard-code magic transcript indexes without also validating the total count and search keyword.
 - **Validate Full Data When Debugging Truncation**: When investigating missing or clipped text, capture full lengths and keyword presence. Do not rely on substring-only previews as proof that the source data is truncated.
