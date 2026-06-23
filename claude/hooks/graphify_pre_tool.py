@@ -77,6 +77,30 @@ def get_graphify_count(session):
     return 0
 
 
+def payload_cwd(data, tool_input):
+    return (
+        data.get("cwd")
+        or data.get("Cwd")
+        or tool_input.get("cwd")
+        or tool_input.get("Cwd")
+        or os.getcwd()
+    )
+
+
+def is_graph_json_path(raw_path):
+    normalized = str(raw_path or "").lower().replace("\\", "/")
+    return normalized.endswith("graphify-out/graph.json") or "/graphify-out/graph.json" in normalized
+
+
+def graph_json_denial():
+    return (
+        "❌ BLOCKED: `graphify-out/graph.json` is an internal Graphify artifact and must not be read manually.\n"
+        "💡 TIP: Use the graphify CLI instead: `rtk graphify query`, `rtk graphify path`, "
+        "`rtk graphify explain`, or `rtk graphify affected`. Existence probes like "
+        "`test -f graphify-out/graph.json` are allowed."
+    )
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="Graphify Hook Classifier")
@@ -116,8 +140,11 @@ def main():
             pass
         # 3. workspacePaths
         wps = list(d.get("workspacePaths", []))
-        if "cwd" in d:
-            wps.append(d["cwd"])
+        for key in ("cwd", "Cwd"):
+            if key in d:
+                wps.append(d[key])
+            if key in inp:
+                wps.append(inp[key])
         for wp in wps:
             if wp:
                 wp_path = pathlib.Path(wp)
@@ -365,6 +392,9 @@ def main():
             if over_quota:
                 decision = "deny"
                 context = "❌ BLOCKED: Maximum 20 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
+            elif "graphify-out/graph.json" in low and not probe:
+                decision = "deny"
+                context = graph_json_denial()
             elif probe:
                 log("Probe allowed")
             elif is_inline_python_file_read(raw, ex):
@@ -382,11 +412,15 @@ def main():
             if fp:
                 p = fp.lower().replace(chr(92), "/")
                 parts = set(pathlib.Path(p).parts)
-                if not parts.intersection(I) and pathlib.Path(p).suffix in E:
-                    # Allow reading config/documentation files, or files during editing/planning/debugging
-                    is_config_or_doc = pathlib.Path(p).suffix in {".md", ".json", ".toml", ".yaml", ".yml", ".txt"}
+                if is_graph_json_path(p):
+                    decision = "deny"
+                    context = graph_json_denial()
+                elif not parts.intersection(I):
+                    suffix = pathlib.Path(p).suffix
+                    looks_like_directory = not suffix
+                    is_source_or_doc = suffix in E or looks_like_directory
                     g_count = get_graphify_count(session)
-                    if g_count == 0 and tool_ctx not in {"editing", "planning", "debugging"} and not is_config_or_doc:
+                    if is_source_or_doc and g_count == 0 and tool_ctx not in {"editing", "planning", "debugging"}:
                         decision = "deny"
                         context = "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
 
