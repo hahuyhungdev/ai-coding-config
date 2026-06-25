@@ -126,6 +126,43 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
 
         self.assertEqual(_decision(output), "deny")
         self.assertIn("Graphify", _context(output))
+        self.assertIn("rtk graphify query", _context(output))
+        self.assertIn("--budget 1200", _context(output))
+
+    def test_graph_report_manual_read_is_denied(self):
+        (self.project / "graphify-out" / "GRAPH_REPORT.md").write_text("# Full report\n")
+
+        output = _run_hook(
+            "Read",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "file_path": str(self.project / "graphify-out" / "GRAPH_REPORT.md"),
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertEqual(_decision(output), "deny")
+        self.assertIn("GRAPH_REPORT.md", _context(output))
+
+    def test_hook_does_not_write_debug_snapshot_by_default(self):
+        debug_path = REPO_DIR / "hook-debug-claude.json"
+        debug_path.unlink(missing_ok=True)
+
+        _run_hook(
+            "Bash",
+            {
+                "conversationId": self.session,
+                "tool_input": {"command": "rtk graphify query 'overview'"},
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertFalse(debug_path.exists())
 
     def test_docs_reads_after_graphify_are_allowed(self):
         _run_hook(
@@ -169,3 +206,47 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
 
         self.assertEqual(_decision(output), "deny")
         self.assertIn("graphify CLI", _context(output))
+
+    def test_scratch_reader_script_creation_is_denied(self):
+        output = _run_hook(
+            "Write",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "file_path": str(self.project / "scratch_read.py"),
+                    "code_content": (
+                        "from pathlib import Path\n"
+                        "print(Path('docs/spec.md').read_text())\n"
+                    ),
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertEqual(_decision(output), "deny")
+        self.assertIn("scratch reader scripts", _context(output))
+        self.assertIn("rtk graphify query", _context(output))
+
+    def test_scratch_reader_script_execution_is_denied(self):
+        (self.project / "scratch_read.py").write_text(
+            "from pathlib import Path\nprint(Path('docs/spec.md').read_text())\n"
+        )
+
+        output = _run_hook(
+            "Bash",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "command": "python3 scratch_read.py",
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertEqual(_decision(output), "deny")
+        self.assertIn("scratch reader scripts", _context(output))
+        self.assertIn("targeted reads", _context(output))

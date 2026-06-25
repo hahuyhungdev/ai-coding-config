@@ -113,6 +113,7 @@ Rules:
 - Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
 - When the user provides an exact `@path` or file path, use that path directly; do not list parent directories to locate it.
 - Explicit docs files may be read as user-provided context before Graphify. Mapping those docs to source code, routes, components, or architecture still requires Graphify first.
+- Do not create or run scratch reader scripts such as `scratch_read.py` to inspect files; use Graphify or targeted direct reads after Graphify instead.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
@@ -125,7 +126,7 @@ Post-Discovery Reads (exceptions):
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.
 - Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions.
-- Do not create one-off scratch scripts to inspect facts that a project diagnostic already covers.
+- Do not create or run scratch reader scripts to bypass direct read/search restrictions. Scratch scripts are allowed only for durable diagnostics when no project utility exists.
 - For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - When debugging truncation, measure full content length and keyword presence; do not use substring-only previews as evidence.
 <!-- ai-coding-config:graphify-end -->"""

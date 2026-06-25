@@ -145,6 +145,46 @@ class TestGraphifyCommandClassification(unittest.TestCase):
                 self.assertEqual(result["decision"], "deny")
                 self.assertIn("Inline script execution for exploration is blocked", result["additionalContext"])
 
+    def test_denies_scratch_reader_script_write_and_execution(self):
+        write_result = install.classify_graphify_tool_use(
+            "Write",
+            {
+                "file_path": "scratch_read.py",
+                "code_content": (
+                    "from pathlib import Path\n"
+                    "print(Path('docs/spec.md').read_text())\n"
+                ),
+            },
+            graph_exists=True,
+        )
+        self.assertEqual(write_result["decision"], "deny")
+        self.assertIn("scratch reader scripts", write_result["additionalContext"])
+
+        bash_result = install.classify_graphify_tool_use(
+            "Bash", {"command": "python3 scratch_read.py"}, graph_exists=True
+        )
+        self.assertEqual(bash_result["decision"], "deny")
+        self.assertIn("scratch reader scripts", bash_result["additionalContext"])
+
+    def test_allows_existing_project_diagnostic_script_execution(self):
+        result = install.classify_graphify_tool_use(
+            "Bash",
+            {
+                "command": (
+                    "python3 scripts/inspect_conversation.py abc "
+                    "--step-index 1 --keyword Graphify"
+                )
+            },
+            graph_exists=True,
+        )
+        self.assertEqual(result, {"decision": "allow"})
+
+    def test_allows_non_execution_mentions_of_scratch_reader_names(self):
+        result = install.classify_graphify_tool_use(
+            "Bash", {"command": "echo scratch_read.py"}, graph_exists=True
+        )
+        self.assertEqual(result, {"decision": "allow"})
+
 
 class TestGraphifySettingsMerge(unittest.TestCase):
     def setUp(self):
