@@ -22,15 +22,11 @@ def model_group_exhausted(model_quotas, model_names, threshold=30):
 
 def choose_same_account_fallback(acc, blocked_model=""):
     """Prefer Gemini first, then Claude Opus; never fall back from Claude to Gemini."""
+    if blocked_model:
+        # Same-account model fallback disabled
+        return ""
+
     model_quotas = acc.get("model_quotas", {})
-
-    if blocked_model == "gemini":
-        if not model_quotas or has_model_quota(acc, CLAUDE_FALLBACK_MODEL):
-            return CLAUDE_FALLBACK_MODEL
-        return ""
-
-    if blocked_model == "claude":
-        return ""
 
     if model_quotas:
         if has_model_quota(acc, GEMINI_FALLBACK_MODEL):
@@ -408,20 +404,6 @@ def post_check_and_switch():
         print("SWITCH_ACCOUNT")
         sys.exit(0)
     else:
-        # No healthy replacement account found. Try same-account model fallback.
-        if blocked_model == "gemini":
-            fallback_model = CLAUDE_FALLBACK_MODEL
-            fallback_label = "claude"
-        else:
-            fallback_model = None
-            fallback_label = None
-
-        if fallback_model:
-            generate_quota_rollover()
-            print(f"🔄 Trying {fallback_label} model on same account...")
-            print(f"SWITCH_MODEL:{fallback_model}")
-            sys.exit(0)
-
         print("❌ All accounts are blocked! Cannot retry.")
         sys.exit(2)
 
@@ -552,11 +534,24 @@ def generate_quota_rollover():
     except Exception:
         return
         
-    if not turns:
-        return
+    # Filter out turns relating to the account rotation or switch command to prevent infinite loop
+    filtered_turns = []
+    for turn in turns:
+        turn_lower = turn.lower()
+        if (
+            "rotate" in turn_lower
+            or "switch-account" in turn_lower
+            or "switch account" in turn_lower
+            or "switch_session" in turn_lower
+        ):
+            continue
+        filtered_turns.append(turn)
+
+    if not filtered_turns:
+        filtered_turns = ["No recent history before rotation."]
         
     # Take the last 6 turns (3 exchanges)
-    recent_history = "\n\n".join(turns[-6:])
+    recent_history = "\n\n".join(filtered_turns[-6:])
     
     # Write to .agy_progress.md in the current directory
     progress_file = ".agy_progress.md"

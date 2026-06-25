@@ -131,6 +131,13 @@ def _check_single_account(index, account, accounts, duplicate_tokens, active_ema
         except Exception:
             pass
 
+    real_settings = os.path.join(AGY_DIR, "settings.json")
+    if os.path.exists(real_settings):
+        try:
+            shutil.copy2(real_settings, os.path.join(sandbox_gemini_dir, "settings.json"))
+        except Exception:
+            pass
+
     output = get_quota_via_pty(email, sandbox_dir=sandbox_dir)
 
     refreshed_token = None

@@ -111,7 +111,7 @@ if [[ "$has_prompt_flag" == false && "$native_command" == false && ( -n "$subcmd
         is_mgmt_cmd=true
     else
         case "$subcmd" in
-            status|account|doctor|backup|restore|current|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|next|daemon)
+            status|account|doctor|backup|restore|current|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|daemon)
                 is_mgmt_cmd=true
                 ;;
         esac
@@ -213,55 +213,6 @@ while [ $attempt -le $MAX_RETRIES ]; do
             set -- "-i" "$AUTO_PROMPT"
             attempt=0
             continue
-        fi
-        needs_check=false
-        if [ $exit_code -ne 0 ]; then
-            needs_check=true
-        fi
-    fi
-
-    if [ "$needs_check" = true ] && [ -f "$AGY_DIR/agy-status.py" ]; then
-        post_output=$(python3 "$AGY_DIR/agy-status.py" post-check 2>&1)
-        switch_code=$?
-
-        if [ $switch_code -eq 0 ]; then
-            if echo "$post_output" | grep -q "SWITCH_MODEL:"; then
-                new_model=$(echo "$post_output" | grep "SWITCH_MODEL:" | sed 's/.*SWITCH_MODEL://')
-                echo "$post_output" | grep -v "SWITCH_MODEL:"
-                attempt=$((attempt + 1))
-                if [ $attempt -le $MAX_RETRIES ]; then
-                    if [ -f ".agy_progress.md" ]; then
-                        PROGRESS_CONTENT=$(cat ".agy_progress.md")
-                        rm -f ".agy_progress.md"
-                        rm -f "$HOME/.gemini/antigravity-cli/.compact_signal"
-                        echo -e "\n\033[1;32m♻️ [AUTO-RESUMING SESSION AFTER MODEL SWITCH]...\033[0m\n"
-                        AUTO_PROMPT=$(echo -e "<compaction_rollover>\n<instructions>\n- You are resuming a session that was interrupted by a Google API quota limit.\n- The session has been switched to a new model.\n- Below is the recent conversation history from the interrupted session.\n- Please review the history, present a quick summary of what was being done, and wait for user confirmation to continue.\n</instructions>\n\n<progress_summary>\n$PROGRESS_CONTENT\n</progress_summary>\n</compaction_rollover>")
-                        set -- "-i" "$AUTO_PROMPT"
-                        attempt=0
-                    fi
-                    set_model_arg "$new_model" "$@"
-                    set -- "${MODEL_ARGS[@]}"
-                    continue
-                fi
-            elif echo "$post_output" | grep -q "SWITCH_ACCOUNT"; then
-                echo "$post_output" | grep -v "SWITCH_ACCOUNT"
-                attempt=$((attempt + 1))
-                if [ $attempt -le $MAX_RETRIES ]; then
-                    if [ -f ".agy_progress.md" ]; then
-                        PROGRESS_CONTENT=$(cat ".agy_progress.md")
-                        rm -f ".agy_progress.md"
-                        rm -f "$HOME/.gemini/antigravity-cli/.compact_signal"
-                        echo -e "\n\033[1;32m♻️ [AUTO-RESUMING SESSION AFTER QUOTA SWITCH]...\033[0m\n"
-                        AUTO_PROMPT=$(echo -e "<compaction_rollover>\n<instructions>\n- You are resuming a session that was interrupted by a Google API quota limit.\n- The session has been automatically switched to a new account.\n- Below is the recent conversation history from the interrupted session.\n- Please review the history, present a quick summary of what was being done, and wait for user confirmation to continue.\n</instructions>\n\n<progress_summary>\n$PROGRESS_CONTENT\n</progress_summary>\n</compaction_rollover>")
-                        set -- "-i" "$AUTO_PROMPT"
-                        attempt=0
-                    fi
-                    continue
-                fi
-            fi
-        elif [ $switch_code -eq 2 ]; then
-            echo "$post_output"
-            exit 1
         fi
     fi
 
