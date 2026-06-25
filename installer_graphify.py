@@ -31,15 +31,16 @@ DOC_CONTEXT_EXTENSIONS = {".md", ".mdx", ".rst", ".txt"}
 SCRIPT_EXTENSIONS = {".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".sh", ".rb", ".php", ".pl"}
 SCRATCH_READER_TOKENS = {"scratch", "tmp", "temp", "read", "reader", "dump", "extract"}
 SCRIPT_INTERPRETERS = {"python", "node", "perl", "ruby", "php", "deno", "bun", "bash", "sh", "zsh"}
+EXACT_FILE_READ_COMMANDS = {"bat", "cat", "head", "less", "more", "nl", "sed", "tail"}
 FILE_READER_MARKERS = (
     "open(", ".read(", ".read_text(", ".read_bytes(", "readfile", "read_file",
     "readfilesync", "readdir", "listdir(", "scandir(", "walk(", "glob(",
     "file_get_contents", "file.read(",
 )
 DIRECT_READ_DENIAL_CONTEXT = (
-    "❌ BLOCKED: Direct search/read tools are not available for exploration.\n"
-    "💡 TIP: Run `rtk graphify query \"<specific question>\" --budget 1200` first. "
-    "Then use targeted reads only for editing, debugging, or config review of specific files identified by Graphify."
+    "❌ BLOCKED: Broad direct search/listing is not available for codebase exploration.\n"
+    "💡 TIP: Exact file reads are allowed when you already have a concrete path. "
+    "For architecture, relationships, or finding files, use Graphify: `rtk graphify query \"<specific question>\" --budget 1200` first."
 )
 GRAPHIFY_GUIDANCE = (
     "⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):\n\n"
@@ -55,15 +56,17 @@ GRAPHIFY_INSTRUCTIONS = f"""## graphify
 {GRAPHIFY_GUIDANCE}
 
 Rules:
-- For codebase exploration, use **Graphify-only**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to explore.
+- For broad codebase exploration, use **Graphify-first**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to discover unknown files or architecture.
+- For architecture or relationship questions, do not inspect Graphify skill files, list workspace directories, or check permissions before the first Graphify query. Use the commands listed above directly.
+- Exact user-provided file paths may be read normally first. Use Graphify after that when mapping those files to routes, components, dependencies, or architecture.
 - Use at most **20 Graphify calls** total per question. After 20 calls, hard stop and synthesize from available context.
 - **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
-- **Synthesize from Graphify context only.** Answer based on what Graphify returns. Do not supplement with direct file reads for exploration.
+- **Synthesize architecture/discovery answers from Graphify context first.** Supplement with targeted direct file reads only when the file path is explicit or Graphify has identified it.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
 - Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
-- When the user provides an exact `@path` or file path, use that path directly; do not list parent directories to locate it.
-- Explicit docs files may be read as user-provided context before Graphify. Mapping those docs to source code, routes, components, or architecture still requires Graphify first.
+- When the user provides an exact `@path` or file path, read that path directly if useful; do not list parent directories to locate it.
+- Explicit docs or source files may be read as user-provided context before Graphify. Mapping those files to source code, routes, components, or architecture still requires Graphify.
 - Do not create or run scratch reader scripts such as `scratch_read.py` to inspect files; use Graphify or targeted direct reads after Graphify instead.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
@@ -233,10 +236,29 @@ def graph_report_denial_context() -> str:
     )
 
 
+def is_graphify_skill_path(raw_path: object) -> bool:
+    normalized = str(raw_path or "").lower().replace("\\", "/")
+    return normalized.endswith("/skills/graphify/skill.md")
+
+
+def graphify_skill_denial_context() -> str:
+    return (
+        "❌ BLOCKED: Graphify skill docs are not needed before the first Graphify query in a graph-enabled project.\n"
+        "💡 TIP: Use the project instructions directly: `rtk graphify query \"<specific question>\" --budget 1200`."
+    )
+
+
 def is_doc_context_file(raw_path: object) -> bool:
     normalized = str(raw_path or "").lower().replace("\\", "/")
     path = Path(normalized)
     return path.suffix in DOC_CONTEXT_EXTENSIONS and bool(set(path.parts) & DOC_CONTEXT_PARTS)
+
+
+def is_exact_file_path(raw_path: object) -> bool:
+    normalized = str(raw_path or "").strip().replace("\\", "/")
+    if not normalized or any(char in normalized for char in "*?[]{}"):
+        return False
+    return bool(Path(normalized).suffix)
 
 
 def scratch_reader_denial_context() -> str:
@@ -341,6 +363,66 @@ def is_scratch_reader_script_execution(command: str) -> bool:
     return False
 
 
+def is_exact_file_read_command(command: str) -> bool:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return False
+
+    wrappers = {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}
+    operators = {"|", "||", "&&", ";", "(", ")", "&"}
+    commands: list[dict[str, object]] = []
+    current: dict[str, object] | None = None
+    expect_command = True
+    for token in tokens:
+        if token in operators:
+            if current:
+                commands.append(current)
+            current = None
+            expect_command = True
+            continue
+        if expect_command:
+            if "=" in token and not token.startswith(("/", "./")):
+                continue
+            executable = Path(token).name
+            if executable in wrappers:
+                continue
+            current = {"executable": executable, "args": []}
+            expect_command = False
+            continue
+        if current is not None:
+            current["args"].append(token)
+    if current:
+        commands.append(current)
+
+    if len(commands) != 1:
+        return False
+
+    command_info = commands[0]
+    executable = Path(str(command_info["executable"])).name
+    if executable not in EXACT_FILE_READ_COMMANDS:
+        return False
+
+    file_args = []
+    pathish_args = []
+    for arg in command_info["args"]:
+        if not isinstance(arg, str):
+            continue
+        if arg.startswith("-"):
+            continue
+        if arg.isdigit():
+            continue
+        if is_exact_file_path(arg):
+            file_args.append(arg)
+            pathish_args.append(arg)
+        elif "/" in arg or "\\" in arg:
+            pathish_args.append(arg)
+
+    return bool(file_args) and all(is_exact_file_path(arg) for arg in pathish_args)
+
+
 def is_source_tool_input(tool_input: dict) -> bool:
     for raw_path in (
         tool_input.get("file_path"),
@@ -385,6 +467,11 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
                 "decision": "deny",
                 "additionalContext": graph_report_denial_context(),
             }
+        if is_graphify_skill_path(command):
+            return {
+                "decision": "deny",
+                "additionalContext": graphify_skill_denial_context(),
+            }
         if is_scratch_reader_script_execution(command):
             return {
                 "decision": "deny",
@@ -396,6 +483,8 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
                 "decision": "deny",
                 "additionalContext": "❌ BLOCKED: Inline script execution for exploration is blocked.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
             }
+        if is_exact_file_read_command(command):
+            return result
         if is_broad_discovery_command(command):
             return {
                 "decision": "deny",
@@ -417,6 +506,13 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
                 "decision": "deny",
                 "additionalContext": graph_report_denial_context(),
             }
+        if any(is_graphify_skill_path(value) for value in tool_input.values()):
+            return {
+                "decision": "deny",
+                "additionalContext": graphify_skill_denial_context(),
+            }
+        if any(is_exact_file_path(value) for value in tool_input.values()):
+            return result
     if tool_name.lower() in {"read", "glob", "read_file", "list_directory"} and is_source_tool_input(tool_input):
         return {
             "decision": "deny",

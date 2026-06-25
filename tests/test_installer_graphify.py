@@ -48,9 +48,39 @@ class TestGraphifyCommandClassification(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertFalse(install.is_broad_discovery_command(command))
 
-    def test_source_read_only_requests_guidance(self):
+    def test_exact_source_read_is_allowed_before_graphify(self):
         result = install.classify_graphify_tool_use(
             "Read", {"file_path": "src/router.py"}, graph_exists=True
+        )
+        self.assertEqual(result, {"decision": "allow"})
+
+    def test_bash_exact_file_read_is_allowed_before_graphify(self):
+        result = install.classify_graphify_tool_use(
+            "Bash", {"command": "cat src/router.py"}, graph_exists=True
+        )
+        self.assertEqual(result, {"decision": "allow"})
+
+    def test_graphify_skill_read_requests_graphify_query_first(self):
+        result = install.classify_graphify_tool_use(
+            "Read",
+            {"file_path": "/home/huyhung/.gemini/config/skills/graphify/SKILL.md"},
+            graph_exists=True,
+        )
+        self.assertEqual(result["decision"], "deny")
+        self.assertIn("Graphify skill docs", result["additionalContext"])
+
+    def test_bash_graphify_skill_read_requests_graphify_query_first(self):
+        result = install.classify_graphify_tool_use(
+            "Bash",
+            {"command": "cat /home/huyhung/.gemini/config/skills/graphify/SKILL.md"},
+            graph_exists=True,
+        )
+        self.assertEqual(result["decision"], "deny")
+        self.assertIn("Graphify skill docs", result["additionalContext"])
+
+    def test_bash_directory_listing_requests_guidance(self):
+        result = install.classify_graphify_tool_use(
+            "Bash", {"command": "ls src"}, graph_exists=True
         )
         self.assertEqual(result["decision"], "deny")
         self.assertIn("additionalContext", result)
@@ -246,7 +276,8 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertIn("Keep this text.", second)
         self.assertEqual(second.count("ai-coding-config:graphify-start"), 1)
-        self.assertIn("Graphify-only", second)
+        self.assertIn("Graphify-first", second)
+        self.assertIn("Exact user-provided file paths may be read normally first", second)
         self.assertIn("20 Graphify calls", second)
         self.assertIn("hard stop", second)
 
@@ -310,7 +341,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             "deny",
         )
 
-    def test_claude_hook_denies_rtk_proxy_bypass(self):
+    def test_claude_hook_allows_rtk_proxy_exact_file_read(self):
         from installer_graphify import _hook_classifier_script
         script = _hook_classifier_script("Bash", True)
         payload = {
@@ -324,9 +355,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             text=True,
             check=False,
         )
-        data = json.loads(result.stdout.strip())
-        self.assertEqual(data["hookSpecificOutput"]["permissionDecision"], "deny")
-        self.assertIn("Direct search/read tools are not available", data["hookSpecificOutput"]["permissionDecisionReason"])
+        self.assertEqual(result.stdout.strip(), "")
 
     def test_claude_hook_denies_inline_python_read_bypass(self):
         from installer_graphify import _hook_classifier_script
@@ -353,7 +382,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
 
         session_id = f"balanced-strict-test-{uuid.uuid4()}"
 
-        # 1. Initially (g_count = 0), a read of a source file (e.g. main.py) in exploration is denied
+        # 1. Initially (g_count = 0), a read of an exact source file is allowed
         payload_read_0 = {
             "conversationId": session_id,
             "tool_input": {"AbsolutePath": "src/main.py", "toolAction": "Exploring codebase"},
@@ -366,11 +395,9 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             text=True,
             check=False,
         )
-        data_read_0 = json.loads(res_read_0.stdout.strip())
-        self.assertEqual(data_read_0["hookSpecificOutput"]["permissionDecision"], "deny")
-        self.assertIn("Direct search/read tools are not available", data_read_0["hookSpecificOutput"]["permissionDecisionReason"])
+        self.assertEqual(res_read_0.stdout.strip(), "")
 
-        # 2. Initially (g_count = 0), a sed command in Bash is denied
+        # 2. Initially (g_count = 0), a sed command against an exact file is allowed
         payload_bash_0 = {
             "conversationId": session_id,
             "tool_input": {"command": "rtk sed -n '1,10p' src/main.py", "toolAction": "Exploring"},
@@ -383,8 +410,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             text=True,
             check=False,
         )
-        data_bash_0 = json.loads(res_bash_0.stdout.strip())
-        self.assertEqual(data_bash_0["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertEqual(res_bash_0.stdout.strip(), "")
 
         # 3. We run a Graphify call to increment the counter
         payload_graphify = {
@@ -437,7 +463,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         )
         data_grep = json.loads(res_grep.stdout.strip())
         self.assertEqual(data_grep["hookSpecificOutput"]["permissionDecision"], "deny")
-        self.assertIn("Direct search/read tools are not available", data_grep["hookSpecificOutput"]["permissionDecisionReason"])
+        self.assertIn("Broad direct search/listing", data_grep["hookSpecificOutput"]["permissionDecisionReason"])
 
     def test_gemini_merge_preserves_settings_and_is_idempotent(self):
         settings_path = self.project / ".gemini" / "settings.json"
@@ -640,7 +666,8 @@ class TestGraphifySettingsMerge(unittest.TestCase):
 class TestGraphifyInstructions(unittest.TestCase):
     def test_balanced_strict_instructions(self):
         instructions = install.GRAPHIFY_INSTRUCTIONS
-        self.assertIn("Graphify-only", instructions)
+        self.assertIn("Graphify-first", instructions)
+        self.assertIn("Exact user-provided file paths may be read normally first", instructions)
         self.assertIn("20 Graphify calls", instructions)
         self.assertIn("targeted raw reads", instructions)
         self.assertIn("GRAPH_REPORT.md", instructions)
