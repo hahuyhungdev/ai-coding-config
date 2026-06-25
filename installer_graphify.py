@@ -28,6 +28,19 @@ IGNORED_SOURCE_PARTS = {
 }
 DOC_CONTEXT_PARTS = {"docs", "doc", "documentation"}
 DOC_CONTEXT_EXTENSIONS = {".md", ".mdx", ".rst", ".txt"}
+SCRIPT_EXTENSIONS = {".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".sh", ".rb", ".php", ".pl"}
+SCRATCH_READER_TOKENS = {"scratch", "tmp", "temp", "read", "reader", "dump", "extract"}
+SCRIPT_INTERPRETERS = {"python", "node", "perl", "ruby", "php", "deno", "bun", "bash", "sh", "zsh"}
+FILE_READER_MARKERS = (
+    "open(", ".read(", ".read_text(", ".read_bytes(", "readfile", "read_file",
+    "readfilesync", "readdir", "listdir(", "scandir(", "walk(", "glob(",
+    "file_get_contents", "file.read(",
+)
+DIRECT_READ_DENIAL_CONTEXT = (
+    "❌ BLOCKED: Direct search/read tools are not available for exploration.\n"
+    "💡 TIP: Run `rtk graphify query \"<specific question>\" --budget 1200` first. "
+    "Then use targeted reads only for editing, debugging, or config review of specific files identified by Graphify."
+)
 GRAPHIFY_GUIDANCE = (
     "⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):\n\n"
     "**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `rtk graphify query \"<question>\"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**\n\n"
@@ -51,6 +64,7 @@ Rules:
 - Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
 - When the user provides an exact `@path` or file path, use that path directly; do not list parent directories to locate it.
 - Explicit docs files may be read as user-provided context before Graphify. Mapping those docs to source code, routes, components, or architecture still requires Graphify first.
+- Do not create or run scratch reader scripts such as `scratch_read.py` to inspect files; use Graphify or targeted direct reads after Graphify instead.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
@@ -63,7 +77,7 @@ Post-Discovery Reads (exceptions):
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.
 - Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions.
-- Do not create one-off scratch scripts to inspect facts that a project diagnostic already covers.
+- Do not create or run scratch reader scripts to bypass direct read/search restrictions. Scratch scripts are allowed only for durable diagnostics when no project utility exists.
 - For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - When debugging truncation, measure full content length and keyword presence; do not use substring-only previews as evidence.
 """
@@ -197,6 +211,11 @@ def is_graph_json_path(raw_path: object) -> bool:
     return normalized.endswith("graphify-out/graph.json") or "/graphify-out/graph.json" in normalized
 
 
+def is_graph_report_path(raw_path: object) -> bool:
+    normalized = str(raw_path or "").lower().replace("\\", "/")
+    return normalized.endswith("graphify-out/graph_report.md") or "/graphify-out/graph_report.md" in normalized
+
+
 def graph_json_denial_context() -> str:
     return (
         "❌ BLOCKED: `graphify-out/graph.json` is an internal Graphify artifact and must not be read manually.\n"
@@ -206,10 +225,120 @@ def graph_json_denial_context() -> str:
     )
 
 
+def graph_report_denial_context() -> str:
+    return (
+        "❌ BLOCKED: `graphify-out/GRAPH_REPORT.md` is not a first-pass exploration source.\n"
+        "💡 TIP: Use a scoped `rtk graphify query \"<specific question>\" --budget 1200` first. "
+        "Read GRAPH_REPORT.md only when scoped queries are insufficient or the user asks for a broad graph report."
+    )
+
+
 def is_doc_context_file(raw_path: object) -> bool:
     normalized = str(raw_path or "").lower().replace("\\", "/")
     path = Path(normalized)
     return path.suffix in DOC_CONTEXT_EXTENSIONS and bool(set(path.parts) & DOC_CONTEXT_PARTS)
+
+
+def scratch_reader_denial_context() -> str:
+    return (
+        "❌ BLOCKED: scratch reader scripts are not allowed for codebase exploration.\n"
+        "💡 TIP: Use `rtk graphify query \"<question>\"` first, then targeted reads of "
+        "specific files already identified by Graphify. Do not create or run helper "
+        "scripts to bypass blocked reads."
+    )
+
+
+def is_scratch_reader_script_path(raw_path: object) -> bool:
+    import re
+    normalized = str(raw_path or "").replace("\\", "/")
+    path = Path(normalized)
+    if path.suffix.lower() not in SCRIPT_EXTENSIONS:
+        return False
+    stem = path.stem.lower()
+    tokens = {token for token in re.split(r"[^a-z0-9]+", stem) if token}
+    return bool(tokens & SCRATCH_READER_TOKENS)
+
+
+def combined_tool_content(tool_input: dict) -> str:
+    content_fields = {
+        "content", "Content", "code_content", "CodeContent", "file_content", "FileContent",
+        "replacement_content", "ReplacementContent",
+    }
+    chunks: list[str] = []
+
+    def collect(obj: object) -> None:
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if key in content_fields and isinstance(value, str):
+                    chunks.append(value)
+                elif key == "ReplacementChunks" and isinstance(value, list):
+                    collect(value)
+                else:
+                    collect(value)
+        elif isinstance(obj, list):
+            for item in obj:
+                collect(item)
+
+    collect(tool_input)
+    return "\n".join(chunks)
+
+
+def looks_like_file_reader_content(content: str) -> bool:
+    lowered = str(content or "").lower()
+    return any(marker in lowered for marker in FILE_READER_MARKERS)
+
+
+def is_scratch_reader_script_write(tool_input: dict) -> bool:
+    raw_path = (
+        tool_input.get("file_path")
+        or tool_input.get("AbsolutePath")
+        or tool_input.get("path")
+        or tool_input.get("Path")
+        or ""
+    )
+    return (
+        is_scratch_reader_script_path(raw_path)
+        and looks_like_file_reader_content(combined_tool_content(tool_input))
+    )
+
+
+def _clean_command_name(name: object) -> str:
+    import re
+    base = Path(str(name)).name.lower().split(".")[0]
+    return re.sub(r"\d+$", "", base)
+
+
+def is_scratch_reader_script_execution(command: str) -> bool:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return False
+
+    wrappers = {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}
+    expect_command = True
+    for index, token in enumerate(tokens):
+        if token in {"|", "||", "&&", ";", "(", ")", "&"}:
+            expect_command = True
+            continue
+        if not expect_command or ("=" in token and not token.startswith(("/", "./"))):
+            continue
+        if Path(token).name in wrappers:
+            continue
+        if is_scratch_reader_script_path(token):
+            return True
+        if _clean_command_name(token) not in SCRIPT_INTERPRETERS:
+            expect_command = False
+            continue
+        for candidate in tokens[index + 1:]:
+            if candidate in {"|", "||", "&&", ";", "(", ")", "&"}:
+                break
+            if candidate.startswith("-"):
+                continue
+            return is_scratch_reader_script_path(candidate)
+        expect_command = False
+    return False
 
 
 def is_source_tool_input(tool_input: dict) -> bool:
@@ -240,7 +369,7 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
     if tool_name.lower() == "grep":
         return {
             "decision": "deny",
-            "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
+            "additionalContext": DIRECT_READ_DENIAL_CONTEXT,
         }
     if tool_name.lower() == "bash":
         command = str(tool_input.get("command") or tool_input.get("CommandLine") or "")
@@ -251,6 +380,16 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
                 "decision": "deny",
                 "additionalContext": graph_json_denial_context(),
             }
+        if is_graph_report_path(command):
+            return {
+                "decision": "deny",
+                "additionalContext": graph_report_denial_context(),
+            }
+        if is_scratch_reader_script_execution(command):
+            return {
+                "decision": "deny",
+                "additionalContext": scratch_reader_denial_context(),
+            }
         executables = _command_words(command)
         if is_inline_python_file_read(command, executables):
             return {
@@ -260,18 +399,28 @@ def classify_graphify_tool_use(tool_name: str, tool_input: dict, graph_exists: b
         if is_broad_discovery_command(command):
             return {
                 "decision": "deny",
-                "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
+                "additionalContext": DIRECT_READ_DENIAL_CONTEXT,
             }
+    if tool_name.lower() == "write" and is_scratch_reader_script_write(tool_input):
+        return {
+            "decision": "deny",
+            "additionalContext": scratch_reader_denial_context(),
+        }
     if tool_name.lower() in {"read", "glob", "read_file", "list_directory"}:
         if any(is_graph_json_path(value) for value in tool_input.values()):
             return {
                 "decision": "deny",
                 "additionalContext": graph_json_denial_context(),
             }
+        if any(is_graph_report_path(value) for value in tool_input.values()):
+            return {
+                "decision": "deny",
+                "additionalContext": graph_report_denial_context(),
+            }
     if tool_name.lower() in {"read", "glob", "read_file", "list_directory"} and is_source_tool_input(tool_input):
         return {
             "decision": "deny",
-            "additionalContext": "❌ BLOCKED: Direct search/read tools are not available for exploration.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked.",
+            "additionalContext": DIRECT_READ_DENIAL_CONTEXT,
         }
     return result
 

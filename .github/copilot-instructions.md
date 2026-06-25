@@ -18,7 +18,7 @@
 - **Blocked Tool Recovery**: If a hook or policy blocks a tool call, do not retry the same blocked tool call or attempt equivalent bypasses. Use the context already available, run the required Graphify query if applicable, or switch to a documented diagnostic command.
 - **No Fresh-Session Bypasses**: Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions. If the current session is blocked, report the blocker and the next safe diagnostic path.
 - **Prefer Existing Diagnostics**: Before creating any temporary debugging helper, check for existing diagnostic scripts, tests, or project utilities that already answer the question. For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
-- **No Scratch Script Loops**: Do not create repeated one-off scratch scripts for the same inspection. Scratch scripts are allowed only when no project diagnostic exists, and they must not hard-code magic transcript indexes without also validating the total count and search keyword.
+- **No Scratch Reader Bypasses**: Do not create or run scratch reader scripts to bypass blocked direct reads/searches or Graphify policy. Scratch scripts are allowed only for durable diagnostics when no project utility exists, and they must not hard-code magic transcript indexes without also validating the total count and search keyword.
 - **Validate Full Data When Debugging Truncation**: When investigating missing or clipped text, capture full lengths and keyword presence. Do not rely on substring-only previews as proof that the source data is truncated.
 - **Stop After Two Failed Attempts**: If two consecutive attempts to inspect the same fact are blocked or inconclusive, stop and report the blocker, the exact fact still unknown, and the next safe diagnostic path instead of continuing to loop.
 
@@ -81,6 +81,7 @@ Rules:
 - Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
 - When the user provides an exact `@path` or file path, use that path directly; do not list parent directories to locate it.
 - Explicit docs files may be read as user-provided context before Graphify. Mapping those docs to source code, routes, components, or architecture still requires Graphify first.
+- Do not create or run scratch reader scripts such as `scratch_read.py` to inspect files; use Graphify or targeted direct reads after Graphify instead.
 - If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
 - Read `graphify-out/GRAPH_REPORT.md` only when scoped queries are insufficient or the user requests a broad report.
 
@@ -93,7 +94,7 @@ Post-Discovery Reads (exceptions):
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.
 - Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions.
-- Do not create one-off scratch scripts to inspect facts that a project diagnostic already covers.
+- Do not create or run scratch reader scripts to bypass direct read/search restrictions. Scratch scripts are allowed only for durable diagnostics when no project utility exists.
 - For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - When debugging truncation, measure full content length and keyword presence; do not use substring-only previews as evidence.
 <!-- ai-coding-config:graphify-end -->
