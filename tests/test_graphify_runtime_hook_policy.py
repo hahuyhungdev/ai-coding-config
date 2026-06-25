@@ -110,13 +110,81 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
 
         self.assertIsNone(_decision(output))
 
-    def test_source_file_reads_before_graphify_are_denied(self):
+    def test_exact_source_file_reads_before_graphify_are_allowed(self):
         output = _run_hook(
             "Read",
             {
                 "conversationId": self.session,
                 "tool_input": {
                     "file_path": str(self.project / "app" / "main.py"),
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertIsNone(_decision(output))
+
+    def test_bash_exact_file_read_before_graphify_is_allowed(self):
+        output = _run_hook(
+            "Bash",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "command": f"cat {self.project / 'app' / 'main.py'}",
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertIsNone(_decision(output))
+
+    def test_graphify_skill_read_before_graphify_is_denied(self):
+        output = _run_hook(
+            "Read",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "file_path": "/home/huyhung/.gemini/config/skills/graphify/SKILL.md",
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertEqual(_decision(output), "deny")
+        self.assertIn("Graphify skill docs", _context(output))
+        self.assertIn("rtk graphify query", _context(output))
+
+    def test_bash_graphify_skill_read_before_graphify_is_denied(self):
+        output = _run_hook(
+            "Bash",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "command": "cat /home/huyhung/.gemini/config/skills/graphify/SKILL.md",
+                    "toolAction": "Exploring codebase",
+                },
+                "Cwd": str(self.project),
+            },
+            cwd=self.external_cwd,
+        )
+
+        self.assertEqual(_decision(output), "deny")
+        self.assertIn("Graphify skill docs", _context(output))
+        self.assertIn("rtk graphify query", _context(output))
+
+    def test_bash_directory_listing_before_graphify_is_denied(self):
+        output = _run_hook(
+            "Bash",
+            {
+                "conversationId": self.session,
+                "tool_input": {
+                    "command": f"ls {self.project / 'app'}",
                     "toolAction": "Exploring codebase",
                 },
                 "Cwd": str(self.project),

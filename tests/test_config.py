@@ -31,6 +31,7 @@ class TestAiCodingConfig(unittest.TestCase):
         self.assertIn("diagnostic scripts", content)
         self.assertIn("scratch reader scripts", content)
         self.assertIn("Do not spawn subagents or fresh sessions to bypass", content)
+        self.assertIn("Graphify is the exception in graph-enabled projects", content)
 
     def test_project_graphify_block_includes_blocked_tool_recovery(self):
         import installer_graphify
@@ -39,7 +40,9 @@ class TestAiCodingConfig(unittest.TestCase):
         self.assertIn("Do not create or run scratch reader scripts", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not manually read or parse graphify-out/graph.json", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("do not list parent directories", installer_graphify.GRAPHIFY_INSTRUCTIONS)
-        self.assertIn("Explicit docs files may be read", installer_graphify.GRAPHIFY_INSTRUCTIONS)
+        self.assertIn("Exact user-provided file paths may be read normally first", installer_graphify.GRAPHIFY_INSTRUCTIONS)
+        self.assertIn("do not inspect Graphify skill files", installer_graphify.GRAPHIFY_INSTRUCTIONS)
+        self.assertIn("Explicit docs or source files may be read", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not spawn subagents or fresh sessions to bypass", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("scripts/inspect_conversation.py", installer_graphify.GRAPHIFY_INSTRUCTIONS)
 

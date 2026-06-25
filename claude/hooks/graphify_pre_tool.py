@@ -22,6 +22,7 @@ DOC_CONTEXT_EXTENSIONS = {'.md', '.mdx', '.rst', '.txt'}
 SCRIPT_EXTENSIONS = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.sh', '.rb', '.php', '.pl'}
 SCRATCH_READER_TOKENS = {'scratch', 'tmp', 'temp', 'read', 'reader', 'dump', 'extract'}
 SCRIPT_INTERPRETERS = {'python', 'node', 'perl', 'ruby', 'php', 'deno', 'bun', 'bash', 'sh', 'zsh'}
+EXACT_FILE_READ_COMMANDS = {'bat', 'cat', 'head', 'less', 'more', 'nl', 'sed', 'tail'}
 FILE_READER_MARKERS = (
     'open(', '.read(', '.read_text(', '.read_bytes(', 'readfile', 'read_file',
     'readfilesync', 'readdir', 'listdir(', 'scandir(', 'walk(', 'glob(',
@@ -29,9 +30,9 @@ FILE_READER_MARKERS = (
 )
 G = '⚠️ GRAPHIFY WORKFLOW RULES:\n- Architecture questions → rtk graphify query "question"\n- Code relationships → rtk graphify path "A" "B"\n- Deep-dive concepts → rtk graphify explain "concept"\n- Impact analysis / reverse dependencies → rtk graphify affected "SymbolName"\n- Direct reads are ONLY for editing specific files.'
 DIRECT_READ_DENIAL = (
-    "❌ BLOCKED: Direct search/read tools are not available for exploration.\n"
-    "💡 TIP: Run `rtk graphify query \"<specific question>\" --budget 1200` first. "
-    "Then use targeted reads only for editing, debugging, or config review of specific files identified by Graphify."
+    "❌ BLOCKED: Broad direct search/listing is not available for codebase exploration.\n"
+    "💡 TIP: Exact file reads are allowed when you already have a concrete path. "
+    "For architecture, relationships, or finding files, use Graphify: `rtk graphify query \"<specific question>\" --budget 1200` first."
 )
 
 
@@ -129,10 +130,29 @@ def graph_report_denial():
     )
 
 
+def is_graphify_skill_path(raw_path):
+    normalized = str(raw_path or "").lower().replace("\\", "/")
+    return normalized.endswith("/skills/graphify/skill.md") or normalized.endswith("/skills/graphify/skill.md".lower())
+
+
+def graphify_skill_denial():
+    return (
+        "❌ BLOCKED: Graphify skill docs are not needed before the first Graphify query in a graph-enabled project.\n"
+        "💡 TIP: Use the project instructions directly: `rtk graphify query \"<specific question>\" --budget 1200`."
+    )
+
+
 def is_doc_context_file(raw_path):
     normalized = str(raw_path or "").lower().replace("\\", "/")
     path = pathlib.Path(normalized)
     return path.suffix in DOC_CONTEXT_EXTENSIONS and bool(set(path.parts) & DOC_CONTEXT_PARTS)
+
+
+def is_exact_file_path(raw_path):
+    normalized = str(raw_path or "").strip().replace("\\", "/")
+    if not normalized or any(char in normalized for char in "*?[]{}"):
+        return False
+    return bool(pathlib.Path(normalized).suffix)
 
 
 def scratch_reader_denial():
@@ -235,6 +255,64 @@ def is_scratch_reader_script_execution(command):
             return is_scratch_reader_script_path(candidate)
         expect_command = False
     return False
+
+
+def is_exact_file_read_command(command):
+    try:
+        lx = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
+        lx.whitespace_split = True
+        tokens = list(lx)
+    except ValueError:
+        return False
+
+    wrappers = {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}
+    operators = {"|", "||", "&&", ";", "(", ")", "&"}
+    commands = []
+    current = None
+    expect_command = True
+    for token in tokens:
+        if token in operators:
+            if current:
+                commands.append(current)
+            current = None
+            expect_command = True
+            continue
+        if expect_command:
+            if "=" in token and not token.startswith(("/", "./")):
+                continue
+            word = pathlib.Path(token).name
+            if word in wrappers:
+                continue
+            current = {"executable": word, "args": []}
+            expect_command = False
+            continue
+        if current is not None:
+            current["args"].append(token)
+    if current:
+        commands.append(current)
+
+    if len(commands) != 1:
+        return False
+
+    command_info = commands[0]
+    executable = pathlib.Path(str(command_info["executable"])).name
+    if executable not in EXACT_FILE_READ_COMMANDS:
+        return False
+
+    file_args = []
+    pathish_args = []
+    for arg in command_info["args"]:
+        if arg.startswith("-"):
+            continue
+        if arg.isdigit():
+            continue
+        if is_exact_file_path(arg):
+            file_args.append(arg)
+            pathish_args.append(arg)
+        elif "/" in arg or "\\" in arg:
+            pathish_args.append(arg)
+
+    return bool(file_args) and all(is_exact_file_path(arg) for arg in pathish_args)
 
 
 
@@ -535,6 +613,9 @@ def main():
             elif "graphify-out/graph_report.md" in low:
                 decision = "deny"
                 context = graph_report_denial()
+            elif is_graphify_skill_path(low) and get_graphify_count(session) == 0:
+                decision = "deny"
+                context = graphify_skill_denial()
             elif probe:
                 log("Probe allowed")
             elif is_scratch_reader_script_execution(raw):
@@ -543,6 +624,8 @@ def main():
             elif is_inline_python_file_read(raw, ex):
                 decision = "deny"
                 context = "❌ BLOCKED: Inline script execution for exploration is blocked.\n💡 CRITICAL: Answer from your existing Graphify context. Do NOT retry this call or attempt alternative read methods — they will also be blocked."
+            elif is_exact_file_read_command(raw):
+                log("Exact file read command allowed")
             elif any(word in B for word in ex):
                 B_search = {'ack', 'ag', 'fd', 'find', 'grep', 'ls', 'rg', 'ripgrep'}
                 g_count = get_graphify_count(session)
@@ -572,6 +655,11 @@ def main():
                 elif is_graph_report_path(p) and tool_ctx not in {"editing", "planning", "debugging"}:
                     decision = "deny"
                     context = graph_report_denial()
+                elif is_graphify_skill_path(p) and get_graphify_count(session) == 0:
+                    decision = "deny"
+                    context = graphify_skill_denial()
+                elif is_exact_file_path(p):
+                    log("Exact file read allowed")
                 elif not parts.intersection(I):
                     suffix = pathlib.Path(p).suffix
                     looks_like_directory = not suffix
