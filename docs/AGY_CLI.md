@@ -6,7 +6,7 @@
 
 ```bash
 agy doctor
-agy account list
+agy list
 agy status
 ```
 
@@ -26,7 +26,7 @@ Did you mean:
   agy status
 ```
 
-Nested account-command typos receive the same treatment, for example `agy account lits` suggests `agy account list`.
+Nested command typos receive the same treatment, for example `agy lits` suggests `agy list`.
 
 Native Antigravity commands still pass directly to the original binary:
 
@@ -41,7 +41,7 @@ agy help models
 ### Command Help Integration
 
 Help commands are unified. You can run `agy help <command>` or `agy <command> --help` for any command:
-- **Custom wrapper commands** (e.g. `status`, `account`) will display the wrapper's account management help.
+- **Custom wrapper commands** (e.g. `status`, `list`, `use`) will display the wrapper's account management help.
 - **Original native commands** (e.g. `models`, `plugin`) will automatically forward the help request to the original binary.
 
 To see all custom and native subcommands in a single unified list, run:
@@ -58,14 +58,14 @@ agy status --refresh
 ## Account Commands
 
 ```bash
-agy account list
-agy account current
-agy account add
-agy account add --label personal
-agy account use 2
-agy account use personal
-agy account rename 2 work
-agy account remove 2 --yes
+agy list
+agy current
+agy add
+agy add --label personal
+agy use 2
+agy use personal
+agy rename 2 work
+agy remove 2 --yes
 ```
 
 - `add` imports the currently authenticated Antigravity token and preserves the authenticated email.
@@ -107,8 +107,8 @@ Doctor checks whether `accounts.json` is present and valid, counts configured ac
 Use `--json` before or after the command:
 
 ```bash
-agy --json account list
-agy account current --json
+agy --json list
+agy current --json
 agy --json status
 agy --json status --refresh
 agy --json backup
@@ -122,17 +122,16 @@ JSON output contains account metadata, status, and boolean token availability on
 
 ## Compatibility Commands
 
-Existing commands remain available:
+Legacy commands are automatically translated to their preferred counterparts:
 
-| Existing command | Preferred command |
+| Command | Action |
 |---|---|
-| `agy list` | `agy account list` |
-| `agy current` | `agy account current` |
-| `agy select 2` | `agy account use 2` |
-| `agy add-current` | `agy account add` |
-| `agy add-current-account` | `agy account add` |
-| `agy remove-account 2 --yes` | `agy account remove 2 --yes` |
-| `agy info` / `agy show` | `agy status --refresh` |
+| `agy list` / `agy ls` / `agy accounts` | List all accounts |
+| `agy current` | Show the active account |
+| `agy use 2` / `agy select 2` / `agy choose 2` | Switch active account to index 2 |
+| `agy add` / `agy import` / `agy save` | Import current active token |
+| `agy remove 2 --yes` / `agy rm 2 --yes` | Remove account from pool |
+| `agy info` / `agy show` | Live status check (runs `agy status`) |
 
 ## Quota Management & Auto-Switching
 

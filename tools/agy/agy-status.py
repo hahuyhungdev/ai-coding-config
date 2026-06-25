@@ -31,11 +31,12 @@ from utils import AGY_DIR, TOKEN_FILE, sort_rows_by_remaining_quota
 
 
 TOP_LEVEL_COMMANDS = [
-    "status", "account", "doctor", "backup", "restore", "weekly",
+    "status", "list", "ls", "accounts", "use", "select", "choose",
+    "current", "rename", "remove", "rm", "add", "import", "save",
+    "doctor", "backup", "restore", "weekly",
     "changelog", "install", "models", "plugin", "plugins", "update",
-    "compact", "clean", "cleanup",
+    "compact", "clean", "cleanup", "rotate",
 ]
-ACCOUNT_COMMANDS = ["list", "add", "current", "use", "rename", "remove"]
 
 
 def emit_json(payload):
@@ -48,17 +49,7 @@ def print_unknown_command(args):
         print("Run 'agy --help' to see available commands.", file=sys.stderr)
         return 2
 
-    if args[0] == "account" and len(args) > 1:
-        unknown = args[1]
-        matches = difflib.get_close_matches(unknown, ACCOUNT_COMMANDS, n=1, cutoff=0.5)
-        print(f"Unknown account command: {unknown}", file=sys.stderr)
-        if matches:
-            print("Did you mean:", file=sys.stderr)
-            for match in matches:
-                print(f"  agy account {match}", file=sys.stderr)
-        else:
-            print("Run 'agy account --help' to see available account commands.", file=sys.stderr)
-        return 2
+
 
     unknown = args[0]
     cutoff = 0.27 if len(unknown) == 1 else 0.5
@@ -229,18 +220,16 @@ Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
     status = subparsers.add_parser("status", help="Run a live quota refresh")
     status.add_argument("--refresh", action="store_true", help="Accepted for compatibility; status refreshes by default")
 
-    account = subparsers.add_parser("account", help="Manage accounts")
-    account_commands = account.add_subparsers(dest="account_command", required=True)
-    account_commands.add_parser("list", help="List accounts")
-    add = account_commands.add_parser("add", help="Import the current authenticated account")
+    subparsers.add_parser("list", help="List accounts")
+    add = subparsers.add_parser("add", help="Import the current authenticated account")
     add.add_argument("--label")
-    account_commands.add_parser("current", help="Show the active account")
-    use = account_commands.add_parser("use", help="Switch the active account")
+    subparsers.add_parser("current", help="Show the active account")
+    use = subparsers.add_parser("use", help="Switch the active account")
     use.add_argument("target")
-    rename = account_commands.add_parser("rename", help="Set a display label without changing email")
+    rename = subparsers.add_parser("rename", help="Set a display label without changing email")
     rename.add_argument("target")
     rename.add_argument("label")
-    remove = account_commands.add_parser("remove", help="Remove an account from the local pool")
+    remove = subparsers.add_parser("remove", help="Remove an account from the local pool")
     remove.add_argument("target")
     remove.add_argument("--yes", action="store_true", help="Confirm account removal")
 
@@ -259,22 +248,22 @@ def translate_legacy_args(args):
     if not args:
         return args
     aliases = {
-        "list": ["account", "list"],
-        "ls": ["account", "list"],
-        "accounts": ["account", "list"],
+        "list": ["list"],
+        "ls": ["list"],
+        "accounts": ["list"],
         "info": ["status", "--refresh"],
         "show": ["status", "--refresh"],
-        "current": ["account", "current"],
-        "select": ["account", "use"],
-        "choose": ["account", "use"],
-        "use": ["account", "use"],
-        "add-current": ["account", "add"],
-        "add-current-account": ["account", "add"],
-        "import": ["account", "add"],
-        "save": ["account", "add"],
-        "remove-account": ["account", "remove"],
-        "rm-account": ["account", "remove"],
-        "delete-account": ["account", "remove"],
+        "current": ["current"],
+        "select": ["use"],
+        "choose": ["use"],
+        "use": ["use"],
+        "add-current": ["add"],
+        "add-current-account": ["add"],
+        "import": ["add"],
+        "save": ["add"],
+        "remove-account": ["remove"],
+        "rm-account": ["remove"],
+        "delete-account": ["remove"],
         "week": ["weekly"],
         "usage-week": ["weekly"],
         "weekly-usage": ["weekly"],
@@ -291,7 +280,7 @@ def translate_legacy_args(args):
 
 def run_legacy_internal(args):
     command = args[0] if args else ""
-    if command in ("rotate", "next"):
+    if command == "rotate":
         rotate_account()
     elif command == "auto-switch":
         auto_switch_account()
@@ -329,26 +318,22 @@ def main(argv=None):
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     translated_args = translate_legacy_args(raw_args)
-    if translated_args and translated_args[0] == "account" and len(translated_args) > 1:
-        if translated_args[1] not in ACCOUNT_COMMANDS and translated_args[1] not in ("-h", "--help"):
-            return print_unknown_command(translated_args)
     args = build_parser().parse_args(translated_args)
     try:
         if args.command == "status":
             run_status(args.refresh, args.json)
-        elif args.command == "account":
-            if args.account_command == "list":
-                account_list(args.json)
-            elif args.account_command == "add":
-                account_add(args.label, args.json)
-            elif args.account_command == "current":
-                account_current(args.json)
-            elif args.account_command == "use":
-                account_use(args.target, args.json)
-            elif args.account_command == "rename":
-                account_rename(args.target, args.label, args.json)
-            elif args.account_command == "remove":
-                account_remove(args.target, args.yes, args.json)
+        elif args.command == "list":
+            account_list(args.json)
+        elif args.command == "add":
+            account_add(args.label, args.json)
+        elif args.command == "current":
+            account_current(args.json)
+        elif args.command == "use":
+            account_use(args.target, args.json)
+        elif args.command == "rename":
+            account_rename(args.target, args.label, args.json)
+        elif args.command == "remove":
+            account_remove(args.target, args.yes, args.json)
         elif args.command == "doctor":
             report = doctor_report()
             if args.json:
