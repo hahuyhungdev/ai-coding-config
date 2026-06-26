@@ -273,6 +273,13 @@ def translate_legacy_args(args):
         if len(args) > 1:
             return translate_legacy_args(args[1:]) + ["--help"]
         return ["--help"]
+    # Handle "account <subcommand>" prefix (promoted to top-level)
+    # Skip leading flags like --json to find the account prefix
+    if args[0] == "account" and len(args) > 1:
+        return translate_legacy_args(args[1:])
+    # Also handle --json account <subcommand>
+    if args[0] == "--json" and len(args) > 2 and args[1] == "account":
+        return [args[0]] + translate_legacy_args(args[2:])
     if args[0] in aliases:
         return aliases[args[0]] + args[1:]
     return args
@@ -318,7 +325,28 @@ def main(argv=None):
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     translated_args = translate_legacy_args(raw_args)
-    args = build_parser().parse_args(translated_args)
+    try:
+        args = build_parser().parse_args(translated_args)
+    except SystemExit as exc:
+        # Only catch argparse errors (exit code 2), not --help/--version (exit 0)
+        if exc.code == 0:
+            raise
+        # Argparse failed — suggest closest match for the subcommand
+        subcmd = translated_args[0] if translated_args else ""
+        if subcmd and subcmd != "--json":
+            # Check if original had "account" prefix for display
+            had_account = len(raw_args) > 1 and raw_args[0 if raw_args[0] != "--json" else 1] == "account"
+            matches = difflib.get_close_matches(subcmd, TOP_LEVEL_COMMANDS, n=1, cutoff=0.5)
+            if matches:
+                suggestion = matches[0]
+                prefix = "agy account " if had_account else "agy "
+                print(f"Unknown command: {subcmd}", file=sys.stderr)
+                print(f"Did you mean:", file=sys.stderr)
+                print(f"  {prefix}{suggestion}", file=sys.stderr)
+            else:
+                print(f"Unknown command: {subcmd}", file=sys.stderr)
+                print("Run 'agy --help' to see available commands.", file=sys.stderr)
+        return 2
     try:
         if args.command == "status":
             run_status(args.refresh, args.json)

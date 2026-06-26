@@ -22,24 +22,28 @@ def model_group_exhausted(model_quotas, model_names, threshold=30):
 
 def choose_same_account_fallback(acc, blocked_model=""):
     """Prefer Gemini first, then Claude Opus; never fall back from Claude to Gemini."""
-    if blocked_model:
-        # Same-account model fallback disabled
+    # Never fall back from Claude to Gemini
+    if blocked_model == "claude":
         return ""
 
     model_quotas = acc.get("model_quotas", {})
 
     if model_quotas:
+        # If Gemini is blocked or unavailable, try Claude Opus
+        if blocked_model == "gemini":
+            if has_model_quota(acc, CLAUDE_FALLBACK_MODEL):
+                return CLAUDE_FALLBACK_MODEL
+            return ""
+
+        # No blocked model: prefer Gemini first
         if has_model_quota(acc, GEMINI_FALLBACK_MODEL):
             return GEMINI_FALLBACK_MODEL
 
         gemini_exhausted = model_group_exhausted(model_quotas, GEMINI_MODELS)
         opus_available = has_model_quota(acc, CLAUDE_FALLBACK_MODEL)
-        claude_exhausted = model_group_exhausted(model_quotas, [CLAUDE_FALLBACK_MODEL])
 
         if gemini_exhausted and opus_available:
             return CLAUDE_FALLBACK_MODEL
-        if claude_exhausted:
-            return ""
 
     return ""
 

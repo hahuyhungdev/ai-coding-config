@@ -434,7 +434,7 @@ exit /b 0
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Unknown command: s", result.stderr)
-        self.assertIn("agy status", result.stderr)
+        self.assertIn("Did you mean:", result.stderr)
         self.assertNotIn("agy restore", result.stderr)
         self.assertNotIn("REAL_AGY_CALLED", result.stdout + result.stderr)
 
