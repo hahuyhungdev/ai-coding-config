@@ -15,7 +15,7 @@ run_account_helper() {
         echo "Error: codex-account helper not found at $ACCOUNT_HELPER" >&2
         exit 1
     fi
-    exec python3 "$ACCOUNT_HELPER" "$@"
+    exec env CODEX_ACCOUNT_PROG="${CODEX_ACCOUNT_PROG:-codex}" python3 "$ACCOUNT_HELPER" "$@"
 }
 
 run_real_codex() {
@@ -30,6 +30,7 @@ run_real_codex() {
 case "${1:-}" in
     account)
         shift
+        export CODEX_ACCOUNT_PROG="codex account"
         if [ "$#" -eq 0 ]; then
             run_account_helper list
         fi
@@ -37,10 +38,39 @@ case "${1:-}" in
         ;;
     accounts)
         shift
+        export CODEX_ACCOUNT_PROG="codex account"
         if [ "$#" -eq 0 ]; then
             run_account_helper list
         fi
         run_account_helper "$@"
+        ;;
+    list|ls)
+        shift
+        run_account_helper list "$@"
+        ;;
+    guide)
+        shift
+        run_account_helper guide "$@"
+        ;;
+    check)
+        shift
+        target=""
+        if [ "$#" -gt 0 ] && [ "${1#-}" = "$1" ]; then
+            target="$1"
+            shift
+        fi
+        if [ -n "$target" ]; then
+            run_account_helper status --refresh --account "$target" --timeout "${CODEX_ACCOUNT_CHECK_TIMEOUT:-30}" "$@"
+        fi
+        run_account_helper status --refresh --timeout "${CODEX_ACCOUNT_CHECK_TIMEOUT:-30}" "$@"
+        ;;
+    status)
+        shift
+        run_account_helper status "$@"
+        ;;
+    rotate)
+        shift
+        run_account_helper rotate "$@"
         ;;
     current)
         shift
@@ -50,9 +80,29 @@ case "${1:-}" in
         shift
         run_account_helper use "$@"
         ;;
+    switch)
+        shift
+        run_account_helper use "$@"
+        ;;
+    add)
+        shift
+        run_account_helper add "$@"
+        ;;
+    token)
+        shift
+        run_account_helper add-token "$@"
+        ;;
     add-current|add-current-account)
         shift
         run_account_helper add "$@"
+        ;;
+    add-token|add-refresh-token)
+        shift
+        run_account_helper add-token "$@"
+        ;;
+    login-temp|temp-login)
+        shift
+        run_account_helper login-temp "$@"
         ;;
     relabel-accounts)
         shift
