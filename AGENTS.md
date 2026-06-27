@@ -1,3 +1,121 @@
+## Frontend Architecture (`frontend/`)
+
+> Feature-based React architecture — code organized by business domain, not file type.
+
+**Stack:** React 19 · TypeScript · Vite · React Router v7 · Tailwind CSS 4
+
+### Dependency Flow
+
+```
+shared (components/, hooks/, utils/, types/)
+  →  features/<name>/
+       →  App.tsx (tab-based SPA, no pages/ layer)
+```
+
+Each layer only imports from layers to its left. Never import upward or sideways.
+
+| Layer              | Can import from              | Cannot import from            |
+| ------------------ | ---------------------------- | ----------------------------- |
+| `components/`      | nothing internal             | features/, hooks/, utils/     |
+| `hooks/`           | utils/, types/               | features/, components/        |
+| `utils/`           | types/                       | everything else               |
+| `features/<name>/` | components/, hooks/, utils/, types/ | other features/        |
+| `App.tsx`          | everything                   | —                             |
+
+### Feature Structure
+
+```
+features/<name>/
+├── index.ts(x)       # Compound component — composes internals, IS the public API
+├── components/       # UI sub-components (private, folder-per-component)
+│   └── MyComponent/
+│       └── MyComponent.tsx
+├── hooks/            # Feature-scoped hooks (private)
+├── types/            # Feature-scoped types (private)
+├── utils/            # Feature-scoped utils (private)
+├── constants/        # Feature-scoped constants (private)
+└── api/              # API request functions (private)
+```
+
+**Current features:** `analytics`, `conversations`, `dashboard`, `explorer`, `graph`, `settings`, `simulator`
+
+### Shared Layer (`src/` top-level)
+
+| Folder         | Purpose                                        | Example                        |
+| -------------- | ---------------------------------------------- | ------------------------------ |
+| `components/`  | Reusable UI pieces shared across 2+ features   | `Sidebar.tsx`, `Toast.tsx`, `Modals.tsx`, `Toggle.tsx` |
+| `hooks/`       | App-wide hooks shared across 2+ features       | `useConfig.ts`, `useToast.ts`, `useMcpForm.ts` |
+| `utils/`       | Pure utility functions                         | `format.ts`                    |
+| `types.ts`     | Shared TypeScript interfaces                   | `Targets`, `ClaudeConfig`, etc. |
+| `assets/`      | Static assets (images, icons)                  | —                              |
+| `index.css`    | Global styles + Tailwind theme                 | design tokens, animations      |
+
+### Import Rules
+
+```tsx
+// ✅ App imports the compound component from feature index
+import { DashboardSection } from "./features/dashboard";
+
+// ✅ Inside index.tsx — import internal hooks & components
+import { StatsCard } from "./components/StatsCard/StatsCard";
+import { useStats } from "./hooks/useStats";
+
+// ✅ Feature imports from shared
+import { Toggle } from "../../components/Toggle";
+
+// ❌ App reaching into feature internals
+import { StatsCard } from "./features/dashboard/components/StatsCard/StatsCard";
+
+// ❌ Feature importing from another feature
+import { useConversations } from "../conversations/hooks/useConversations";
+```
+
+### The Index File
+
+Each feature's `index.ts(x)` is a **compound component** — it imports internal hooks, sub-components, and utils, then composes them into a single exported component that represents the entire feature. The app layer only renders this one component.
+
+```tsx
+// features/dashboard/index.tsx
+import { StatsCard } from "./components/StatsCard/StatsCard";
+import { useStats } from "./hooks/useStats";
+
+export function DashboardSection() {
+  const { stats, isLoading } = useStats();
+
+  if (isLoading) return <div>Loading…</div>;
+
+  return (
+    <section>
+      <StatsCard label="Users" value={stats.totalUsers} />
+    </section>
+  );
+}
+```
+
+App.tsx chỉ cần: `<DashboardSection />` — không biết và không cần biết bên trong có gì.
+
+### Naming Conventions
+
+| Type           | Pattern                   | Example                         |
+| -------------- | ------------------------- | ------------------------------- |
+| Feature folder | kebab-case                | `dashboard-stats/`              |
+| Component      | Folder + PascalCase file  | `StatsCard/StatsCard.tsx`       |
+| Hook file      | `use` + camelCase         | `useStats.ts`                   |
+| API file       | camelCase + `Api`         | `statsApi.ts`                   |
+| Type file      | camelCase + `.types.ts` or single `types.ts` | `stats.types.ts` |
+| Utils          | camelCase                 | `formatStats.ts`                |
+
+### Shared vs Feature-Local
+
+Only put code in shared (`src/components/`, `src/hooks/`, `src/utils/`) when **2 or more features** need it. Otherwise keep it inside the feature folder.
+
+### Before Making Frontend Changes
+
+1. Check which feature the change belongs to
+2. If adding shared code, verify 2+ features need it
+3. Run `npm run build` from `frontend/` to verify TypeScript + build
+4. Run `npm run lint` from `frontend/` to check style
+
 <!-- ai-coding-config:graphify-start -->
 ## graphify
 

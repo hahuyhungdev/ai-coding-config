@@ -9,6 +9,8 @@ from switch import rotate_account, generate_quota_rollover
 from utils import AGY_DIR
 
 def kill_ancestor_agy_bin():
+    if os.environ.get("AGY_TESTING") == "1":
+        return False
     pid = os.getpid()
     while pid > 1:
         try:

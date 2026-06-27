@@ -59,14 +59,12 @@ Use this path when running inside Antigravity CLI (`agy`) or when the user asks 
    - If staying, inform the user: "Account is healthy, no rotate needed." and stop.
 
 3. **Rotate Account**:
-   - Run: `agy rotate`
-   - This selects the next healthy account using round-robin order, skipping blocked or low-quota accounts.
+   - Run: `python3 tools/agy/switch_session.py` to rotate the active account and trigger an immediate session restart with progress saved, OR run `agy rotate` if you only want to rotate on disk without restarting the current session.
    - Display the rotate result to the user.
 
 4. **Inform the User**:
-   - Tell the user: "Account rotated on disk. The new account will be used on the next session."
-   - Explain: The current session still uses the old account's cached token in memory. This is normal.
-   - Suggest: "Run `/compact` now if you want to restart immediately with the new account."
+   - If rotated using `switch_session.py`, inform the user that the session has rolled over to the new account cleanly.
+   - If rotated using `agy rotate` on disk, tell the user: "Account rotated on disk. The new account will be used on the next session. Run `/compact` now if you want to restart immediately with the new account."
 
 ## Important Notes
 
