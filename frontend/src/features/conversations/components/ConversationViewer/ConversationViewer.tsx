@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { MessageSquare, Search, Clock, HardDrive, Zap, DollarSign, Terminal, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
-import { formatDate, formatBytes, formatTokens, formatCost } from '../../utils/format';
+import { formatDate, formatBytes, formatTokens, formatCost } from '../../../../utils/format';
 import { useConversations } from '../../hooks/useConversations';
-import { ChatView } from './ChatView';
-import { TokenStats } from './TokenStats';
-import { WorkspaceView } from './WorkspaceView';
-import { AnalyticsTab } from '../analytics/AnalyticsTab';
+import { ChatView } from '../ChatView/ChatView';
+import { TokenStats } from '../TokenStats/TokenStats';
+import { WorkspaceView } from '../WorkspaceView/WorkspaceView';
+interface ConversationViewerProps {
+  fallback?: React.ReactNode;
+}
 
-
-export function ConversationViewer() {
+export function ConversationViewer({ fallback }: ConversationViewerProps) {
   const [showWorkspace, setShowWorkspace] = useState(true);
   const {
     filteredConversations, activeConvId, activeConvData,
@@ -93,7 +94,7 @@ export function ConversationViewer() {
       <main className="flex-1 flex flex-col overflow-hidden">
         {!activeConvId ? (
           <div className="flex-1 overflow-y-auto main-content-scrollbar p-6">
-            <AnalyticsTab />
+            {fallback}
           </div>
         ) : isLoading || !activeConvData ? (
           <div className="flex-1 flex items-center justify-center">

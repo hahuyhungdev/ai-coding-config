@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import { User, Bot } from 'lucide-react';
-import type { ConversationTurn } from '../../types';
+import type { ConversationTurn } from '../../../../types';
 
 marked.setOptions({ breaks: true, gfm: true });
 

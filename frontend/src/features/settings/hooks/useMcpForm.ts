@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { FullConfig } from '../types';
+import type { FullConfig } from '../../../types';
 
 const DEFAULT_SERVERS = new Set(["playwright", "context7", "memory", "sequential-thinking", "postgres", "sqlite", "docker", "aws"]);
 

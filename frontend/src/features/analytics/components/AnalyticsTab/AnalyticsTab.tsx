@@ -4,7 +4,7 @@ import {
   BarChart2, Cpu, Zap, DollarSign, Clock, Search, 
   TrendingUp, Calendar, MessageSquare 
 } from 'lucide-react';
-import { formatDate, formatTokens, formatCost } from '../../utils/format';
+import { formatDate, formatTokens, formatCost } from '../../../../utils/format';
 
 interface SessionAnalytics {
   id: string;

@@ -305,7 +305,7 @@ Rate limit reached on model
 
     @patch("switch.check_last_log_for_quota_error")
     @patch("switch.get_remaining_reset_from_logs")
-    def test_auto_switch_uses_round_robin_health_gate_by_default(self, mock_reset_logs, mock_quota_err):
+    def test_auto_switch_uses_highest_quota_by_default(self, mock_reset_logs, mock_quota_err):
         mock_reset_logs.return_value = None
         mock_quota_err.return_value = (False, "", "")
 
@@ -350,7 +350,7 @@ Rate limit reached on model
             self.assertEqual(switch.auto_switch_account(quiet=True), "")
             with open(token_file, "r") as f:
                 saved = json.load(f)
-                self.assertEqual(saved["token"]["refresh_token"], "rt2")
+                self.assertEqual(saved["token"]["refresh_token"], "rt3")
 
     @patch("switch.check_last_log_for_quota_error")
     @patch("switch.get_remaining_reset_from_logs")

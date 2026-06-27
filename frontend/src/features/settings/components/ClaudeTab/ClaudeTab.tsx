@@ -1,6 +1,6 @@
 import React from 'react';
-import type { FullConfig } from '../../types';
-import { Toggle } from '../../components/Toggle';
+import type { FullConfig } from '../../../../types';
+import { Toggle } from '../../../../components/Toggle';
 import { Sliders, ShieldCheck, FileText, X } from 'lucide-react';
 
 interface ClaudeTabProps {

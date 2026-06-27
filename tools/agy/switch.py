@@ -33,17 +33,16 @@ def load_rotation_policy():
         with open(SETTINGS_FILE, "r") as f:
             settings = json.load(f)
     except Exception:
-        return ROUND_ROBIN_POLICY
+        return HIGHEST_QUOTA_POLICY
 
     raw_policy = (
         settings.get("rotationPolicy")
         or settings.get("rotation_policy")
-        or ROUND_ROBIN_POLICY
+        or HIGHEST_QUOTA_POLICY
     )
     policy = str(raw_policy).strip().lower().replace("_", "-")
-    if policy in {ROUND_ROBIN_POLICY, HIGHEST_QUOTA_POLICY}:
-        return policy
-    return ROUND_ROBIN_POLICY
+    # Since round-robin is removed, always fall back or return highest-quota
+    return HIGHEST_QUOTA_POLICY
 
 
 def _candidate_indexes(accounts, active_idx):
@@ -82,9 +81,7 @@ def select_replacement_index(accounts, active_idx, policy=None, allow_best_effor
     ]
 
     if healthy_indexes:
-        if policy == HIGHEST_QUOTA_POLICY:
-            return _best_remaining_quota_index(accounts, healthy_indexes)
-        return healthy_indexes[0]
+        return _best_remaining_quota_index(accounts, healthy_indexes)
 
     if allow_best_effort:
         low_quota_indexes = [

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import type { FullConfig } from '../../types';
+import type { FullConfig } from '../../../../types';
 import {
   MessageSquareCode, Terminal as TerminalIcon, Sparkles,
   Bot, Wrench, Cpu, Trash, AlertTriangle, CheckCircle2, RefreshCw

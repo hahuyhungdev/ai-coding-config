@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { FullConfig } from '../../types';
-import { Toggle } from '../../components/Toggle';
+import type { FullConfig } from '../../../../types';
+import { Toggle } from '../../../../components/Toggle';
 import {
   Search, Plus, Cpu, Play, Save, Trash as TrashIcon,
   CheckCircle2, AlertTriangle, XCircle, Sliders

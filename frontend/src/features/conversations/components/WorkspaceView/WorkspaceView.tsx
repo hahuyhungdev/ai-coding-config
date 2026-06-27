@@ -4,8 +4,8 @@ import {
   Terminal, FileText, Search, FolderOpen, Globe, Code,
   ChevronDown, ChevronRight, Zap, DollarSign, X
 } from 'lucide-react';
-import type { ConversationTurn, ConversationStats, ConversationStep } from '../../types';
-import { formatTokens, formatCost } from '../../utils/format';
+import type { ConversationTurn, ConversationStats, ConversationStep } from '../../../../types';
+import { formatTokens, formatCost } from '../../../../utils/format';
 
 function getToolIcon(type: string) {
   const iconClass = "w-3.5 h-3.5";

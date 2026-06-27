@@ -16,18 +16,15 @@ import {
 import { ToastContainer } from "./components/Toast";
 import { Sidebar } from "./components/Sidebar";
 import { AddMcpModal, ApplyModal, DiscardModal } from "./components/Modals";
-import { DashboardTab } from "./features/dashboard/DashboardTab";
-import { ClaudeTab } from "./features/settings/ClaudeTab";
-import { McpTab } from "./features/settings/McpTab";
-import CodexTab from "./features/settings/CodexTab";
-import GeminiTab from "./features/settings/GeminiTab";
-import ExplorerTab from "./features/explorer/ExplorerTab";
-import { SimulatorTab } from "./features/simulator/SimulatorTab";
-import { ConversationViewer } from "./features/conversations/ConversationViewer";
-import { GraphTab } from "./features/graph/GraphTab";
+import { DashboardTab } from "./features/dashboard";
+import { SettingsSection, useMcpForm } from "./features/settings";
+import { ExplorerTab } from "./features/explorer";
+import { SimulatorTab } from "./features/simulator";
+import { ConversationViewer } from "./features/conversations";
+import { GraphTab } from "./features/graph";
+import { AnalyticsTab } from "./features/analytics";
 import { useToast } from "./hooks/useToast";
 import { useConfig } from "./hooks/useConfig";
-import { useMcpForm } from "./hooks/useMcpForm";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -193,7 +190,7 @@ export default function App() {
         {/* Content */}
         {activeTab === "conversations" ? (
           <div className="flex-1 overflow-hidden p-6 animate-fade-up w-full max-w-[1400px] mx-auto">
-            <ConversationViewer />
+            <ConversationViewer fallback={<AnalyticsTab />} />
           </div>
         ) : activeTab === "graph" ? (
           <div className="flex-1 overflow-hidden p-6 animate-fade-up w-full max-w-[1400px] mx-auto">
@@ -213,10 +210,14 @@ export default function App() {
                   fetchConfig={config.fetchConfig}
                 />
               )}
-              {activeTab === "mcp" && (
-                <McpTab
+              {["mcp", "claude", "codex", "gemini"].includes(activeTab) && (
+                <SettingsSection
+                  activeTab={activeTab}
+                  initialConfig={config.initialConfig}
                   tempConfig={config.tempConfig}
                   setTempConfig={config.setTempConfig}
+                  handleClaudeEnvChange={config.handleClaudeEnvChange}
+                  handleClaudePermsChange={config.handleClaudePermsChange}
                   selectedMcpServer={selectedMcpServer}
                   setSelectedMcpServer={setSelectedMcpServer}
                   filteredMcp={filteredMcp}
@@ -226,29 +227,6 @@ export default function App() {
                   deleteCustomMcp={mcpForm.deleteCustomMcp}
                   setShowAddMcpModal={mcpForm.setShowAddMcpModal}
                   showToast={showToast}
-                />
-              )}
-              {activeTab === "claude" && (
-                <ClaudeTab
-                  initialConfig={config.initialConfig}
-                  tempConfig={config.tempConfig}
-                  setTempConfig={config.setTempConfig}
-                  handleClaudeEnvChange={config.handleClaudeEnvChange}
-                  handleClaudePermsChange={config.handleClaudePermsChange}
-                />
-              )}
-              {activeTab === "codex" && (
-                <CodexTab
-                  initialConfig={config.initialConfig}
-                  tempConfig={config.tempConfig}
-                  setTempConfig={config.setTempConfig}
-                />
-              )}
-              {activeTab === "gemini" && (
-                <GeminiTab
-                  initialConfig={config.initialConfig}
-                  tempConfig={config.tempConfig}
-                  setTempConfig={config.setTempConfig}
                 />
               )}
               {activeTab === "explorer" && (

@@ -160,7 +160,7 @@ def seed_accounts(agy_dir: Path) -> None:
     ]
     (agy_dir / "accounts.json").write_text(json.dumps(accounts, indent=2))
     (agy_dir / "antigravity-oauth-token").write_text(json.dumps(accounts[0], indent=2))
-    (agy_dir / "settings.json").write_text(json.dumps({"rotationPolicy": "round-robin"}, indent=2))
+    (agy_dir / "settings.json").write_text(json.dumps({"rotationPolicy": "highest-quota"}, indent=2))
 
 
 def start_pty_session(home: Path, bin_dir: Path) -> tuple[subprocess.Popen, int]:
@@ -235,7 +235,7 @@ def main() -> int:
         active = json.loads((agy_dir / "antigravity-oauth-token").read_text())
         active_token = active.get("token", {}).get("refresh_token")
         saw_initial = "SESSION_TOKEN:rt-low:low@example.com" in session_output
-        saw_switched = "SESSION_TOKEN:rt-next:next@example.com" in session_output
+        saw_switched = "SESSION_TOKEN:rt-high:high@example.com" in session_output
 
         print("Smoke test: PTY token switch during live fake session")
         print(f"tmp_home: {home}")
@@ -249,8 +249,8 @@ def main() -> int:
         print("session_output:")
         print(session_output.strip())
 
-        if active_token != "rt-next":
-            print("FAIL: daemon did not switch active token to the next healthy round-robin account", file=sys.stderr)
+        if active_token != "rt-high":
+            print("FAIL: daemon did not switch active token to the highest quota account", file=sys.stderr)
             return 2
         if not saw_initial or not saw_switched:
             print("FAIL: live session did not observe both initial and switched token", file=sys.stderr)

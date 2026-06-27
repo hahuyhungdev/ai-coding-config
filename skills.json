@@ -119,6 +119,17 @@
         "pathPatterns": ["**/tests/**", "**/test/**", "**/__tests__/**"],
         "keywords": ["tdd", "test-driven", "red-green-refactor", "pytest", "jest", "vitest", "mocha", "unittest", "testing", "coverage"]
       }
+    },
+    {
+      "name": "react-feature-architecture",
+      "path": "skills/react-feature-architecture/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "fileExtensions": ["tsx", "jsx", "ts"],
+        "pathPatterns": ["**/features/**", "**/shared/**", "**/pages/**"],
+        "keywords": ["feature-based", "compound component", "feature isolation", "generate feature", "generate component", "react feature architecture"]
+      },
+      "dependencies": ["frontend-guide", "coding-standards"]
     }
   ]
 }

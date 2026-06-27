@@ -64,7 +64,7 @@ class TestAgyIntegration(unittest.TestCase):
         self.assertEqual(storage.load_accounts(), [])
         
         # Verify behaviour with missing settings.json
-        self.assertEqual(switch.load_rotation_policy(), "round-robin")
+        self.assertEqual(switch.load_rotation_policy(), "highest-quota")
         
         # Verify switch doesn't crash on missing accounts.json
         res = switch.auto_switch_account(quiet=True)
@@ -79,8 +79,8 @@ class TestAgyIntegration(unittest.TestCase):
         # Verify load_accounts returns [] instead of raising JSONDecodeError
         self.assertEqual(storage.load_accounts(), [])
         
-        # Verify load_rotation_policy defaults to round-robin
-        self.assertEqual(switch.load_rotation_policy(), "round-robin")
+        # Verify load_rotation_policy defaults to highest-quota
+        self.assertEqual(switch.load_rotation_policy(), "highest-quota")
         
         # Verify auto_switch doesn't crash
         res = switch.auto_switch_account(quiet=True)
@@ -97,8 +97,8 @@ class TestAgyIntegration(unittest.TestCase):
         with self.assertRaises(json.JSONDecodeError):
             storage.load_accounts()
             
-        # Verify settings fallback to round-robin
-        self.assertEqual(switch.load_rotation_policy(), "round-robin")
+        # Verify settings fallback to highest-quota
+        self.assertEqual(switch.load_rotation_policy(), "highest-quota")
 
     def test_unknown_model_names_in_logs_and_fallback(self):
         # 1. Create a log file with an unknown GPT model name that failed
@@ -300,9 +300,9 @@ class TestAgyIntegration(unittest.TestCase):
         self.assertFalse(switch.is_account_blocked_or_low(accounts[4], accounts)) # Healthy
         
         # Test selection / rotate: active is 0. Next candidates: 1, 2, 3, 4.
-        # Healthy ones should be: 1, 2, 4. So rotation should select index 1.
+        # Healthy ones should be: 1, 2, 4. Under highest-quota, index 4 has 100% quota, so it is selected.
         next_idx = switch.select_replacement_index(accounts, 0)
-        self.assertEqual(next_idx, 1)
+        self.assertEqual(next_idx, 4)
 
 if __name__ == "__main__":
     unittest.main()

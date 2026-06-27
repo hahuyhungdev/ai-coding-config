@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sliders, ShieldCheck, FileText, X } from 'lucide-react';
-import type { FullConfig } from '../../types';
-import { Toggle } from '../../components/Toggle';
+import type { FullConfig } from '../../../../types';
+import { Toggle } from '../../../../components/Toggle';
 
 interface CodexTabProps {
   tempConfig: FullConfig;

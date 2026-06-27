@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Bot, Wrench, Compass, Sliders } from 'lucide-react';
 import { marked } from 'marked';
-import type { FullConfig, ExplorerDetail } from '../../types';
+import type { FullConfig, ExplorerDetail } from '../../../../types';
 
 interface ExplorerTabProps {
   tempConfig: FullConfig;
@@ -12,9 +12,9 @@ interface ExplorerTabProps {
   setExplorerFilter: (filter: 'all' | 'agents' | 'skills') => void;
 }
 
-const ExplorerTab: React.FC<ExplorerTabProps> = ({
+export function ExplorerTab({
   tempConfig, selectedExplorer, setSelectedExplorer, showToast, explorerFilter, setExplorerFilter,
-}) => {
+}: ExplorerTabProps) {
   const [explorerSearch, setExplorerSearch] = useState<string>('');
   const [explorerDetail, setExplorerDetail] = useState<ExplorerDetail | null>(null);
   const [loadingExplorer, setLoadingExplorer] = useState<boolean>(false);
@@ -158,6 +158,4 @@ const ExplorerTab: React.FC<ExplorerTabProps> = ({
       </div>
     </div>
   );
-};
-
-export default ExplorerTab;
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import type { ConversationMeta, ConversationData, ConversationTurn } from '../types';
-import { parseTurns } from '../utils/format';
+import type { ConversationMeta, ConversationData, ConversationTurn } from '../../../types';
+import { parseTurns } from '../../../utils/format';
 
 export function useConversations() {
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
@@ -84,4 +84,3 @@ export function useConversations() {
     turns, currentTurn
   };
 }
-
