@@ -110,6 +110,41 @@ class TestAgyCliE2E(unittest.TestCase):
         self.assertEqual(data["account"]["email"], "user1@gmail.com")
         self.assertTrue(data["account"]["active"])
 
+    def test_add_commands(self):
+        # 1. Verify agy add (imports active token)
+        # Setup a token file representing a new/updated account to import
+        import_token = {
+            "email": "new_user@gmail.com",
+            "auth_method": "consumer",
+            "token": {"refresh_token": "tokenNew", "access_token": "accessNew"}
+        }
+        with open(self.token_file, "w") as f:
+            json.dump(import_token, f, indent=2)
+
+        res = self.run_agy(["add"])
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("Successfully added new account 'new_user' to accounts.json!", res.stdout)
+
+        # Verify added to accounts.json
+        with open(self.accounts_file, "r") as f:
+            accounts = json.load(f)
+            emails = [acc.get("email") for acc in accounts]
+            self.assertIn("new_user@gmail.com", emails)
+
+        # 2. Verify agy add --label
+        res_label = self.run_agy(["add", "--label", "CustomLabel"])
+        self.assertEqual(res_label.returncode, 0)
+        with open(self.accounts_file, "r") as f:
+            accounts = json.load(f)
+            new_acc = next(acc for acc in accounts if acc.get("email") == "new_user@gmail.com")
+            self.assertEqual(new_acc.get("label"), "CustomLabel")
+
+        # 3. Verify aliases: import and save
+        for alias in ["import", "save"]:
+            res_alias = self.run_agy([alias])
+            self.assertEqual(res_alias.returncode, 0)
+            self.assertIn("Successfully updated existing account", res_alias.stdout)
+
     def test_use_select_choose_commands(self):
         # 1. Verify agy use <target> works with index
         res = self.run_agy(["use", "2"])

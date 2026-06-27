@@ -130,7 +130,7 @@ if [[ "$has_prompt_flag" == false && "$native_command" == false && ( -n "$subcmd
         is_mgmt_cmd=true
     else
         case "$subcmd" in
-            status|account|doctor|backup|restore|current|rename|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|daemon)
+            status|account|doctor|backup|restore|current|rename|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|daemon)
                 is_mgmt_cmd=true
                 ;;
         esac
