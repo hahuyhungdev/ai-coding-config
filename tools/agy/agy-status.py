@@ -240,6 +240,7 @@ Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
     restore.add_argument("path", nargs="?")
     restore.add_argument("--yes", action="store_true", help="Confirm restore")
     subparsers.add_parser("weekly", help="Show local seven-day usage")
+    subparsers.add_parser("clean", help="Clean up automated or orphaned session logs")
 
     return parser
 
@@ -261,14 +262,21 @@ def translate_legacy_args(args):
         "add-current-account": ["add"],
         "import": ["add"],
         "save": ["add"],
+        "remove": ["remove"],
+        "rm": ["remove"],
         "remove-account": ["remove"],
         "rm-account": ["remove"],
         "delete-account": ["remove"],
         "week": ["weekly"],
         "usage-week": ["weekly"],
         "weekly-usage": ["weekly"],
+        "clean": ["clean"],
+        "cleanup": ["clean"],
+        "prune": ["clean"],
         "compact": ["clean"],
     }
+    if args[0] == "--json" and len(args) > 1:
+        return [args[0]] + translate_legacy_args(args[1:])
     if args[0] in ("help", "guide"):
         if len(args) > 1:
             return translate_legacy_args(args[1:]) + ["--help"]
@@ -277,9 +285,6 @@ def translate_legacy_args(args):
     # Skip leading flags like --json to find the account prefix
     if args[0] == "account" and len(args) > 1:
         return translate_legacy_args(args[1:])
-    # Also handle --json account <subcommand>
-    if args[0] == "--json" and len(args) > 2 and args[1] == "account":
-        return [args[0]] + translate_legacy_args(args[2:])
     if args[0] in aliases:
         return aliases[args[0]] + args[1:]
     return args
@@ -302,9 +307,7 @@ def run_legacy_internal(args):
         if len(args) < 2:
             raise ValueError("Usage: agy import-file <path.json> [label]")
         import_from_file(args[1], args[2] if len(args) > 2 else None)
-    elif command in ("clean", "cleanup", "prune", "compact"):
-        clean_conversations()
-    elif command in ("delete", "remove", "rm"):
+    elif command in ("delete",):
         delete_conversation(args[1] if len(args) > 1 else None)
     else:
         return False
@@ -378,6 +381,8 @@ def main(argv=None):
             run_restore(args.path, args.yes, args.json)
         elif args.command == "weekly":
             show_weekly_usage()
+        elif args.command == "clean":
+            clean_conversations(args.json)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         if getattr(args, "json", False):
             print(json.dumps({"error": str(exc)}))

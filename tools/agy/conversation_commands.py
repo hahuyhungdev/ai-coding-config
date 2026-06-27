@@ -6,7 +6,8 @@ import shutil
 from utils import AGY_DIR
 
 
-def clean_conversations():
+def clean_conversations(json_output=False):
+    import sys
     history_file = os.path.join(AGY_DIR, "history.jsonl")
     active_uuids = set()
     if os.path.exists(history_file):
@@ -23,7 +24,7 @@ def clean_conversations():
                     except Exception:
                         pass
         except Exception as exc:
-            print(f"❌ Error reading history.jsonl: {exc}")
+            print(f"❌ Error reading history.jsonl: {exc}", file=sys.stderr)
             return
 
     conversations_dir = os.path.join(AGY_DIR, "conversations")
@@ -44,7 +45,7 @@ def clean_conversations():
                 os.remove(path)
                 cleaned_count += 1
             except Exception as exc:
-                print(f"⚠️ Failed to remove {filename}: {exc}")
+                print(f"⚠️ Failed to remove {filename}: {exc}", file=sys.stderr)
 
     if os.path.exists(brain_dir):
         for dirname in os.listdir(brain_dir):
@@ -61,11 +62,19 @@ def clean_conversations():
                 )
                 shutil.rmtree(path)
             except Exception as exc:
-                print(f"⚠️ Failed to remove directory {dirname}: {exc}")
+                print(f"⚠️ Failed to remove directory {dirname}: {exc}", file=sys.stderr)
 
     mb_saved = total_saved_bytes / (1024 * 1024)
-    print(f"🧹 Cleaned up {cleaned_count} automated/orphaned sessions.")
-    print(f"💾 Saved {mb_saved:.2f} MB of disk space.")
+    if json_output:
+        print(json.dumps({
+            "status": "success",
+            "cleaned_count": cleaned_count,
+            "bytes_saved": total_saved_bytes,
+            "mb_saved": round(mb_saved, 2)
+        }))
+    else:
+        print(f"🧹 Cleaned up {cleaned_count} automated/orphaned sessions.")
+        print(f"💾 Saved {mb_saved:.2f} MB of disk space.")
 
 
 def _history_entries(history_file):

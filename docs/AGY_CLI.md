@@ -131,6 +131,7 @@ Legacy commands are automatically translated to their preferred counterparts:
 | `agy use 2` / `agy select 2` / `agy choose 2` | Switch active account to index 2 |
 | `agy add` / `agy import` / `agy save` | Import current active token |
 | `agy remove 2 --yes` / `agy rm 2 --yes` | Remove account from pool |
+| `agy clean` / `agy cleanup` / `agy prune` | Clean up automated or orphaned session logs |
 | `agy info` / `agy show` | Live status check (runs `agy status`) |
 
 ## Quota Management & Auto-Switching
@@ -182,3 +183,6 @@ A comprehensive QA audit was conducted on 2026-06-27 to evaluate edge cases, err
 4. **Daemon Concurrency Lock**: Added process-level locking using `fcntl.flock` on `auto_rotate_daemon.lock` to prevent multiple background auto-rotate daemons from running concurrently and stepping on each other.
 5. **Path Leak Fix for Sandboxing**: Resolved an issue in `generate_quota_rollover()` where it was bypassing sandbox environments and accessing `~/.gemini/antigravity-cli/brain` directly instead of respecting `AGY_DIR_OVERRIDE`.
 6. **Robust Model Quota Formatting**: Updated `_quota_summary` to gracefully fall back and extract quota percentages/resets from *any* available models in the output if the hardcoded default model types (like `Gemini 3.5 Flash (Medium)`) are not returned or present in the current user settings.
+7. **Clean Commands Integration**: Promoted `clean`, `cleanup`, and `prune` to first-class CLI commands with proper `--help` and `--json` support (returning structured execution status).
+8. **Wrapper Routing Conflicts**: Fixed routing in `tools/agy/agy` where `rename` was incorrectly routed as a typo (unknown command), and `remove`/`rm` were incorrectly intercepted as conversation deletes instead of account removal.
+9. **Generic Flag Positioning**: Fixed translation issues where placing `--json` first (e.g. `agy --json rm`) bypassed command aliases. `--json` is now processed generically before translating other arguments.
