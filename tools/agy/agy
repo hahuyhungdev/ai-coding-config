@@ -1,6 +1,6 @@
 #!/bin/bash
 
-AGY_DIR="$HOME/.gemini/antigravity-cli"
+AGY_DIR="${AGY_DIR_OVERRIDE:-$HOME/.gemini/antigravity-cli}"
 REAL_AGY="$HOME/.local/bin/agy-bin"
 MAX_RETRIES=2  # Up to 2 retries: 1 model-switch + 1 account-switch
 

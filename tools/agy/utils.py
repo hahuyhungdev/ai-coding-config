@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timedelta
 
 # Constants
-AGY_DIR = os.path.expanduser("~/.gemini/antigravity-cli")
+AGY_DIR = os.environ.get("AGY_DIR_OVERRIDE", os.path.expanduser("~/.gemini/antigravity-cli"))
 JSON_FILE = os.path.join(AGY_DIR, "accounts.json")
 TOKEN_FILE = os.path.join(AGY_DIR, "antigravity-oauth-token")
 LOG_DIR = os.path.join(AGY_DIR, "log")

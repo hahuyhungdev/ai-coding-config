@@ -18,7 +18,17 @@ ROUND_ROBIN_POLICY = "round-robin"
 HIGHEST_QUOTA_POLICY = "highest-quota"
 
 
+def _sync_paths():
+    import storage, parser
+    storage.JSON_FILE = JSON_FILE
+    storage.TOKEN_FILE = TOKEN_FILE
+    storage.AGY_DIR = AGY_DIR
+    parser.JSON_FILE = JSON_FILE
+    parser.LOG_DIR = LOG_DIR
+
+
 def load_rotation_policy():
+    _sync_paths()
     try:
         with open(SETTINGS_FILE, "r") as f:
             settings = json.load(f)
@@ -54,8 +64,15 @@ def _best_remaining_quota_index(accounts, indexes):
 
 
 def select_replacement_index(accounts, active_idx, policy=None, allow_best_effort=True):
+    _sync_paths()
     policy = policy or load_rotation_policy()
     indexes = _candidate_indexes(accounts, active_idx)
+    if not indexes:
+        return None
+
+    from status_refresh import find_duplicate_refresh_tokens
+    duplicates = find_duplicate_refresh_tokens(accounts)
+    indexes = [idx for idx in indexes if idx not in duplicates]
     if not indexes:
         return None
 
@@ -79,6 +96,12 @@ def select_replacement_index(accounts, active_idx, policy=None, allow_best_effor
 
 
 def _write_active_account(accounts, selected_idx):
+    _sync_paths()
+    from storage import sync_active_token_to_accounts
+    try:
+        sync_active_token_to_accounts()
+    except Exception:
+        pass
     selected_acc = accounts[selected_idx]
     with open(TOKEN_FILE, "w") as f:
         json.dump(selected_acc, f)
@@ -104,8 +127,8 @@ def model_group_exhausted(model_quotas, model_names, threshold=30):
 
 def choose_same_account_fallback(acc, blocked_model=""):
     """Prefer Gemini first, then Claude Opus; never fall back from Claude to Gemini."""
-    # Never fall back from Claude to Gemini
-    if blocked_model == "claude":
+    # Never fall back from Claude or GPT to Gemini
+    if blocked_model in ("claude", "gpt"):
         return ""
 
     model_quotas = acc.get("model_quotas", {})
@@ -130,6 +153,7 @@ def choose_same_account_fallback(acc, blocked_model=""):
     return ""
 
 def is_account_blocked_or_low(acc, accounts):
+    _sync_paths()
     email = acc.get("email") or acc.get("name")
     if not email:
         return True
@@ -176,6 +200,13 @@ def is_account_blocked_or_low(acc, accounts):
             except:
                 return True
         else:
+            if last_checked_str:
+                try:
+                    last_checked = datetime.fromisoformat(last_checked_str)
+                    if datetime.now() >= last_checked + timedelta(hours=2):
+                        return False
+                except:
+                    pass
             return True
 
     return False
@@ -219,6 +250,8 @@ def check_last_log_for_quota_error():
                     blocked_model = "claude"
                 elif "gemini" in label:
                     blocked_model = "gemini"
+                elif "gpt" in label:
+                    blocked_model = "gpt"
                 break
 
         # Step 2: Scan lines for quota error
@@ -249,13 +282,14 @@ def get_model_suggestion(acc, blocked_model=""):
     return choose_same_account_fallback(acc, blocked_model=blocked_model)
 
 def auto_switch_account(quiet=False):
-    if not os.path.exists(JSON_FILE):
+    _sync_paths()
+    from storage import load_accounts
+    try:
+        accounts = load_accounts()
+    except Exception as e:
         if not quiet:
-            print(f"❌ accounts.json not found at {JSON_FILE}")
+            print(f"❌ Failed to load accounts: {e}")
         return ""
-
-    with open(JSON_FILE, "r") as f:
-        accounts = json.load(f)
 
     if not accounts:
         if not quiet:
@@ -349,17 +383,19 @@ def auto_switch_account(quiet=False):
     return ""
 
 def post_check_and_switch():
+    _sync_paths()
     had_quota_error, reset_time, blocked_model = check_last_log_for_quota_error()
     if not had_quota_error:
         sys.exit(1)
 
     print(f"⚠️ Quota exhausted on {blocked_model} model! {reset_time}")
 
-    if not os.path.exists(JSON_FILE):
+    from storage import load_accounts
+    try:
+        accounts = load_accounts()
+    except Exception as e:
+        print(f"❌ Failed to load accounts: {e}", file=sys.stderr)
         sys.exit(1)
-
-    with open(JSON_FILE, "r") as f:
-        accounts = json.load(f)
 
     active_idx = None
     if os.path.exists(TOKEN_FILE):
@@ -421,12 +457,13 @@ def post_check_and_switch():
         sys.exit(2)
 
 def rotate_account():
-    if not os.path.exists(JSON_FILE):
-        print(f"❌ accounts.json not found at {JSON_FILE}")
+    _sync_paths()
+    from storage import load_accounts
+    try:
+        accounts = load_accounts()
+    except Exception as e:
+        print(f"❌ Failed to load accounts: {e}")
         return
-
-    with open(JSON_FILE, "r") as f:
-        accounts = json.load(f)
 
     if not accounts:
         print("❌ No accounts in accounts.json!")
@@ -466,7 +503,8 @@ def rotate_account():
 
 
 def generate_quota_rollover():
-    brain_dir = os.path.expanduser("~/.gemini/antigravity-cli/brain")
+    _sync_paths()
+    brain_dir = os.path.expanduser(os.path.join(AGY_DIR, "brain"))
     if not os.path.exists(brain_dir):
         return
         

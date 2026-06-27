@@ -44,32 +44,40 @@ def _original_token_state(accounts):
         return None, None
 
     active_rt = token_data.get("token", {}).get("refresh_token")
-    if not active_rt:
-        return raw_token, None
-
-    for account in accounts:
-        if account.get("token", {}).get("refresh_token") == active_rt:
-            return raw_token, account.get("email") or account.get("name")
-    return raw_token, None
+    active_email = token_data.get("email") or token_data.get("name")
+    if not active_email and active_rt:
+        for account in accounts:
+            if account.get("token", {}).get("refresh_token") == active_rt:
+                active_email = account.get("email") or account.get("name")
+                break
+    return token_data, active_email
 
 
 def _quota_summary(model_quotas):
-    for rep_model in ["Gemini 3.5 Flash (Medium)", "Gemini 3.5 Flash (High)"]:
-        if rep_model not in model_quotas:
-            continue
-        quota = model_quotas[rep_model]
-        if "weekly_pct" in quota and "five_hour_pct" in quota:
-            weekly_pct = quota["weekly_pct"]
-            five_hour_pct = quota["five_hour_pct"]
-            weekly_refresh = quota.get("weekly_refresh", "")
-            five_hour_refresh = quota.get("five_hour_refresh", "")
-            five_hour_clean = format_exact_reset_time(five_hour_refresh) if five_hour_refresh else "Ready"
-            weekly_clean = format_exact_reset_time(weekly_refresh) if weekly_refresh else "Ready"
-            return f"5H:{five_hour_pct}%/W:{weekly_pct}%", f"5H:{five_hour_clean}/W:{weekly_clean}"
-        quota_text = f"{quota['pct']}%"
-        reset_text = format_exact_reset_time(quota["refresh"]) if quota.get("refresh") else ""
-        return quota_text, reset_text
-    return "100%", ""
+    if not model_quotas:
+        return "100%", ""
+
+    rep_model = None
+    for preferred in ["Gemini 3.5 Flash (Medium)", "Gemini 3.5 Flash (High)"]:
+        if preferred in model_quotas:
+            rep_model = preferred
+            break
+            
+    if not rep_model:
+        rep_model = next(iter(model_quotas.keys()))
+
+    quota = model_quotas[rep_model]
+    if "weekly_pct" in quota and "five_hour_pct" in quota:
+        weekly_pct = quota["weekly_pct"]
+        five_hour_pct = quota["five_hour_pct"]
+        weekly_refresh = quota.get("weekly_refresh", "")
+        five_hour_refresh = quota.get("five_hour_refresh", "")
+        five_hour_clean = format_exact_reset_time(five_hour_refresh) if five_hour_refresh else "Ready"
+        weekly_clean = format_exact_reset_time(weekly_refresh) if weekly_refresh else "Ready"
+        return f"5H:{five_hour_pct}%/W:{weekly_pct}%", f"5H:{five_hour_clean}/W:{weekly_clean}"
+    quota_text = f"{quota['pct']}%"
+    reset_text = format_exact_reset_time(quota["refresh"]) if quota.get("refresh") else ""
+    return quota_text, reset_text
 
 
 def _blocked_until(status, model_quotas, raw_reset):
@@ -98,7 +106,7 @@ def _blocked_until(status, model_quotas, raw_reset):
     return (datetime.now() + max_delta).isoformat()
 
 
-def _check_single_account(index, account, accounts, duplicate_tokens, active_email):
+def _check_single_account(index, account, accounts, duplicate_tokens, active_email, original_token=None):
     email = account.get("email") or account.get("name") or f"Account {index}"
 
     if index in duplicate_tokens:
@@ -121,8 +129,12 @@ def _check_single_account(index, account, accounts, duplicate_tokens, active_ema
     os.makedirs(sandbox_gemini_dir, exist_ok=True)
 
     sandbox_token_file = os.path.join(sandbox_gemini_dir, "antigravity-oauth-token")
+    token_to_write = account
+    if active_email and original_token and get_username(email) == get_username(active_email):
+        token_to_write = original_token
+
     with open(sandbox_token_file, "w") as handle:
-        json.dump(account, handle)
+        json.dump(token_to_write, handle)
 
     global_cache = os.path.join(AGY_DIR, "cache")
     if os.path.exists(global_cache):
@@ -247,6 +259,7 @@ def get_account_status():
                         accounts,
                         duplicate_tokens,
                         active_email,
+                        original_token,
                     )
                     for index, account in enumerate(accounts)
                 ]
@@ -254,7 +267,7 @@ def get_account_status():
                     results.append(future.result())
         else:
             for index, account in enumerate(accounts):
-                results.append(_check_single_account(index, account, accounts, duplicate_tokens, active_email))
+                results.append(_check_single_account(index, account, accounts, duplicate_tokens, active_email, original_token))
 
         results.sort(key=lambda result: result["idx"])
         for result in results:
@@ -264,7 +277,7 @@ def get_account_status():
     finally:
         if original_token is not None:
             with open(TOKEN_FILE, "w") as handle:
-                handle.write(original_token)
+                json.dump(original_token, handle)
 
     print(" " * 80, end="\r", flush=True)
     print_live_status_table(status_report)

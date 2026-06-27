@@ -171,3 +171,14 @@ python3 install-agy.py --uninstall
 ```
 
 Uninstall removes only installed wrappers and Python modules. It preserves `accounts.json`, `accounts-backup.json`, active tokens, backups, settings, logs, conversations, and caches. Credential deletion is never part of normal uninstall.
+
+## Troubleshooting & Recent Bug Fixes
+
+A comprehensive QA audit was conducted on 2026-06-27 to evaluate edge cases, error handling, and concurrency issues in the custom account manager. The following fixes were implemented:
+
+1. **Empty Configuration Crash**: Fixed a crash (`JSONDecodeError`) that occurred when `accounts.json`, `settings.json`, or `.current_index` were empty (0-byte files). They now gracefully default to empty pools (`[]`) or default policies (`round-robin`).
+2. **Active Token Sync Protection**: Implemented `sync_active_token_to_accounts()` to ensure that when `agy-bin` refreshes the active session token, the updated token is saved back to `accounts.json` before any account rotation occurs. This prevents losing refreshed tokens when switching accounts.
+3. **Duplicate Token Rotation Gate**: Enhanced `select_replacement_index()` to detect and filter out duplicate entries (accounts using the same refresh token), preventing endless switch-loops on the same blocked credentials.
+4. **Daemon Concurrency Lock**: Added process-level locking using `fcntl.flock` on `auto_rotate_daemon.lock` to prevent multiple background auto-rotate daemons from running concurrently and stepping on each other.
+5. **Path Leak Fix for Sandboxing**: Resolved an issue in `generate_quota_rollover()` where it was bypassing sandbox environments and accessing `~/.gemini/antigravity-cli/brain` directly instead of respecting `AGY_DIR_OVERRIDE`.
+6. **Robust Model Quota Formatting**: Updated `_quota_summary` to gracefully fall back and extract quota percentages/resets from *any* available models in the output if the hardcoded default model types (like `Gemini 3.5 Flash (Medium)`) are not returned or present in the current user settings.

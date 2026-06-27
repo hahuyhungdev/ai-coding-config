@@ -13,6 +13,8 @@ BACKUP_DIR = os.path.join(AGY_DIR, "backups")
 def load_accounts():
     if not os.path.exists(JSON_FILE):
         return []
+    if os.path.exists(JSON_FILE) and os.path.getsize(JSON_FILE) == 0:
+        return []
     with open(JSON_FILE, "r") as handle:
         data = json.load(handle)
     if not isinstance(data, list):
@@ -201,3 +203,41 @@ def doctor_report():
         "backup_count": len(list(Path(BACKUP_DIR).glob("accounts-*.json"))) if os.path.isdir(BACKUP_DIR) else 0,
         "issues": issues,
     }
+
+
+def sync_active_token_to_accounts():
+    if not os.path.exists(TOKEN_FILE) or not os.path.exists(JSON_FILE):
+        return
+    if os.path.getsize(TOKEN_FILE) == 0 or os.path.getsize(JSON_FILE) == 0:
+        return
+    try:
+        with open(TOKEN_FILE, "r") as f:
+            current_data = json.load(f)
+        with open(JSON_FILE, "r") as f:
+            accounts = json.load(f)
+    except Exception:
+        return
+
+    email = current_data.get("email") or current_data.get("name")
+    if not email:
+        return
+
+    try:
+        token_obj, auth_method, _ = normalize_token_payload(current_data, fallback_email=email)
+    except ValueError:
+        return
+
+    from utils import get_username
+    username = get_username(email)
+    updated = False
+    for index, account in enumerate(accounts):
+        account_email = account.get("email") or account.get("name") or ""
+        if get_username(account_email) == username:
+            if account.get("token") != token_obj:
+                accounts[index]["token"] = token_obj
+                accounts[index]["auth_method"] = auth_method
+                updated = True
+            break
+
+    if updated:
+        write_accounts(accounts, create_backup=False)
