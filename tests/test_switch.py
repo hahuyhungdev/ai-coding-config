@@ -16,14 +16,14 @@ import utils
 
 class TestSwitch(unittest.TestCase):
     def test_choose_same_account_fallback(self):
-        # Case 1: Gemini blocked, Claude available
+        # Case 1: Gemini blocked, Claude available (should return empty to trigger account switch, no fallback)
         acc = {
             "model_quotas": {
                 utils.CLAUDE_FALLBACK_MODEL: {"pct": 100}
             }
         }
         res = switch.choose_same_account_fallback(acc, blocked_model="gemini")
-        self.assertEqual(res, utils.CLAUDE_FALLBACK_MODEL)
+        self.assertEqual(res, "")
 
         # Case 2: Claude blocked (should never fall back to Gemini)
         acc = {
@@ -44,7 +44,7 @@ class TestSwitch(unittest.TestCase):
         res = switch.choose_same_account_fallback(acc)
         self.assertEqual(res, utils.GEMINI_FALLBACK_MODEL)
 
-        # Case 4: No blocked model, Gemini exhausted, Claude available
+        # Case 4: No blocked model, Gemini exhausted, Claude available (should return empty to trigger account switch, no fallback)
         acc = {
             "model_quotas": {
                 utils.GEMINI_FALLBACK_MODEL: {"pct": 0},
@@ -52,7 +52,7 @@ class TestSwitch(unittest.TestCase):
             }
         }
         res = switch.choose_same_account_fallback(acc)
-        self.assertEqual(res, utils.CLAUDE_FALLBACK_MODEL)
+        self.assertEqual(res, "")
 
     @patch("switch.get_remaining_reset_from_logs")
     def test_is_account_blocked_or_low(self, mock_reset_logs):

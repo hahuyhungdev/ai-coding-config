@@ -22,10 +22,10 @@ spec.loader.exec_module(agy_status)
 class TestRealFallbackLogic(unittest.TestCase):
     """Test choose_same_account_fallback with real model constants."""
 
-    def test_gemini_blocked_suggests_claude(self):
+    def test_gemini_blocked_does_not_suggest_claude(self):
         acc = {"model_quotas": {utils.CLAUDE_FALLBACK_MODEL: {"pct": 100}}}
         result = switch.choose_same_account_fallback(acc, blocked_model="gemini")
-        self.assertEqual(result, utils.CLAUDE_FALLBACK_MODEL)
+        self.assertEqual(result, "")
 
     def test_claude_blocked_never_suggests_gemini(self):
         acc = {"model_quotas": {utils.GEMINI_FALLBACK_MODEL: {"pct": 100}}}
@@ -40,13 +40,13 @@ class TestRealFallbackLogic(unittest.TestCase):
         result = switch.choose_same_account_fallback(acc)
         self.assertEqual(result, utils.GEMINI_FALLBACK_MODEL)
 
-    def test_gemini_exhausted_suggests_claude(self):
+    def test_gemini_exhausted_does_not_suggest_claude(self):
         acc = {"model_quotas": {
             utils.GEMINI_FALLBACK_MODEL: {"pct": 0},
             utils.CLAUDE_FALLBACK_MODEL: {"pct": 80}
         }}
         result = switch.choose_same_account_fallback(acc)
-        self.assertEqual(result, utils.CLAUDE_FALLBACK_MODEL)
+        self.assertEqual(result, "")
 
     def test_gemini_blocked_no_claude_quota_returns_empty(self):
         acc = {"model_quotas": {utils.CLAUDE_FALLBACK_MODEL: {"pct": 0}}}
