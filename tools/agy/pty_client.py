@@ -49,6 +49,12 @@ def get_quota_via_pty(email, sandbox_dir=None):
                     if not chunk:
                         break
                     output += chunk
+                    # Auto-confirm workspace trust if prompted (e.g. running in untrusted Cwd)
+                    if b"trust the contents" in chunk or b"trust this folder" in chunk or b"requires permission" in chunk:
+                        try:
+                            os.write(master, b"\x0d")
+                        except:
+                            pass
                     if b"\r\n>" in output or b"shortcuts" in output:
                         # Flush any remaining bytes
                         time.sleep(0.1)
