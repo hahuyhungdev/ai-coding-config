@@ -86,22 +86,41 @@ if [ "$has_prompt_flag" = false ]; then
 fi
 
 # 'auto' mode: spawn rotate daemon in background, then launch agy-bin as normal
-if [[ "$subcmd" == "auto" ]]; then
-    # Kill any existing daemon first
-    pkill -f 'auto_rotate_daemon\.py' 2>/dev/null
-    # Spawn daemon in background (fully detached from parent process group)
+if [[ "$subcmd" == "auto" || "$subcmd" == "daemon" ]]; then
+    DAEMON_PID_FILE="$AGY_DIR/auto_rotate_daemon.pid"
     DAEMON_LOG="$AGY_DIR/auto_daemon.log"
-    setsid python3 "$AGY_DIR/auto_rotate_daemon.py" > "$DAEMON_LOG" 2>&1 &
-    DAEMON_PID=$!
-    disown $DAEMON_PID 2>/dev/null
-    # Auto-kill daemon when CLI exits
-    trap "kill $DAEMON_PID 2>/dev/null; echo '🛑 Auto-rotate daemon stopped.'" EXIT
-    echo "🚀 Auto-rotate daemon started (PID: $DAEMON_PID). Checking every 5m in background."
-    echo "   Log: $DAEMON_LOG"
-    echo "   Daemon will auto-stop when you exit the CLI."
-    # Remove 'auto' from args so agy-bin launches clean
-    shift
-    subcmd=""
+    DAEMON_OWNER=false
+
+    # Check if a daemon is already running via PID file
+    if [ -f "$DAEMON_PID_FILE" ]; then
+        EXISTING_PID=$(cat "$DAEMON_PID_FILE" 2>/dev/null)
+        if [ -n "$EXISTING_PID" ] && kill -0 "$EXISTING_PID" 2>/dev/null; then
+            echo "ℹ️ Auto-rotate daemon already running (PID: $EXISTING_PID). Reusing existing daemon."
+            echo "   Log: $DAEMON_LOG"
+            # Don't kill the existing daemon on exit — we didn't spawn it
+            shift
+            subcmd=""
+        else
+            # Stale PID file — daemon is dead, clean up and spawn new
+            rm -f "$DAEMON_PID_FILE" 2>/dev/null
+        fi
+    fi
+
+    # Spawn a new daemon only if we didn't reuse an existing one
+    if [ "$subcmd" = "auto" ] || [ "$subcmd" = "daemon" ]; then
+        setsid python3 "$AGY_DIR/auto_rotate_daemon.py" > "$DAEMON_LOG" 2>&1 &
+        DAEMON_PID=$!
+        disown $DAEMON_PID 2>/dev/null
+        DAEMON_OWNER=true
+        # Auto-kill daemon when THIS CLI session exits (only if we spawned it)
+        trap "kill $DAEMON_PID 2>/dev/null; rm -f '$DAEMON_PID_FILE' 2>/dev/null; echo '🛑 Auto-rotate daemon stopped.'" EXIT
+        echo "🚀 Auto-rotate daemon started (PID: $DAEMON_PID). Checking every 5m in background."
+        echo "   Log: $DAEMON_LOG"
+        echo "   Daemon will auto-stop when you exit the CLI."
+        # Remove 'auto'/'daemon' from args so agy-bin launches clean
+        shift
+        subcmd=""
+    fi
 fi
 
 # Management commands are handled by the Python CLI; everything else launches agy-bin.

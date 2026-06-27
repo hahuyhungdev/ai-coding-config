@@ -1,4 +1,5 @@
 import os
+import signal
 import sys
 import time
 from datetime import datetime, timedelta
@@ -15,14 +16,29 @@ def run_check(refresh_status=True):
     auto_switch_account(quiet=False)
 
 
+def is_daemon_alive(pid_file):
+    """Check if a daemon process recorded in the PID file is still running."""
+    if not os.path.exists(pid_file):
+        return False, None
+    try:
+        with open(pid_file, "r") as f:
+            pid = int(f.read().strip())
+        # Check if the process is still alive
+        os.kill(pid, 0)
+        return True, pid
+    except (OSError, ValueError):
+        return False, None
+
+
 def main(argv=None):
     import argparse
-    from utils import AGY_DIR
     import fcntl
+    from utils import AGY_DIR
 
     # Lock file to prevent concurrent daemon executions
     os.makedirs(AGY_DIR, exist_ok=True)
     lock_file_path = os.path.join(AGY_DIR, "auto_rotate_daemon.lock")
+    pid_file_path = os.path.join(AGY_DIR, "auto_rotate_daemon.pid")
     try:
         global _lock_file
         _lock_file = open(lock_file_path, "w")
@@ -33,6 +49,18 @@ def main(argv=None):
         print("❌ Another instance of the auto-rotate daemon is already running.", file=sys.stderr)
         sys.exit(1)
 
+    # Write PID file for external liveness checks
+    with open(pid_file_path, "w") as f:
+        f.write(str(os.getpid()))
+
+    def cleanup_pid(*_args):
+        try:
+            os.unlink(pid_file_path)
+        except OSError:
+            pass
+
+    signal.signal(signal.SIGTERM, lambda sig, frame: (cleanup_pid(), sys.exit(0)))
+
     parser = argparse.ArgumentParser(description="Auto-rotate daemon")
     parser.add_argument("--interval", type=int, default=300, help="Scan interval in seconds")
     parser.add_argument("--window", type=int, default=310, help="Scan window in seconds (ignored)")
@@ -42,7 +70,7 @@ def main(argv=None):
     scan_interval = args.interval
     refresh_status = not args.no_refresh_status
 
-    print(f"🚀 Auto-rotate daemon is running. Checking every {scan_interval}s. Press Ctrl+C to stop.")
+    print(f"🚀 Auto-rotate daemon is running (PID: {os.getpid()}). Checking every {scan_interval}s. Press Ctrl+C to stop.")
     sys.stdout.flush()
     try:
         while True:
@@ -55,6 +83,8 @@ def main(argv=None):
             time.sleep(scan_interval)
     except KeyboardInterrupt:
         print("\n🛑 Daemon stopped.")
+    finally:
+        cleanup_pid()
 
 if __name__ == "__main__":
     main()

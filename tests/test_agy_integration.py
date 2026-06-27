@@ -177,6 +177,9 @@ class TestAgyIntegration(unittest.TestCase):
     def test_concurrent_daemon_execution(self):
         # Verify that lock is acquired and prevents a second instance from starting
         import subprocess
+        import signal
+        
+        pid_file = os.path.join(SANDBOX_BASE, "auto_rotate_daemon.pid")
         
         # Start daemon 1
         daemon1 = subprocess.Popen(
@@ -189,6 +192,12 @@ class TestAgyIntegration(unittest.TestCase):
         # Give it a brief moment to start and acquire lock
         time.sleep(0.5)
         
+        # Verify PID file was created with the correct PID
+        self.assertTrue(os.path.exists(pid_file), "PID file should be created by daemon")
+        with open(pid_file, "r") as f:
+            recorded_pid = int(f.read().strip())
+        self.assertEqual(recorded_pid, daemon1.pid)
+        
         # Run daemon 2 and verify it exits with 1
         daemon2 = subprocess.run(
             [sys.executable, "-c", "import sys, os; sys.path.insert(0, sys.argv[1]); import auto_rotate_daemon; auto_rotate_daemon.main(['--interval', '10'])", tools_dir],
@@ -200,11 +209,17 @@ class TestAgyIntegration(unittest.TestCase):
         self.assertEqual(daemon2.returncode, 1)
         self.assertIn("Another instance of the auto-rotate daemon is already running", daemon2.stderr)
         
-        # Terminate daemon 1
-        daemon1.terminate()
-        daemon1.wait()
+        # Terminate daemon 1 via SIGTERM — should clean up PID file
+        daemon1.send_signal(signal.SIGTERM)
+        daemon1.wait(timeout=5)
         daemon1.stdout.close()
         daemon1.stderr.close()
+        
+        # Give a moment for cleanup
+        time.sleep(0.2)
+        
+        # PID file should be cleaned up after SIGTERM
+        self.assertFalse(os.path.exists(pid_file), "PID file should be cleaned up after daemon stops")
 
     def test_expired_active_tokens_sync(self):
         # 1. Setup accounts on disk

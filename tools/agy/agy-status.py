@@ -334,9 +334,15 @@ def main(argv=None):
         # Only catch argparse errors (exit code 2), not --help/--version (exit 0)
         if exc.code == 0:
             raise
-        # Argparse failed — suggest closest match for the subcommand
+        # Argparse failed — but only suggest typos if the subcommand is truly unknown.
+        # If the subcommand is valid (e.g. "rename") but has missing required args,
+        # argparse already printed the correct usage error — don't add confusing suggestions.
         subcmd = translated_args[0] if translated_args else ""
-        if subcmd and subcmd != "--json":
+        if subcmd == "--json":
+            subcmd = translated_args[1] if len(translated_args) > 1 else ""
+        valid_subcommands = {"status", "list", "add", "current", "use", "rename",
+                             "remove", "doctor", "backup", "restore", "weekly", "clean"}
+        if subcmd and subcmd not in valid_subcommands:
             # Check if original had "account" prefix for display
             had_account = len(raw_args) > 1 and raw_args[0 if raw_args[0] != "--json" else 1] == "account"
             matches = difflib.get_close_matches(subcmd, TOP_LEVEL_COMMANDS, n=1, cutoff=0.5)
