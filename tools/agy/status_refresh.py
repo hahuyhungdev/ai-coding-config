@@ -150,6 +150,13 @@ def _check_single_account(index, account, accounts, duplicate_tokens, active_ema
         except Exception:
             pass
 
+    real_inst_id = os.path.join(AGY_DIR, "installation_id")
+    if os.path.exists(real_inst_id):
+        try:
+            shutil.copy2(real_inst_id, os.path.join(sandbox_gemini_dir, "installation_id"))
+        except Exception:
+            pass
+
     output = get_quota_via_pty(email, sandbox_dir=sandbox_dir)
 
     refreshed_token = None
