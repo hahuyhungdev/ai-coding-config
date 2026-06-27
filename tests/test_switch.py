@@ -305,7 +305,7 @@ Rate limit reached on model
 
     @patch("switch.check_last_log_for_quota_error")
     @patch("switch.get_remaining_reset_from_logs")
-    def test_auto_switch_selects_highest_quota(self, mock_reset_logs, mock_quota_err):
+    def test_auto_switch_uses_round_robin_health_gate_by_default(self, mock_reset_logs, mock_quota_err):
         mock_reset_logs.return_value = None
         mock_quota_err.return_value = (False, "", "")
 
@@ -316,6 +316,7 @@ Rate limit reached on model
             switch.JSON_FILE = json_file
             switch.TOKEN_FILE = token_file
             switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
 
             accounts = [
                 {
@@ -349,7 +350,85 @@ Rate limit reached on model
             self.assertEqual(switch.auto_switch_account(quiet=True), "")
             with open(token_file, "r") as f:
                 saved = json.load(f)
+                self.assertEqual(saved["token"]["refresh_token"], "rt2")
+
+    @patch("switch.check_last_log_for_quota_error")
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_round_robin_skips_low_candidates(self, mock_reset_logs, mock_quota_err):
+        mock_reset_logs.return_value = None
+        mock_quota_err.return_value = (False, "", "")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file = os.path.join(tmpdir, "accounts.json")
+            token_file = os.path.join(tmpdir, "token")
+
+            switch.JSON_FILE = json_file
+            switch.TOKEN_FILE = token_file
+            switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
+
+            accounts = [
+                {"email": "acc1@gmail.com", "token": {"refresh_token": "rt1"}, "quota": "0%", "status": "🔴 Blocked"},
+                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "20%", "status": "🟢 Ready"},
+                {"email": "acc3@gmail.com", "token": {"refresh_token": "rt3"}, "quota": "70%", "status": "🟢 Ready"},
+            ]
+            with open(json_file, "w") as f:
+                json.dump(accounts, f)
+            with open(token_file, "w") as f:
+                json.dump(accounts[0], f)
+
+            self.assertEqual(switch.auto_switch_account(quiet=True), "")
+            with open(token_file, "r") as f:
+                saved = json.load(f)
                 self.assertEqual(saved["token"]["refresh_token"], "rt3")
+
+    @patch("switch.check_last_log_for_quota_error")
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_round_robin_falls_back_to_best_low_quota_when_no_healthy_candidate(self, mock_reset_logs, mock_quota_err):
+        mock_reset_logs.return_value = None
+        mock_quota_err.return_value = (False, "", "")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file = os.path.join(tmpdir, "accounts.json")
+            token_file = os.path.join(tmpdir, "token")
+
+            switch.JSON_FILE = json_file
+            switch.TOKEN_FILE = token_file
+            switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
+
+            accounts = [
+                {"email": "acc1@gmail.com", "token": {"refresh_token": "rt1"}, "quota": "0%", "status": "🔴 Blocked"},
+                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "18%", "status": "🟢 Ready"},
+                {"email": "acc3@gmail.com", "token": {"refresh_token": "rt3"}, "quota": "25%", "status": "🟢 Ready"},
+            ]
+            with open(json_file, "w") as f:
+                json.dump(accounts, f)
+            with open(token_file, "w") as f:
+                json.dump(accounts[0], f)
+
+            self.assertEqual(switch.auto_switch_account(quiet=True), "")
+            with open(token_file, "r") as f:
+                saved = json.load(f)
+                self.assertEqual(saved["token"]["refresh_token"], "rt3")
+
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_highest_quota_policy_remains_available_from_settings(self, mock_reset_logs):
+        mock_reset_logs.return_value = None
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
+            with open(switch.SETTINGS_FILE, "w") as f:
+                json.dump({"rotationPolicy": "highest-quota"}, f)
+
+            accounts = [
+                {"email": "acc1@gmail.com", "quota": "0%", "status": "🔴 Blocked"},
+                {"email": "acc2@gmail.com", "quota": "50%", "status": "🟢 Ready"},
+                {"email": "acc3@gmail.com", "quota": "90%", "status": "🟢 Ready"},
+            ]
+
+            self.assertEqual(switch.select_replacement_index(accounts, 0), 2)
 
 
 if __name__ == "__main__":

@@ -44,32 +44,32 @@ The installed runtime lives outside this repo at:
 
 ## Notable Features & Account Rotation
 
-### 1. Smart-Select Account Rotation Algorithm
-All account rotation mechanisms—including manual command `agy rotate`, the `/switch-account` slash command, CLI startup checks, and the background daemon—use a unified **Smart-Select Algorithm**:
-- **First Pass (Healthy Candidates)**: Scans all candidate accounts (excluding the active one), filtering out those marked as blocked or with remaining quota $\le 30\%$. Out of these healthy accounts, it selects the one with the **highest remaining quota percentage**.
-- **Second Pass (Best-Effort Fallback)**: If all candidate accounts are blocked or low on quota, the algorithm selects the candidate with the **best remaining quota** (the highest percentage among the low/blocked accounts) to make a best-effort continuation.
-- This ensures the wrapper always picks the most capable account rather than cycling blindly via round-robin.
+### 1. Health-Gated Round-Robin Rotation Algorithm
+All account rotation mechanisms—including manual command `agy rotate`, the `/rotate` slash command, CLI startup checks, and the background daemon—use a unified **round-robin with health gate** algorithm by default:
+- **First Pass (Healthy Round-Robin)**: Scans candidate accounts after the active account in configured order, filtering out accounts marked as blocked or with remaining quota $\le 30\%$. It selects the first healthy account in that order.
+- **Second Pass (Best-Effort Fallback)**: If all healthy candidates are unavailable, the algorithm selects the non-blocked low-quota candidate with the best remaining quota to make a best-effort continuation.
+- **Optional Policy**: Set `"rotationPolicy": "highest-quota"` in `~/.gemini/antigravity-cli/settings.json` to restore highest-quota-first selection. The default is `"round-robin"`.
 
 ### 2. Auto-Switch at Startup (Proactive Switching)
 Before launching `agy-bin` for any prompt-mode session (including resumes using `-c` or `--conversation`), the wrapper executes a proactive `auto-switch` check:
-- If the current active account is blocked or falls below the **30% quota threshold** (quota $\le 30\%$), the CLI automatically switches to the best healthy candidate using the smart-select algorithm *before* starting the session.
+- If the current active account is blocked or falls below the **30% quota threshold** (quota $\le 30\%$), the CLI automatically switches to the next healthy round-robin candidate *before* starting the session.
 
 ### 3. Background Auto-Rotate Daemon (`agy auto`)
 Users can launch the CLI with `agy auto` to run a background daemon:
 - Spawns a background worker (`auto_rotate_daemon.py`) that monitors the active account's status every 5 minutes (default `300s`).
-- If the active account gets blocked or drops below 30% quota during an active session, the daemon automatically switches the active token to the highest-quota account.
+- Each daemon interval refreshes live account quota, then switches the active token when the active account is blocked or drops below 30% quota.
 - The daemon is bound to the parent process and automatically shuts down when the CLI exits.
 
-### 4. Custom Slash Command `/switch-account`
-For manual intervention during active sessions, users can run the `/switch-account` command (implemented as a custom skill).
-- Directly swaps the active account to the highest-quota candidate instantly using the smart-select algorithm without requiring a CLI restart.
+### 4. Custom Slash Command `/rotate`
+For manual intervention during active sessions, users can run the `/rotate` command (implemented as a custom skill).
+- Directly swaps the active account to the next healthy round-robin candidate without requiring a CLI restart.
 
 ### 5. Automated Session Resume (Quota Rollover)
 If a quota error occurs mid-session (or during model/account switching), the wrapper:
 - Intercepts the failure.
 - Marks the account as blocked with an estimated reset time (updating `accounts.json`).
 - Automatically exports the last few turns of recent conversation history into `.agy_progress.md`.
-- Selects the next best account (or model fallback).
+- Selects the next healthy round-robin account, or the best available non-blocked low-quota candidate when no healthy account remains.
 - Launches a new session, feeding the previous conversation context into a `<compaction_rollover>` prompt to resume the task seamlessly.
 
 ## Refactor Boundaries

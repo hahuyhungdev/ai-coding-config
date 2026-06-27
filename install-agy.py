@@ -127,6 +127,22 @@ def main():
     src_wrapper = src_dir / "agy"
     if src_wrapper.exists():
         dst_wrapper = bin_dir / "agy"
+        real_agy = bin_dir / "agy-bin"
+        if dst_wrapper.exists() and not real_agy.exists():
+            try:
+                existing = dst_wrapper.read_text(encoding="utf-8", errors="ignore")
+                managed_wrapper = src_wrapper.read_text(encoding="utf-8", errors="ignore")
+                if existing != managed_wrapper:
+                    shutil.copy2(dst_wrapper, real_agy)
+                    try:
+                        real_agy.chmod(0o755)
+                    except Exception:
+                        pass
+                    print(f"   Preserved existing Antigravity binary as {real_agy}")
+                else:
+                    print(f"⚠️ Warning: {real_agy} is missing. Install the official Antigravity CLI before launching agy.")
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to preserve existing agy binary: {e}")
         shutil.copy2(src_wrapper, dst_wrapper)
         try:
             dst_wrapper.chmod(0o755)
@@ -165,6 +181,11 @@ def main():
     # 6. Copy skills if directory exists
     src_skills = repo_dir / "skills"
     if src_skills.exists():
+        dst_skills = gemini_dir / "skills"
+        if dst_skills.exists():
+            for item in dst_skills.iterdir():
+                if item.is_dir() and not (src_skills / item.name).exists():
+                    shutil.rmtree(item)
         for item in src_skills.iterdir():
             if item.is_dir():
                 dst_item = gemini_dir / "skills" / item.name

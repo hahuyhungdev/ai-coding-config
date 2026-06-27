@@ -283,6 +283,37 @@ exit /b 0
         self.assertTrue(agy_readme.is_file())
         self.assertIn("Module Map", agy_readme.read_text())
 
+    def test_setup_agy_preserves_existing_upstream_binary(self):
+        existing_bin_dir = self.home / ".local" / "bin"
+        existing_bin_dir.mkdir(parents=True, exist_ok=True)
+        upstream_agy = existing_bin_dir / "agy"
+        upstream_agy.write_text("#!/bin/sh\nprintf 'UPSTREAM_AGY:%s\\n' \"$*\"\n")
+        upstream_agy.chmod(0o755)
+
+        result = self._run_agy()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        real_agy = existing_bin_dir / "agy-bin"
+        self.assertTrue(real_agy.is_file())
+        self.assertIn("UPSTREAM_AGY", real_agy.read_text())
+        wrapped = self._run_installed_agy("models")
+        self.assertEqual(wrapped.returncode, 0, wrapped.stderr)
+        self.assertIn("UPSTREAM_AGY:models", wrapped.stdout)
+
+    def test_setup_agy_installs_rotate_skill_and_removes_switch_account(self):
+        stale_skill = self.home / ".gemini" / "config" / "skills" / "switch-account"
+        stale_skill.mkdir(parents=True, exist_ok=True)
+        (stale_skill / "SKILL.md").write_text("stale")
+
+        result = self._run_agy()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        skills_dir = self.home / ".gemini" / "config" / "skills"
+        rotate_skill = skills_dir / "rotate" / "SKILL.md"
+        self.assertTrue(rotate_skill.is_file())
+        self.assertIn("name: rotate", rotate_skill.read_text())
+        self.assertFalse(stale_skill.exists())
+
     def test_add_current_account_alias_bootstraps_missing_account_pool(self):
         install = self._run_agy()
         self.assertEqual(install.returncode, 0, install.stderr)
@@ -463,6 +494,45 @@ exit /b 0
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("REAL_AGY_CALLED:-p hello", result.stdout)
+
+    @unittest.skipIf(sys.platform == "win32", "agy wrapper retry test uses POSIX shell")
+    def test_agy_retries_after_quota_error_and_switches_account(self):
+        install = self._run_agy()
+        self.assertEqual(install.returncode, 0, install.stderr)
+        agy_dir, _ = self._seed_agy_accounts()
+        real_agy = self.home / ".local" / "bin" / "agy-bin"
+        real_agy.write_text(
+            """#!/bin/sh
+set -eu
+COUNT_FILE="$HOME/.gemini/antigravity-cli/retry-count"
+LOG_DIR="$HOME/.gemini/antigravity-cli/log"
+mkdir -p "$LOG_DIR"
+count=0
+if [ -f "$COUNT_FILE" ]; then
+  count="$(cat "$COUNT_FILE")"
+fi
+if [ "$count" = "0" ]; then
+  echo 1 > "$COUNT_FILE"
+  cat > "$LOG_DIR/cli-test.log" <<'EOF'
+label="Gemini 3.5 Flash (High)"
+RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 4h47m6s.
+EOF
+  echo "FIRST_ATTEMPT_QUOTA_ERROR"
+  exit 1
+fi
+echo "SECOND_ATTEMPT_OK:$*"
+exit 0
+"""
+        )
+        real_agy.chmod(0o755)
+
+        result = self._run_installed_agy("-p", "hello")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("FIRST_ATTEMPT_QUOTA_ERROR", result.stdout)
+        self.assertIn("SECOND_ATTEMPT_OK:-p hello", result.stdout)
+        active = json.loads((agy_dir / "antigravity-oauth-token").read_text())
+        self.assertEqual(active["token"]["refresh_token"], "rt-2")
 
     def test_bare_agy_still_launches_interactive_cli(self):
         install = self._run_agy()

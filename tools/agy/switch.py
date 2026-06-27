@@ -13,6 +13,88 @@ from utils import (
 )
 from parser import get_remaining_reset_from_logs
 
+SETTINGS_FILE = os.path.join(AGY_DIR, "settings.json")
+ROUND_ROBIN_POLICY = "round-robin"
+HIGHEST_QUOTA_POLICY = "highest-quota"
+
+
+def load_rotation_policy():
+    try:
+        with open(SETTINGS_FILE, "r") as f:
+            settings = json.load(f)
+    except Exception:
+        return ROUND_ROBIN_POLICY
+
+    raw_policy = (
+        settings.get("rotationPolicy")
+        or settings.get("rotation_policy")
+        or ROUND_ROBIN_POLICY
+    )
+    policy = str(raw_policy).strip().lower().replace("_", "-")
+    if policy in {ROUND_ROBIN_POLICY, HIGHEST_QUOTA_POLICY}:
+        return policy
+    return ROUND_ROBIN_POLICY
+
+
+def _candidate_indexes(accounts, active_idx):
+    if len(accounts) <= 1:
+        return []
+    return [(active_idx + offset) % len(accounts) for offset in range(1, len(accounts))]
+
+
+def _best_remaining_quota_index(accounts, indexes):
+    best_idx = None
+    best_quota = -2
+    for idx in indexes:
+        quota = remaining_quota_value(accounts[idx].get("quota"))
+        if quota > best_quota:
+            best_quota = quota
+            best_idx = idx
+    return best_idx
+
+
+def select_replacement_index(accounts, active_idx, policy=None, allow_best_effort=True):
+    policy = policy or load_rotation_policy()
+    indexes = _candidate_indexes(accounts, active_idx)
+    if not indexes:
+        return None
+
+    healthy_indexes = [
+        idx for idx in indexes
+        if not is_account_blocked_or_low(accounts[idx], accounts)
+    ]
+
+    if healthy_indexes:
+        if policy == HIGHEST_QUOTA_POLICY:
+            return _best_remaining_quota_index(accounts, healthy_indexes)
+        return healthy_indexes[0]
+
+    if allow_best_effort:
+        low_quota_indexes = [
+            idx for idx in indexes
+            if accounts[idx].get("status") != "🔴 Blocked"
+        ]
+        return _best_remaining_quota_index(accounts, low_quota_indexes)
+    return None
+
+
+def _write_active_account(accounts, selected_idx):
+    selected_acc = accounts[selected_idx]
+    with open(TOKEN_FILE, "w") as f:
+        json.dump(selected_acc, f)
+    if os.name == 'posix':
+        try:
+            os.chmod(TOKEN_FILE, 0o600)
+        except OSError:
+            pass
+
+    index_file = os.path.join(AGY_DIR, ".current_index")
+    with open(index_file, "w") as f:
+        f.write(str((selected_idx + 1) % len(accounts)))
+
+    return selected_acc
+
+
 def has_model_quota(acc, model_name, threshold=30):
     return get_model_pct(acc.get("model_quotas", {}), model_name) > threshold
 
@@ -217,58 +299,19 @@ def auto_switch_account(quiet=False):
         if not quiet:
             print(f"⚠️ Current account '{active_email}' is blocked or has low quota (<=30%). Searching for replacement...")
 
-        # Search for healthy candidate with the highest remaining quota
-        found_idx = None
-        best_idx = None
-        best_quota = -2
-        for i in range(1, len(accounts)):
-            candidate_idx = (active_idx + i) % len(accounts)
-            candidate_acc = accounts[candidate_idx]
-            candidate_email = candidate_acc.get("email") or candidate_acc.get("name") or f"Account {candidate_idx + 1}"
-            
-            if not quiet:
-                print(f"  🔍 Checking candidate: {candidate_email}...", end="\r", flush=True)
-                time.sleep(0.12)
-            
-            if not is_account_blocked_or_low(candidate_acc, accounts):
-                q_val = remaining_quota_value(candidate_acc.get("quota"))
-                if q_val > best_quota:
-                    best_quota = q_val
-                    best_idx = candidate_idx
-                if not quiet:
-                    print(f"  ✅ Eligible (quota {q_val}%): {candidate_email}      ", flush=True)
-            else:
-                if not quiet:
-                    print(f"  ❌ Skipped (low quota/blocked): {candidate_email}      ", flush=True)
-
-        if best_idx is not None:
-            found_idx = best_idx
-            best_email = accounts[best_idx].get("email") or accounts[best_idx].get("name") or f"Account {best_idx + 1}"
-            if not quiet:
-                print(f"  ✅ Selected replacement with highest quota ({best_quota}%): {best_email}!      ", flush=True)
+        policy = load_rotation_policy()
+        found_idx = select_replacement_index(accounts, active_idx, policy=policy)
 
         if found_idx is not None:
-            # Switch to this account!
-            selected_acc = accounts[found_idx]
-            with open(TOKEN_FILE, "w") as f:
-                json.dump(selected_acc, f)
-            if os.name == 'posix':
-                try:
-                    os.chmod(TOKEN_FILE, 0o600)
-                except OSError:
-                    pass
-
-            INDEX_FILE = os.path.join(AGY_DIR, ".current_index")
-            with open(INDEX_FILE, "w") as f:
-                f.write(str((found_idx + 1) % len(accounts)))
-
+            selected_acc = _write_active_account(accounts, found_idx)
             new_email = selected_acc.get("email") or selected_acc.get("name")
             quota = selected_acc.get("quota", "?")
             reset_info = selected_acc.get("reset_info", "")
             quota_str = f" - Quota: {quota}"
             if reset_info:
                 quota_str += f" ({reset_info})"
-            print(f"🔄 Auto-switched account to: {new_email} (Index: [{found_idx + 1}]){quota_str}")
+            if not quiet:
+                print(f"🔄 Auto-switched account to: {new_email} (Index: [{found_idx + 1}], policy: {policy}){quota_str}")
 
             # Suggest model for the newly switched account if needed
             suggestion = get_model_suggestion(selected_acc)
@@ -358,45 +401,11 @@ def post_check_and_switch():
     if active_idx is None:
         active_idx = 0
 
-    found_idx = None
-    best_idx = None
-    best_quota = -2
-    for i in range(1, len(accounts)):
-        candidate_idx = (active_idx + i) % len(accounts)
-        candidate_acc = accounts[candidate_idx]
-        candidate_email = candidate_acc.get("email") or candidate_acc.get("name") or f"Account {candidate_idx + 1}"
-        
-        print(f"  🔍 Checking candidate: {candidate_email}...", end="\r", flush=True)
-        time.sleep(0.12)
-        
-        if not is_account_blocked_or_low(candidate_acc, accounts):
-            q_val = remaining_quota_value(candidate_acc.get("quota"))
-            if q_val > best_quota:
-                best_quota = q_val
-                best_idx = candidate_idx
-            print(f"  ✅ Eligible (quota {q_val}%): {candidate_email}      ", flush=True)
-        else:
-            print(f"  ❌ Skipped (low quota/blocked): {candidate_email}      ", flush=True)
-
-    if best_idx is not None:
-        found_idx = best_idx
-        best_email = accounts[best_idx].get("email") or accounts[best_idx].get("name") or f"Account {best_idx + 1}"
-        print(f"  ✅ Selected replacement with highest quota ({best_quota}%): {best_email}!      ", flush=True)
+    policy = load_rotation_policy()
+    found_idx = select_replacement_index(accounts, active_idx, policy=policy)
 
     if found_idx is not None:
-        selected_acc = accounts[found_idx]
-        with open(TOKEN_FILE, "w") as f:
-            json.dump(selected_acc, f)
-        if os.name == 'posix':
-            try:
-                os.chmod(TOKEN_FILE, 0o600)
-            except OSError:
-                pass
-
-        INDEX_FILE = os.path.join(AGY_DIR, ".current_index")
-        with open(INDEX_FILE, "w") as f:
-            f.write(str((found_idx + 1) % len(accounts)))
-
+        selected_acc = _write_active_account(accounts, found_idx)
         new_email = selected_acc.get("email") or selected_acc.get("name")
         quota = selected_acc.get("quota", "?")
         reset_info = selected_acc.get("reset_info", "")
@@ -404,7 +413,7 @@ def post_check_and_switch():
         if reset_info:
             quota_str += f" ({reset_info})"
         generate_quota_rollover()
-        print(f"🔄 Switched to: {new_email} (Index: [{found_idx + 1}]){quota_str} — retrying...")
+        print(f"🔄 Switched to: {new_email} (Index: [{found_idx + 1}], policy: {policy}){quota_str} — retrying...")
         print("SWITCH_ACCOUNT")
         sys.exit(0)
     else:
@@ -441,53 +450,19 @@ def rotate_account():
         print("ℹ️ Only one account in accounts.json. No rotation needed.")
         return
 
-    # Find candidate with highest quota that is not the current active one
-    best_idx = None
-    best_quota = -2
-    
-    # First pass: look for healthy candidates (not blocked or low)
-    for i in range(1, len(accounts)):
-        candidate_idx = (active_idx + i) % len(accounts)
-        candidate_acc = accounts[candidate_idx]
-        if not is_account_blocked_or_low(candidate_acc, accounts):
-            q_val = remaining_quota_value(candidate_acc.get("quota"))
-            if q_val > best_quota:
-                best_quota = q_val
-                best_idx = candidate_idx
-
-    # Second pass: if no healthy candidate, pick the best among low/blocked accounts (excluding active one)
-    if best_idx is None:
-        for i in range(1, len(accounts)):
-            candidate_idx = (active_idx + i) % len(accounts)
-            candidate_acc = accounts[candidate_idx]
-            q_val = remaining_quota_value(candidate_acc.get("quota"))
-            if q_val > best_quota:
-                best_quota = q_val
-                best_idx = candidate_idx
-
+    policy = load_rotation_policy()
+    best_idx = select_replacement_index(accounts, active_idx, policy=policy)
     if best_idx is None:
         best_idx = (active_idx + 1) % len(accounts)
 
-    selected_acc = accounts[best_idx]
-    with open(TOKEN_FILE, "w") as f:
-        json.dump(selected_acc, f)
-    if os.name == 'posix':
-        try:
-            os.chmod(TOKEN_FILE, 0o600)
-        except OSError:
-            pass
-
-    INDEX_FILE = os.path.join(AGY_DIR, ".current_index")
-    with open(INDEX_FILE, "w") as f:
-        f.write(str((best_idx + 1) % len(accounts)))
-
+    selected_acc = _write_active_account(accounts, best_idx)
     email = selected_acc.get("email") or selected_acc.get("name") or f"Account {best_idx + 1}"
     quota = selected_acc.get("quota", "?")
     reset_info = selected_acc.get("reset_info", "")
     quota_str = f" - Quota: {quota}"
     if reset_info:
         quota_str += f" ({reset_info})"
-    print(f"🔄 Manually rotated active account to: {email} (Index: [{best_idx + 1} / {len(accounts)}]){quota_str}")
+    print(f"🔄 Manually rotated active account to: {email} (Index: [{best_idx + 1} / {len(accounts)}], policy: {policy}){quota_str}")
 
 
 def generate_quota_rollover():

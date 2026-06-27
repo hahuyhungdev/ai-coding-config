@@ -5,23 +5,33 @@ from datetime import datetime, timedelta
 
 # Ensure local imports work
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from status_refresh import get_account_status
 from switch import auto_switch_account
+
+
+def run_check(refresh_status=True):
+    if refresh_status:
+        get_account_status()
+    auto_switch_account(quiet=False)
+
 
 def main(argv=None):
     import argparse
     parser = argparse.ArgumentParser(description="Auto-rotate daemon")
     parser.add_argument("--interval", type=int, default=300, help="Scan interval in seconds")
     parser.add_argument("--window", type=int, default=310, help="Scan window in seconds (ignored)")
+    parser.add_argument("--no-refresh-status", action="store_true", help="Use cached account status instead of live quota refresh")
     args, _ = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
 
     scan_interval = args.interval
+    refresh_status = not args.no_refresh_status
 
     print(f"🚀 Auto-rotate daemon is running. Checking every {scan_interval}s. Press Ctrl+C to stop.")
     sys.stdout.flush()
     try:
         while True:
             try:
-                auto_switch_account(quiet=False)
+                run_check(refresh_status=refresh_status)
             except Exception as e:
                 print(f"⚠️ [DAEMON] Error: {e}", file=sys.stderr)
             next_check = datetime.now() + timedelta(seconds=scan_interval)

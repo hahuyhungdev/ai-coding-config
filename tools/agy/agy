@@ -169,6 +169,7 @@ done
 
 attempt=0
 while [ $attempt -le $MAX_RETRIES ]; do
+    needs_check=false
     # Build args — inject --model if suggested by auto-switch or post-check
     if [ -n "$SUGGESTED_MODEL" ]; then
         set_model_arg "$SUGGESTED_MODEL" "$@"
@@ -184,7 +185,6 @@ while [ $attempt -le $MAX_RETRIES ]; do
             echo "$agy_output"
         fi
         # Empty output + exit 0 = silent quota failure
-        needs_check=false
         if [ $exit_code -ne 0 ] || [ -z "$agy_output" ]; then
             needs_check=true
         fi
@@ -212,6 +212,21 @@ while [ $attempt -le $MAX_RETRIES ]; do
             AUTO_PROMPT=$(echo -e "<compaction_rollover>\n<instructions>\n- You are resuming a compacted session. Read the progress summary below to restore your context.\n- IMPORTANT: Do NOT execute any pending tasks or run commands automatically. Present the summary, suggest the next step, and wait for user confirmation.\n- Use Graphify commands (e.g. rtk graphify) on-demand if you need to explore code symbols or structure.\n</instructions>\n\n<progress_summary>\n$PROGRESS_CONTENT\n</progress_summary>\n</compaction_rollover>")
             set -- "-i" "$AUTO_PROMPT"
             attempt=0
+            continue
+        fi
+        if [ $exit_code -ne 0 ]; then
+            needs_check=true
+        fi
+    fi
+
+    if [ "$needs_check" = true ] && [ -f "$AGY_DIR/agy-status.py" ]; then
+        recovery_output=$(python3 "$AGY_DIR/agy-status.py" post-check 2>&1)
+        recovery_code=$?
+        if [ -n "$recovery_output" ]; then
+            echo "$recovery_output" | grep -v "^SWITCH_ACCOUNT$"
+        fi
+        if [ $recovery_code -eq 0 ] && echo "$recovery_output" | grep -q "^SWITCH_ACCOUNT$"; then
+            attempt=$((attempt + 1))
             continue
         fi
     fi
