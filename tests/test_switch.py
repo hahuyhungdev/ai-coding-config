@@ -84,17 +84,17 @@ class TestSwitch(unittest.TestCase):
         }
         self.assertFalse(switch.is_account_blocked_or_low(acc, []))
 
-        # Case 5: Quota is low (<=30%)
+        # Case 5: Quota is low (<=15%)
         acc = {
             "email": "test@gmail.com",
-            "quota": "30%"
+            "quota": "15%"
         }
         self.assertTrue(switch.is_account_blocked_or_low(acc, []))
 
-        # Case 6: Quota is ready (>30%)
+        # Case 6: Quota is ready (>15%)
         acc = {
             "email": "test@gmail.com",
-            "quota": "31%"
+            "quota": "16%"
         }
         self.assertFalse(switch.is_account_blocked_or_low(acc, []))
 
@@ -369,7 +369,7 @@ Rate limit reached on model
 
             accounts = [
                 {"email": "acc1@gmail.com", "token": {"refresh_token": "rt1"}, "quota": "0%", "status": "🔴 Blocked"},
-                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "20%", "status": "🟢 Ready"},
+                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "10%", "status": "🟢 Ready"},
                 {"email": "acc3@gmail.com", "token": {"refresh_token": "rt3"}, "quota": "70%", "status": "🟢 Ready"},
             ]
             with open(json_file, "w") as f:
@@ -399,8 +399,8 @@ Rate limit reached on model
 
             accounts = [
                 {"email": "acc1@gmail.com", "token": {"refresh_token": "rt1"}, "quota": "0%", "status": "🔴 Blocked"},
-                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "18%", "status": "🟢 Ready"},
-                {"email": "acc3@gmail.com", "token": {"refresh_token": "rt3"}, "quota": "25%", "status": "🟢 Ready"},
+                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "8%", "status": "🟢 Ready"},
+                {"email": "acc3@gmail.com", "token": {"refresh_token": "rt3"}, "quota": "12%", "status": "🟢 Ready"},
             ]
             with open(json_file, "w") as f:
                 json.dump(accounts, f)

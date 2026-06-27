@@ -115,10 +115,10 @@ def _write_active_account(accounts, selected_idx):
     return selected_acc
 
 
-def has_model_quota(acc, model_name, threshold=30):
+def has_model_quota(acc, model_name, threshold=15):
     return get_model_pct(acc.get("model_quotas", {}), model_name) > threshold
 
-def model_group_exhausted(model_quotas, model_names, threshold=30):
+def model_group_exhausted(model_quotas, model_names, threshold=15):
     present = [name for name in model_names if name in model_quotas]
     return bool(present) and all(get_model_pct(model_quotas, name) <= threshold for name in present)
 
@@ -151,7 +151,7 @@ def is_account_blocked_or_low(acc, accounts):
     quota_val = acc.get("quota")
     if quota_val:
         pct = remaining_quota_value(quota_val)
-        if pct != -1 and pct <= 30:  # Switch when quota is running low (<= 30%)
+        if pct != -1 and pct <= 15:  # Switch when quota is running low (<= 15%)
             return True
         
     # 2. Real-time log check (most accurate for active blocks)
@@ -320,7 +320,7 @@ def auto_switch_account(quiet=False):
 
     if is_account_blocked_or_low(active_acc, accounts):
         if not quiet:
-            print(f"⚠️ Current account '{active_email}' is blocked or has low quota (<=30%). Searching for replacement...")
+            print(f"⚠️ Current account '{active_email}' is blocked or has low quota (<=15%). Searching for replacement...")
 
         policy = load_rotation_policy()
         found_idx = select_replacement_index(accounts, active_idx, policy=policy)

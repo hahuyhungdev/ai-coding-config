@@ -55,7 +55,7 @@ def refresh_token():
 
 def quota_screen(email):
     if email.startswith("low"):
-        five_hour = 25
+        five_hour = 10
         weekly = 90
     elif email.startswith("next"):
         five_hour = 80
@@ -137,7 +137,7 @@ def seed_accounts(agy_dir: Path) -> None:
             "email": "low@example.com",
             "token": {"refresh_token": "rt-low"},
             "status": "🟢 Ready",
-            "quota": "5H:25%/W:90%",
+            "quota": "5H:10%/W:90%",
             "reset_info": "",
             "model_quotas": {},
         },
