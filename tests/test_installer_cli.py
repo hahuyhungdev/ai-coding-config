@@ -635,12 +635,12 @@ exit 0
         if log_path.exists():
             log_path.unlink()
             
-        result = self._run("--init-ai", "--backend", "gemini-cli", "--max-concurrency", "4", "--token-budget", "120000")
+        result = self._run("--init-ai", "--backend", "claude-cli", "--max-concurrency", "4", "--token-budget", "120000")
         self.assertEqual(result.returncode, 0, result.stderr)
         
         self.assertTrue(log_path.exists())
         args_logged = log_path.read_text().strip()
-        self.assertIn("extract . --mode deep --backend gemini-cli", args_logged)
+        self.assertIn("extract . --mode deep --backend claude-cli", args_logged)
         self.assertIn("--max-concurrency 4", args_logged)
         self.assertIn("--token-budget 120000", args_logged)
 

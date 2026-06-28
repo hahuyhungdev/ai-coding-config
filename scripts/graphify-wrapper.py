@@ -6,6 +6,100 @@ import os
 import pathlib
 from graphify.__main__ import main as original_main
 
+# Monkeypatch graphify to support gemini-cli backend
+try:
+    import graphify.llm
+    from pathlib import Path
+    import shutil
+    import subprocess
+    import json
+
+    # 1. Register gemini-cli backend
+    if "gemini-cli" not in graphify.llm.BACKENDS:
+        graphify.llm.BACKENDS["gemini-cli"] = {
+            "default_model": "gemini-cli-plan",
+            "pricing": {"input": 0.0, "output": 0.0},
+            "temperature": 0,
+            "max_tokens": 16384,
+        }
+    if hasattr(graphify.llm, "_PATH_IMAGE_BACKENDS"):
+        graphify.llm._PATH_IMAGE_BACKENDS.add("gemini-cli")
+
+    # 2. Implement gemini-cli call function
+    def _call_gemini_cli(user_message: str, max_tokens: int = 8192, *, deep_mode: bool = False) -> dict:
+        agy_cmd = "agy"
+        if shutil.which(agy_cmd) is None:
+            raise RuntimeError("Antigravity CLI (agy) not found on $PATH")
+
+        cli_args = [agy_cmd, "-p", user_message, "--dangerously-skip-permissions"]
+        cli_model = os.environ.get("GRAPHIFY_GEMINI_CLI_MODEL", "").strip()
+        if cli_model:
+            cli_args.extend(["--model", cli_model])
+
+        proc = subprocess.run(
+            cli_args,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=600,
+            check=False,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"agy -p exited {proc.returncode}: {proc.stderr.strip()[:500]}"
+            )
+
+        raw_content = proc.stdout.strip()
+        result = graphify.llm._parse_llm_json(raw_content or "{}")
+        result["input_tokens"] = 0
+        result["output_tokens"] = 0
+        result["model"] = cli_model or "gemini-cli-model"
+        result["finish_reason"] = "stop"
+        return result
+
+    # 3. Patch extract_files_direct
+    original_extract_files_direct = graphify.llm.extract_files_direct
+
+    def patched_extract_files_direct(files, backend=None, api_key=None, model=None, root=Path("."), *, deep_mode=False):
+        if backend == "gemini-cli":
+            text_files, image_files = graphify.llm._partition_semantic_files(files)
+            user_msg = graphify.llm._read_files(text_files, root)
+            max_out = graphify.llm._resolve_max_tokens(8192)
+            return _call_gemini_cli(user_msg, max_tokens=max_out, deep_mode=deep_mode)
+        return original_extract_files_direct(files, backend, api_key, model, root, deep_mode=deep_mode)
+
+    graphify.llm.extract_files_direct = patched_extract_files_direct
+
+    # 4. Patch _call_llm
+    original_call_llm = graphify.llm._call_llm
+
+    def patched_call_llm(prompt, *, backend, max_tokens=200, model=None):
+        if backend == "gemini-cli":
+            agy_cmd = "agy"
+            if shutil.which(agy_cmd) is None:
+                raise RuntimeError("Antigravity CLI (agy) not found on $PATH")
+            cli_args = [agy_cmd, "-p", prompt, "--dangerously-skip-permissions"]
+            cli_model = os.environ.get("GRAPHIFY_GEMINI_CLI_MODEL", "").strip()
+            if cli_model:
+                cli_args.extend(["--model", cli_model])
+            proc = subprocess.run(
+                cli_args,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=600,
+                check=False,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(f"agy -p exited {proc.returncode}: {proc.stderr.strip()[:500]}")
+            return proc.stdout.strip()
+        return original_call_llm(prompt, backend=backend, max_tokens=max_tokens, model=model)
+
+    graphify.llm._call_llm = patched_call_llm
+
+except Exception as e:
+    print(f"[WARN] Failed to monkeypatch gemini-cli support into graphify: {e}", file=sys.stderr)
+
 def is_peripheral(name, src):
     name_l = name.lower()
     src_l = src.lower()

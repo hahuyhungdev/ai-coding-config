@@ -124,13 +124,34 @@ Examples:
                 pass
                 
         # Auto-detect backend based on available keys
-        has_explicit_backend = "--backend" in sys.argv
+        # The wrapper script setup.py always appends the user's arguments after --backend gemini-cli,
+        # so if --backend is in sys.argv more than once, or if args.backend.lower() != "gemini-cli",
+        # then the user explicitly wanted a specific backend.
+        has_explicit_backend = False
+        if "--backend" in sys.argv:
+            occurrences = sum(1 for arg in sys.argv if arg == "--backend")
+            if occurrences > 1 or args.backend.lower() != "gemini-cli":
+                has_explicit_backend = True
+                
         backend = args.backend.lower()
         
         if not has_explicit_backend:
             if claude_key and not gemini_key:
                 backend = "claude"
             elif gemini_key:
+                backend = "gemini"
+
+        # Map gemini-cli to a valid backend if agy (Antigravity CLI) is not installed.
+        # If agy is installed, we can pass "gemini-cli" to graphify because our optimized
+        # wrapper supports it.
+        if backend == "gemini-cli" and not shutil.which("agy"):
+            if gemini_key:
+                backend = "gemini"
+            elif claude_key:
+                backend = "claude"
+            elif shutil.which("claude"):
+                backend = "claude-cli"
+            else:
                 backend = "gemini"
                 
         # Validate and configure keys based on selected backend
