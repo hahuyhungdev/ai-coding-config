@@ -15,7 +15,7 @@ B = (
     'jq', 'less', 'ls', 'lzcat', 'more', 'nl', 'od', 'paste', 'rg', 'ripgrep', 'sdff', 'sed',
     'sort', 'strings', 'tail', 'tee', 'uniq', 'wc', 'xxd', 'xzcat', 'yq', 'zcat', 'zless', 'zmore'
 )
-E = ('.c', '.cc', '.cpp', '.cs', '.go', '.h', '.hpp', '.java', '.js', '.json', '.jsx', '.kt', '.lua', '.md', '.mdx', '.php', '.py', '.rb', '.rs', '.rst', '.scala', '.sh', '.swift', '.toml', '.ts', '.tsx', '.txt', '.yaml', '.yml')
+E = ('.astro', '.c', '.cc', '.cpp', '.cs', '.go', '.h', '.hpp', '.java', '.js', '.json', '.jsx', '.kt', '.lua', '.md', '.mdx', '.php', '.py', '.rb', '.rs', '.rst', '.scala', '.sh', '.svelte', '.swift', '.toml', '.ts', '.tsx', '.txt', '.vue', '.yaml', '.yml')
 I = ('.claude', '.codex', '.gemini', '.git', 'graphify-out', 'node_modules', 'skills')
 DOC_CONTEXT_PARTS = {'docs', 'doc', 'documentation'}
 DOC_CONTEXT_EXTENSIONS = {'.md', '.mdx', '.rst', '.txt'}
