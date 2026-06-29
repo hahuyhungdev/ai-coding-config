@@ -1,0 +1,4 @@
+interface:
+  display_name: "React of Titan"
+  short_description: "Feature architecture for React apps"
+  default_prompt: "Use $react-of-titan to add or review a React feature with strict feature-based architecture."
