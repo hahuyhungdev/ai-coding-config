@@ -85,43 +85,7 @@ if [ "$has_prompt_flag" = false ]; then
     esac
 fi
 
-# 'auto' mode: spawn rotate daemon in background, then launch agy-bin as normal
-if [[ "$subcmd" == "auto" || "$subcmd" == "daemon" ]]; then
-    DAEMON_PID_FILE="$AGY_DIR/auto_rotate_daemon.pid"
-    DAEMON_LOG="$AGY_DIR/auto_daemon.log"
-    DAEMON_OWNER=false
 
-    # Check if a daemon is already running via PID file
-    if [ -f "$DAEMON_PID_FILE" ]; then
-        EXISTING_PID=$(cat "$DAEMON_PID_FILE" 2>/dev/null)
-        if [ -n "$EXISTING_PID" ] && kill -0 "$EXISTING_PID" 2>/dev/null; then
-            echo "ℹ️ Auto-rotate daemon already running (PID: $EXISTING_PID). Reusing existing daemon."
-            echo "   Log: $DAEMON_LOG"
-            # Don't kill the existing daemon on exit — we didn't spawn it
-            shift
-            subcmd=""
-        else
-            # Stale PID file — daemon is dead, clean up and spawn new
-            rm -f "$DAEMON_PID_FILE" 2>/dev/null
-        fi
-    fi
-
-    # Spawn a new daemon only if we didn't reuse an existing one
-    if [ "$subcmd" = "auto" ] || [ "$subcmd" = "daemon" ]; then
-        setsid python3 "$AGY_DIR/auto_rotate_daemon.py" > "$DAEMON_LOG" 2>&1 &
-        DAEMON_PID=$!
-        disown $DAEMON_PID 2>/dev/null
-        DAEMON_OWNER=true
-        # Auto-kill daemon when THIS CLI session exits (only if we spawned it)
-        trap "kill $DAEMON_PID 2>/dev/null; rm -f '$DAEMON_PID_FILE' 2>/dev/null; echo '🛑 Auto-rotate daemon stopped.'" EXIT
-        echo "🚀 Auto-rotate daemon started (PID: $DAEMON_PID). Checking every 5m in background."
-        echo "   Log: $DAEMON_LOG"
-        echo "   Daemon will auto-stop when you exit the CLI."
-        # Remove 'auto'/'daemon' from args so agy-bin launches clean
-        shift
-        subcmd=""
-    fi
-fi
 
 # Management commands are handled by the Python CLI; everything else launches agy-bin.
 if [[ "$has_prompt_flag" == false && "$native_command" == false && ( -n "$subcmd" || "$has_help_flag" == true || "$has_json_flag" == true ) ]]; then
@@ -130,7 +94,7 @@ if [[ "$has_prompt_flag" == false && "$native_command" == false && ( -n "$subcmd
         is_mgmt_cmd=true
     else
         case "$subcmd" in
-            status|account|doctor|backup|restore|current|rename|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|daemon)
+            status|account|doctor|backup|restore|current|rename|info|show|list|ls|accounts|weekly|week|usage-week|weekly-usage|select|choose|use|add|add-current|add-current-account|import|save|help|guide|clean|cleanup|prune|compact|delete|remove|rm|remove-account|rm-account|delete-account|import-file|add-file|load|add-token|paste|new-token|rotate|config)
                 is_mgmt_cmd=true
                 ;;
         esac
@@ -233,9 +197,8 @@ while [ $attempt -le $MAX_RETRIES ]; do
             attempt=0
             continue
         fi
-        if [ $exit_code -ne 0 ]; then
-            needs_check=true
-        fi
+        # Always check log for quota error on exit, even if exit_code is 0
+        needs_check=true
     fi
 
     if [ "$needs_check" = true ] && [ -f "$AGY_DIR/agy-status.py" ]; then

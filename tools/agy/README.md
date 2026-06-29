@@ -42,35 +42,36 @@ The installed runtime lives outside this repo at:
 - Duplicate refresh tokens are not independent accounts; live refresh marks later duplicates as `Dup`.
 - Weekly usage is a local estimate from CLI logs, not an official provider billing/quota API.
 
-## Notable Features & Account Rotation
+### Notable Features & Account Rotation
 
 ### 1. Health-Gated Round-Robin Rotation Algorithm
-All account rotation mechanisms—including manual command `agy rotate`, the `/rotate` slash command, CLI startup checks, and the background daemon—use a unified **round-robin with health gate** algorithm by default:
-- **First Pass (Healthy Round-Robin)**: Scans candidate accounts after the active account in configured order, filtering out accounts marked as blocked or with remaining quota $\le 30\%$. It selects the first healthy account in that order.
+All account rotation mechanisms—including manual command `agy rotate`, the `/rotate` slash command, and CLI hook-based checks—use a unified **round-robin with health gate** algorithm:
+- **Ratio-Based Independent Thresholds**: The active account's health is evaluated independently against two distinct thresholds:
+  - `threshold_5h` (defaults to 15%): The minimum remaining quota for the 5-Hour Session Limit.
+  - `threshold_weekly` (defaults to 10%): The minimum remaining quota for the Weekly Limit.
+  - **Low-Quota Condition**: An account is rotated if `five_hour_quota_percentage <= threshold_5h` OR `weekly_quota_percentage <= threshold_weekly`.
+- **First Pass (Healthy Round-Robin)**: Scans candidate accounts after the active account in configured order, filtering out accounts marked as blocked or with remaining quota below their respective thresholds. It selects the first healthy account in that order.
 - **Second Pass (Best-Effort Fallback)**: If all healthy candidates are unavailable, the algorithm selects the non-blocked low-quota candidate with the best remaining quota to make a best-effort continuation.
 - **Optional Policy**: Set `"rotationPolicy": "highest-quota"` in `~/.gemini/antigravity-cli/settings.json` to restore highest-quota-first selection. The default is `"round-robin"`.
 
-### 2. Auto-Switch at Startup (Proactive Switching)
-Before launching `agy-bin` for any prompt-mode session (including resumes using `-c` or `--conversation`), the wrapper executes a proactive `auto-switch` check:
-- If the current active account is blocked or falls below the **30% quota threshold** (quota $\le 30\%$), the CLI automatically switches to the next healthy round-robin candidate *before* starting the session.
+### 2. Proactive Hook (`BeforeAgent`)
+Integrated directly as an official shell hook in `~/.gemini/settings.json`, running before every prompt:
+- Checks the active account's status. If it is blocked or falls below the configured independent thresholds, it automatically rotates to the next healthy candidate *before* starting or continuing the session.
+- Automatically saves and restores conversation progress.
 
-### 3. Background Auto-Rotate Daemon (`agy auto`)
-Users can launch the CLI with `agy auto` to run a background daemon:
-- Spawns a background worker (`auto_rotate_daemon.py`) that monitors the active account's status every 5 minutes (default `300s`).
-- Each daemon interval refreshes live account quota, then switches the active token when the active account is blocked or drops below 30% quota.
-- The daemon is bound to the parent process and automatically shuts down when the CLI exits.
+### 3. Reactive Hook & Session Resume (`AfterAgent`)
+Integrated directly as a post-prompt hook in `~/.gemini/settings.json`:
+- Intercepts mid-session quota failures or checks remaining quota after each model response via a live PTY-based check.
+- If a quota error occurs:
+  - Marks the account as blocked with an estimated reset time (updating `accounts.json`).
+  - Automatically exports the last few turns of recent conversation history.
+  - Selects the next healthy round-robin account and launches a new session, feeding the previous conversation context into a `<compaction_rollover>` prompt to resume the task seamlessly.
 
 ### 4. Custom Slash Command `/rotate`
-For manual intervention during active sessions, users can run the `/rotate` command (implemented as a custom skill).
-- Directly swaps the active account to the next healthy round-robin candidate without requiring a CLI restart.
-
-### 5. Automated Session Resume (Quota Rollover)
-If a quota error occurs mid-session (or during model/account switching), the wrapper:
-- Intercepts the failure.
-- Marks the account as blocked with an estimated reset time (updating `accounts.json`).
-- Automatically exports the last few turns of recent conversation history into `.agy_progress.md`.
-- Selects the next healthy round-robin account, or the best available non-blocked low-quota candidate when no healthy account remains.
-- Launches a new session, feeding the previous conversation context into a `<compaction_rollover>` prompt to resume the task seamlessly.
+For manual intervention during active sessions, users can run the `/rotate` command (defined globally in `~/.gemini/config/commands/rotate.toml` mapping to `agy-status.py rotate`).
+- Performs a live PTY status check on the current active account first.
+- If the current account is healthy, it displays its quota and stays active.
+- If the current account is low-quota/blocked, it immediately rotates to the next healthy candidate without requiring a CLI restart.
 
 ## Refactor Boundaries
 

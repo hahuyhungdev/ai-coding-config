@@ -35,7 +35,7 @@ TOP_LEVEL_COMMANDS = [
     "current", "rename", "remove", "rm", "add", "import", "save",
     "doctor", "backup", "restore", "weekly",
     "changelog", "install", "models", "plugin", "plugins", "update",
-    "compact", "clean", "cleanup", "rotate",
+    "compact", "clean", "cleanup", "rotate", "config",
 ]
 
 
@@ -197,6 +197,79 @@ def run_restore(path, confirmed, json_output=False):
         print(f"Previous state backup: {previous_backup}")
 
 
+def run_config(key=None, value=None, show_all=False):
+    from switch import SETTINGS_FILE
+    
+    settings = {}
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                settings = json.load(f)
+        except Exception:
+            pass
+            
+    if not key and not show_all:
+        if not settings:
+            print("No configurations set. settings.json is empty or missing.")
+        else:
+            print("Current Configurations (Important):")
+            important_keys = ["model", "threshold", "threshold_5h", "threshold_weekly", "rotationPolicy", "colorScheme", "toolPermission"]
+            for k in important_keys:
+                if k in settings:
+                    print(f"  {k:<16}: {settings[k]}")
+            print("\nHint: Run 'agy config --all' to view the entire settings file.")
+        return
+        
+    if (show_all or key in ("--all", "all")) and value is None:
+        print("All Configurations:")
+        for k, v in settings.items():
+            print(f"  {k:<16}: {v}")
+        return
+        
+    key_map = {
+        "threshold": "threshold",
+        "quota_threshold": "threshold",
+        "quota-threshold": "threshold",
+        "threshold_5h": "threshold_5h",
+        "threshold-5h": "threshold_5h",
+        "threshold5h": "threshold_5h",
+        "threshold_weekly": "threshold_weekly",
+        "threshold-weekly": "threshold_weekly",
+        "thresholdweekly": "threshold_weekly",
+        "rotation_policy": "rotationPolicy",
+        "rotation-policy": "rotationPolicy",
+        "rotationpolicy": "rotationPolicy",
+    }
+    
+    norm_key = key_map.get(key.lower(), key)
+    
+    if value is None:
+        val = settings.get(norm_key)
+        if val is None:
+            print(f"Configuration key '{key}' is not set.")
+        else:
+            print(f"{norm_key}: {val}")
+        return
+        
+    if norm_key in ("threshold", "threshold_5h", "threshold_weekly"):
+        try:
+            val_to_set = int(value)
+        except ValueError:
+            print(f"Error: {norm_key} must be an integer, got '{value}'", file=sys.stderr)
+            return
+    else:
+        val_to_set = value
+        
+    settings[norm_key] = val_to_set
+    
+    try:
+        with open(SETTINGS_FILE, "w") as f:
+            json.dump(settings, f, indent=2)
+        print(f"✅ Configuration updated: {norm_key} = {val_to_set}")
+    except Exception as e:
+        print(f"❌ Failed to save configuration: {e}", file=sys.stderr)
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="agy",
@@ -241,6 +314,11 @@ Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
     restore.add_argument("--yes", action="store_true", help="Confirm restore")
     subparsers.add_parser("weekly", help="Show local seven-day usage")
     subparsers.add_parser("clean", help="Clean up automated or orphaned session logs")
+    
+    config_parser = subparsers.add_parser("config", help="View or modify settings")
+    config_parser.add_argument("key", nargs="?", help="Setting key (e.g. threshold)")
+    config_parser.add_argument("value", nargs="?", help="New value to set")
+    config_parser.add_argument("--all", dest="show_all", action="store_true", help="Show all configurations")
 
     return parser
 
@@ -389,6 +467,8 @@ def main(argv=None):
             show_weekly_usage()
         elif args.command == "clean":
             clean_conversations(args.json)
+        elif args.command == "config":
+            run_config(args.key, args.value, args.show_all)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         if getattr(args, "json", False):
             print(json.dumps({"error": str(exc)}))

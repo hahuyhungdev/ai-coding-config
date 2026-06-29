@@ -4,6 +4,7 @@
 import os
 import shutil
 import sys
+import json
 from pathlib import Path
 
 from installer.constants import REAL_HOME
@@ -61,6 +62,18 @@ def uninstall():
                     print(f"   Removed agent {item.name}")
                 except Exception as e:
                     print(f"⚠️ Warning: Failed to remove agent {item.name}: {e}")
+                    
+    # 4b. Clean up copied custom commands
+    dst_commands = gemini_dir / "commands"
+    if dst_commands.exists():
+        for name in ["rotate.toml"]:
+            p = dst_commands / name
+            if p.exists():
+                try:
+                    p.unlink()
+                    print(f"   Removed custom command {name}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Failed to remove custom command {name}: {e}")
 
     # 5. Remove only installed modules; preserve credentials and runtime data.
     src_dir = repo_dir / "tools" / "agy"
@@ -76,6 +89,53 @@ def uninstall():
         except Exception as e:
             print(f"⚠️ Warning: Failed to remove {agy_cli_dir / 'README.md'}: {e}")
         print(f"   Removed installed modules from {agy_cli_dir}")
+        
+    # 6. Remove BeforeAgent and AfterAgent hooks from ~/.gemini/settings.json
+    official_settings_file = home / ".gemini" / "settings.json"
+    if official_settings_file.exists():
+        try:
+            import json
+            with open(official_settings_file, "r") as f:
+                official_settings = json.load(f)
+            
+            updated = False
+            if "hooks" in official_settings and isinstance(official_settings["hooks"], dict):
+                hooks_cfg = official_settings["hooks"]
+                
+                # Clean BeforeAgent
+                if "BeforeAgent" in hooks_cfg:
+                    before_list = hooks_cfg["BeforeAgent"]
+                    new_before = []
+                    for entry in before_list:
+                        if isinstance(entry, dict) and "hooks" in entry:
+                            entry["hooks"] = [h for h in entry["hooks"] if isinstance(h, dict) and h.get("name") != "quota-pre-check"]
+                            if entry["hooks"]:
+                                new_before.append(entry)
+                        else:
+                            new_before.append(entry)
+                    hooks_cfg["BeforeAgent"] = new_before
+                    updated = True
+                    
+                # Clean AfterAgent
+                if "AfterAgent" in hooks_cfg:
+                    after_list = hooks_cfg["AfterAgent"]
+                    new_after = []
+                    for entry in after_list:
+                        if isinstance(entry, dict) and "hooks" in entry:
+                            entry["hooks"] = [h for h in entry["hooks"] if isinstance(h, dict) and h.get("name") != "quota-auto-switch"]
+                            if entry["hooks"]:
+                                new_after.append(entry)
+                        else:
+                            new_after.append(entry)
+                    hooks_cfg["AfterAgent"] = new_after
+                    updated = True
+                    
+            if updated:
+                with open(official_settings_file, "w") as f:
+                    json.dump(official_settings, f, indent=2)
+                print(f"   Removed hooks from {official_settings_file}")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to clean hooks from {official_settings_file}: {e}")
 
     print("\n🎉 Standalone Antigravity CLI (agy) uninstallation completed successfully!")
 
@@ -236,6 +296,107 @@ def main():
                 except Exception:
                     pass
         print(f"   Compiled and copied agents to {dst_agents}")
+
+    # 8. Configure BeforeAgent and AfterAgent hooks in official ~/.gemini/settings.json
+    official_settings_file = home / ".gemini" / "settings.json"
+    official_settings = {}
+    if official_settings_file.exists():
+        try:
+            with open(official_settings_file, "r") as f:
+                official_settings = json.load(f)
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to parse {official_settings_file}: {e}")
+
+    # Ensure hooks dictionary exists
+    if "hooks" not in official_settings or not isinstance(official_settings["hooks"], dict):
+        official_settings["hooks"] = {}
+
+    hooks_cfg = official_settings["hooks"]
+
+    # BeforeAgent hook
+    before_hook = {
+        "name": "quota-pre-check",
+        "type": "command",
+        "command": f"python3 {agy_cli_dir}/before_agent.py",
+        "timeout": 10000,
+        "description": "Pre-check active account quota"
+    }
+    
+    # We want BeforeAgent entry for matcher "*"
+    before_list = hooks_cfg.get("BeforeAgent", [])
+    if not isinstance(before_list, list):
+        before_list = []
+    
+    wildcard_before = None
+    for entry in before_list:
+        if isinstance(entry, dict) and entry.get("matcher") == "*":
+            wildcard_before = entry
+            break
+            
+    if wildcard_before is None:
+        wildcard_before = {"matcher": "*", "hooks": []}
+        before_list.append(wildcard_before)
+        
+    hook_exists = False
+    for h in wildcard_before["hooks"]:
+        if isinstance(h, dict) and h.get("name") == "quota-pre-check":
+            h["command"] = before_hook["command"]  # Update path
+            hook_exists = True
+            break
+    if not hook_exists:
+        wildcard_before["hooks"].append(before_hook)
+        
+    hooks_cfg["BeforeAgent"] = before_list
+
+    # AfterAgent hook
+    after_hook = {
+        "name": "quota-auto-switch",
+        "type": "command",
+        "command": f"python3 {agy_cli_dir}/after_agent.py",
+        "timeout": 10000,
+        "description": "Switch account on quota error and retry"
+    }
+    
+    after_list = hooks_cfg.get("AfterAgent", [])
+    if not isinstance(after_list, list):
+        after_list = []
+        
+    wildcard_after = None
+    for entry in after_list:
+        if isinstance(entry, dict) and entry.get("matcher") == "*":
+            wildcard_after = entry
+            break
+            
+    if wildcard_after is None:
+        wildcard_after = {"matcher": "*", "hooks": []}
+        after_list.append(wildcard_after)
+        
+    hook_exists = False
+    for h in wildcard_after["hooks"]:
+        if isinstance(h, dict) and h.get("name") == "quota-auto-switch":
+            h["command"] = after_hook["command"]  # Update path
+            hook_exists = True
+            break
+    if not hook_exists:
+        wildcard_after["hooks"].append(after_hook)
+        
+    hooks_cfg["AfterAgent"] = after_list
+
+    try:
+        with open(official_settings_file, "w") as f:
+            json.dump(official_settings, f, indent=2)
+        print(f"   Configured BeforeAgent & AfterAgent hooks in {official_settings_file}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to write to {official_settings_file}: {e}")
+                    
+    # 9. Copy custom commands to ~/.gemini/config/commands/
+    src_commands = repo_dir / "tools" / "agy" / "commands"
+    dst_commands = gemini_dir / "commands"
+    if src_commands.exists():
+        dst_commands.mkdir(parents=True, exist_ok=True)
+        for item in src_commands.glob("*.toml"):
+            shutil.copy2(item, dst_commands / item.name)
+        print(f"   Copied custom commands to {dst_commands}")
 
     print("\n🎉 Standalone Antigravity CLI (agy) installation completed successfully!")
     print(f"\nMake sure your PATH environment variable includes: {bin_dir}")

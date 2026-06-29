@@ -105,6 +105,30 @@ def remaining_quota_value(quota_text):
         return -1
     return min(int(pct) for pct in percentages)
 
+def parse_quota_percentages(quota_text):
+    """Parses 5H and W percentages from quota_text.
+    Returns (five_hour_pct, weekly_pct) where value is -1 if not found.
+    """
+    text = str(quota_text or "")
+    five_hour_pct = -1
+    m_5h = re.search(r"5H:(\d+)%", text)
+    if m_5h:
+        five_hour_pct = int(m_5h.group(1))
+        
+    weekly_pct = -1
+    m_w = re.search(r"W:(\d+)%", text)
+    if m_w:
+        weekly_pct = int(m_w.group(1))
+        
+    if five_hour_pct == -1 or weekly_pct == -1:
+        percentages = [int(p) for p in re.findall(r"(\d+)%", text)]
+        if len(percentages) >= 2:
+            five_hour_pct, weekly_pct = percentages[0], percentages[1]
+        elif len(percentages) == 1:
+            five_hour_pct = weekly_pct = percentages[0]
+            
+    return five_hour_pct, weekly_pct
+
 def sort_rows_by_remaining_quota(rows):
     return sorted(
         rows,

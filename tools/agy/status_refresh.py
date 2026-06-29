@@ -15,6 +15,8 @@ from utils import (
     format_exact_reset_time,
     get_username,
     parse_duration,
+    GEMINI_MODELS,
+    CLAUDE_MODELS,
 )
 
 
@@ -106,6 +108,168 @@ def _blocked_until(status, model_quotas, raw_reset):
     return (datetime.now() + max_delta).isoformat()
 
 
+def get_quota_via_api(account, email):
+    import requests
+    
+    token_obj = account.get("token", {})
+    ref_token = token_obj.get("refresh_token") or account.get("refresh_token")
+    if not ref_token:
+        return None, None
+        
+    client_id = token_obj.get("client_id") or account.get("client_id")
+    client_secret = token_obj.get("client_secret") or account.get("client_secret")
+    
+    # Load shared/global candidate list from settings.json
+    from switch import SETTINGS_FILE
+    settings = {}
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                settings = json.load(f)
+        except:
+            pass
+
+    client_candidates = [(client_id, client_secret)]
+    extra_candidates = settings.get("client_candidates")
+    if isinstance(extra_candidates, list):
+        for candidate in extra_candidates:
+            if isinstance(candidate, list) and len(candidate) == 2:
+                client_candidates.append((candidate[0], candidate[1]))
+    
+    access_token = None
+    refreshed_token_obj = None
+    
+    for cid, cs in client_candidates:
+        if not cid or not cs:
+            continue
+        try:
+            r = requests.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": cid,
+                    "client_secret": cs,
+                    "refresh_token": ref_token,
+                    "grant_type": "refresh_token"
+                },
+                timeout=5
+            )
+            if r.status_code == 200:
+                res_json = r.json()
+                access_token = res_json.get("access_token")
+                refreshed_token_obj = token_obj.copy()
+                refreshed_token_obj["access_token"] = access_token
+                break
+        except Exception:
+            pass
+            
+    if not access_token:
+        return None, None
+        
+    proj_url = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
+    proj_payload = {
+        "metadata": {
+            "ideType": "GEMINI_CLI",
+            "platform": "LINUX_AMD64",
+            "pluginType": "GEMINI",
+        }
+    }
+    try:
+        r = requests.post(
+            proj_url,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            },
+            json=proj_payload,
+            timeout=5
+        )
+        r.raise_for_status()
+        project_id = r.json().get("cloudaicompanionProject")
+    except Exception:
+        return None, None
+        
+    if not project_id:
+        return None, None
+        
+    quota_url = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"
+    try:
+        r = requests.post(
+            quota_url,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            },
+            json={"project": project_id},
+            timeout=5
+        )
+        r.raise_for_status()
+        quota_data = r.json()
+    except Exception:
+        return None, None
+        
+    buckets = quota_data.get("buckets", [])
+    if not buckets:
+        return None, None
+        
+    def parse_api_reset_time(reset_time_str):
+        if not reset_time_str:
+            return ""
+        s = reset_time_str
+        if s.endswith('Z'):
+            s = s[:-1]
+        try:
+            dt = datetime.fromisoformat(s)
+            now_utc = datetime.utcnow()
+            delta = dt - now_utc
+            if delta.total_seconds() <= 0:
+                return ""
+            tot_sec = int(delta.total_seconds())
+            h = tot_sec // 3600
+            m = (tot_sec % 3600) // 60
+            if h > 0:
+                return f"In {h}h {m}m"
+            else:
+                return f"In {m}m"
+        except Exception:
+            return ""
+
+    gemini_pct = 100
+    gemini_refresh = ""
+    
+    for b in buckets:
+        model_id = b.get("modelId", "").lower()
+        if "gemini" in model_id:
+            frac = b.get("remainingFraction", 1.0)
+            pct = int(round(frac * 100))
+            if pct < gemini_pct:
+                gemini_pct = pct
+                gemini_refresh = parse_api_reset_time(b.get("resetTime"))
+                
+    model_quotas = {}
+    
+    for model in GEMINI_MODELS:
+        model_quotas[model] = {
+            "pct": gemini_pct,
+            "refresh": gemini_refresh,
+            "weekly_pct": gemini_pct,
+            "weekly_refresh": gemini_refresh,
+            "five_hour_pct": gemini_pct,
+            "five_hour_refresh": gemini_refresh
+        }
+        
+    for model in CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
+        model_quotas[model] = {
+            "pct": 100,
+            "refresh": "",
+            "weekly_pct": 100,
+            "weekly_refresh": "",
+            "five_hour_pct": 100,
+            "five_hour_refresh": ""
+        }
+        
+    return model_quotas, refreshed_token_obj
+
+
 def _check_single_account(index, account, accounts, duplicate_tokens, active_email, original_token=None):
     email = account.get("email") or account.get("name") or f"Account {index}"
 
@@ -121,6 +285,8 @@ def _check_single_account(index, account, accounts, duplicate_tokens, active_ema
             "model_quotas": {},
             "blocked_until": None,
         }
+
+
 
     print(f"⏳ Checking status for {email}...", flush=True)
 

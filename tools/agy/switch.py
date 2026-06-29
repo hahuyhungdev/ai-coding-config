@@ -45,6 +45,66 @@ def load_rotation_policy():
     return HIGHEST_QUOTA_POLICY
 
 
+def load_quota_threshold():
+    _sync_paths()
+    try:
+        with open(SETTINGS_FILE, "r") as f:
+            settings = json.load(f)
+    except Exception:
+        return 15
+
+    raw_threshold = (
+        settings.get("quotaThreshold")
+        or settings.get("quota_threshold")
+        or settings.get("threshold")
+        or 15
+    )
+    try:
+        return int(raw_threshold)
+    except (ValueError, TypeError):
+        return 15
+
+
+def load_quota_thresholds():
+    _sync_paths()
+    settings = {}
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                settings = json.load(f)
+        except Exception:
+            pass
+
+    raw_5h = (
+        settings.get("threshold_5h")
+        or settings.get("threshold5h")
+        or settings.get("threshold")
+        or settings.get("quotaThreshold")
+        or settings.get("quota_threshold")
+        or 15
+    )
+    
+    raw_weekly = (
+        settings.get("threshold_weekly")
+        or settings.get("thresholdWeekly")
+        or settings.get("threshold_weekly_limit")
+        or 10
+    )
+    
+    try:
+        t_5h = int(raw_5h)
+    except (ValueError, TypeError):
+        t_5h = 15
+        
+    try:
+        t_weekly = int(raw_weekly)
+    except (ValueError, TypeError):
+        t_weekly = 10
+        
+    return t_5h, t_weekly
+
+
+
 def _candidate_indexes(accounts, active_idx):
     if len(accounts) <= 1:
         return []
@@ -115,10 +175,14 @@ def _write_active_account(accounts, selected_idx):
     return selected_acc
 
 
-def has_model_quota(acc, model_name, threshold=15):
+def has_model_quota(acc, model_name, threshold=None):
+    if threshold is None:
+        threshold = load_quota_threshold()
     return get_model_pct(acc.get("model_quotas", {}), model_name) > threshold
 
-def model_group_exhausted(model_quotas, model_names, threshold=15):
+def model_group_exhausted(model_quotas, model_names, threshold=None):
+    if threshold is None:
+        threshold = load_quota_threshold()
     present = [name for name in model_names if name in model_quotas]
     return bool(present) and all(get_model_pct(model_quotas, name) <= threshold for name in present)
 
@@ -150,8 +214,10 @@ def is_account_blocked_or_low(acc, accounts):
     # 1. Check cached quota percentage first (proactive check before expensive log scan)
     quota_val = acc.get("quota")
     if quota_val:
-        pct = remaining_quota_value(quota_val)
-        if pct != -1 and pct <= 15:  # Switch when quota is running low (<= 15%)
+        from utils import parse_quota_percentages
+        pct_5h, pct_w = parse_quota_percentages(quota_val)
+        t_5h, t_w = load_quota_thresholds()
+        if (pct_5h != -1 and pct_5h <= t_5h) or (pct_w != -1 and pct_w <= t_w):
             return True
         
     # 2. Real-time log check (most accurate for active blocks)
@@ -447,7 +513,8 @@ def post_check_and_switch():
 
 def rotate_account():
     _sync_paths()
-    from storage import load_accounts
+    from storage import load_accounts, write_accounts
+    from status_refresh import _check_single_account, _apply_status_result
     try:
         accounts = load_accounts()
     except Exception as e:
@@ -472,23 +539,60 @@ def rotate_account():
         except:
             pass
 
-    if len(accounts) <= 1:
-        print("ℹ️ Only one account in accounts.json. No rotation needed.")
+    active_acc = accounts[active_idx]
+    email = active_acc.get("email") or active_acc.get("name") or f"Account {active_idx + 1}"
+
+    print(f"⏳ Checking live quota status for current account {email}...", flush=True)
+    
+    original_token = None
+    if os.path.exists(TOKEN_FILE):
+        try:
+            with open(TOKEN_FILE, "r") as f:
+                original_token = json.load(f)
+        except:
+            pass
+
+    try:
+        result = _check_single_account(
+            active_idx, 
+            active_acc, 
+            accounts, 
+            duplicate_tokens={}, 
+            active_email=email, 
+            original_token=original_token
+        )
+        _apply_status_result(accounts, result)
+        write_accounts(accounts, create_backup=False)
+        active_acc = accounts[active_idx]
+    except Exception as check_exc:
+        print(f"⚠️ Warning: Live check failed ({check_exc}). Using cached values.")
+
+    is_low = is_account_blocked_or_low(active_acc, accounts)
+    quota = active_acc.get("quota", "?")
+    
+    if not is_low:
+        print(f"🟢 Current account {email} is healthy (Quota: {quota}), no rotate needed.")
         return
 
+    if len(accounts) <= 1:
+        print("ℹ️ Only one account in accounts.json. No rotation possible.")
+        return
+
+    print(f"⚠️ Current account quota is low/blocked (Quota: {quota}). Rotating...")
+    
     policy = load_rotation_policy()
     best_idx = select_replacement_index(accounts, active_idx, policy=policy)
     if best_idx is None:
         best_idx = (active_idx + 1) % len(accounts)
 
     selected_acc = _write_active_account(accounts, best_idx)
-    email = selected_acc.get("email") or selected_acc.get("name") or f"Account {best_idx + 1}"
-    quota = selected_acc.get("quota", "?")
+    new_email = selected_acc.get("email") or selected_acc.get("name") or f"Account {best_idx + 1}"
+    new_quota = selected_acc.get("quota", "?")
     reset_info = selected_acc.get("reset_info", "")
-    quota_str = f" - Quota: {quota}"
+    quota_str = f" - Quota: {new_quota}"
     if reset_info:
         quota_str += f" ({reset_info})"
-    print(f"🔄 Manually rotated active account to: {email} (Index: [{best_idx + 1} / {len(accounts)}], policy: {policy}){quota_str}")
+    print(f"🔄 Manually rotated active account to: {new_email} (Index: [{best_idx + 1} / {len(accounts)}], policy: {policy}){quota_str}")
 
 
 def generate_quota_rollover():
