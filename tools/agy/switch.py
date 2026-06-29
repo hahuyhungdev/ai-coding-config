@@ -9,7 +9,8 @@ from utils import (
     GEMINI_FALLBACK_MODEL, CLAUDE_FALLBACK_MODEL,
     GEMINI_MODELS, CLAUDE_MODELS,
     get_username, parse_duration, parse_log_timestamp,
-    get_model_pct, format_exact_reset_time, remaining_quota_value
+    get_model_pct, format_exact_reset_time, remaining_quota_value,
+    clear_mcp_token_cache
 )
 from parser import get_remaining_reset_from_logs
 
@@ -167,6 +168,8 @@ def _write_active_account(accounts, selected_idx):
             os.chmod(TOKEN_FILE, 0o600)
         except OSError:
             pass
+
+    clear_mcp_token_cache()
 
     index_file = os.path.join(AGY_DIR, ".current_index")
     with open(index_file, "w") as f:
@@ -386,7 +389,8 @@ def auto_switch_account(quiet=False):
 
     if is_account_blocked_or_low(active_acc, accounts):
         if not quiet:
-            print(f"⚠️ Current account '{active_email}' is blocked or has low quota (<=15%). Searching for replacement...")
+            t_5h, t_w = load_quota_thresholds()
+            print(f"⚠️ Current account '{active_email}' is blocked or has low quota (5H<={t_5h}%, W<={t_w}%). Searching for replacement...")
 
         policy = load_rotation_policy()
         found_idx = select_replacement_index(accounts, active_idx, policy=policy)

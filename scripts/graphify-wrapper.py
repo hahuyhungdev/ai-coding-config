@@ -31,13 +31,17 @@ try:
         if shutil.which(agy_cmd) is None:
             raise RuntimeError("Antigravity CLI (agy) not found on $PATH")
 
-        cli_args = [agy_cmd, "-p", user_message, "--dangerously-skip-permissions"]
+        sys_prompt = graphify.llm._extraction_system(deep=deep_mode)
+        full_message = f"{sys_prompt}\n\nHere is the source content to extract:\n{user_message}"
+
+        cli_args = [agy_cmd, "-p", "-", "--dangerously-skip-permissions"]
         cli_model = os.environ.get("GRAPHIFY_GEMINI_CLI_MODEL", "").strip()
         if cli_model:
             cli_args.extend(["--model", cli_model])
 
         proc = subprocess.run(
             cli_args,
+            input=full_message,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -78,12 +82,13 @@ try:
             agy_cmd = "agy"
             if shutil.which(agy_cmd) is None:
                 raise RuntimeError("Antigravity CLI (agy) not found on $PATH")
-            cli_args = [agy_cmd, "-p", prompt, "--dangerously-skip-permissions"]
+            cli_args = [agy_cmd, "-p", "-", "--dangerously-skip-permissions"]
             cli_model = os.environ.get("GRAPHIFY_GEMINI_CLI_MODEL", "").strip()
             if cli_model:
                 cli_args.extend(["--model", cli_model])
             proc = subprocess.run(
                 cli_args,
+                input=prompt,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -96,6 +101,16 @@ try:
         return original_call_llm(prompt, backend=backend, max_tokens=max_tokens, model=model)
 
     graphify.llm._call_llm = patched_call_llm
+
+    # 5. Patch _get_backend_api_key to bypass key validation for gemini-cli
+    original_get_backend_api_key = graphify.llm._get_backend_api_key
+
+    def patched_get_backend_api_key(backend: str) -> str:
+        if backend == "gemini-cli":
+            return "gemini-cli-dummy-key"
+        return original_get_backend_api_key(backend)
+
+    graphify.llm._get_backend_api_key = patched_get_backend_api_key
 
 except Exception as e:
     print(f"[WARN] Failed to monkeypatch gemini-cli support into graphify: {e}", file=sys.stderr)
@@ -293,38 +308,73 @@ def post_process_output(output):
     return "\n".join(new_output)
 
 def wrapper_main():
-    # Detect if query or explain commands are used to apply post-processing
-    is_query_cmd = any(arg in sys.argv for arg in ["query", "explain", "path", "affected"])
-    
-    if not is_query_cmd:
-        # Directly pass through to original main without buffering
-        sys.exit(original_main())
+    is_gemini_cli = False
+    for i, arg in enumerate(sys.argv):
+        if arg == "--backend" and i + 1 < len(sys.argv) and sys.argv[i+1] == "gemini-cli":
+            is_gemini_cli = True
+            break
 
-    # Capture stdout of original main
-    stdout_backup = sys.stdout
-    captured_stdout = io.StringIO()
-    sys.stdout = captured_stdout
+    antigravity_path = Path.home() / ".gemini" / "config" / "ANTIGRAVITY.md"
+    antigravity_backup = Path.home() / ".gemini" / "config" / "ANTIGRAVITY.md.bak"
+    has_backup = False
+
+    if is_gemini_cli:
+        try:
+            if antigravity_path.exists():
+                shutil.copy2(antigravity_path, antigravity_backup)
+                has_backup = True
+            else:
+                antigravity_path.parent.mkdir(parents=True, exist_ok=True)
+            antigravity_path.write_text("Output raw JSON only. Do not output markdown, fences, or introductory text.\n", encoding="utf-8")
+        except Exception as e:
+            print(f"[WARN] Failed to swap ANTIGRAVITY.md: {e}", file=sys.stderr)
 
     exit_code = 0
     try:
-        original_main()
-    except SystemExit as e:
-        exit_code = e.code if e.code is not None else 0
-    except Exception as exc:
-        sys.stdout = stdout_backup
-        print(f"Error executing Graphify: {exc}", file=sys.stderr)
-        sys.exit(1)
-    finally:
-        sys.stdout = stdout_backup
+        # Detect if query or explain commands are used to apply post-processing
+        is_query_cmd = any(arg in sys.argv for arg in ["query", "explain", "path", "affected"])
+        
+        if not is_query_cmd:
+            try:
+                original_main()
+            except SystemExit as e:
+                exit_code = e.code if e.code is not None else 0
+            sys.exit(exit_code)
 
-    output = captured_stdout.getvalue()
-    try:
-        processed = post_process_output(output)
-        print(processed)
-    except Exception as post_exc:
-        # Fallback to original output if post-processing fails
-        print(output)
-        print(f"[WARN] Graphify wrapper post-processing failed: {post_exc}", file=sys.stderr)
+        # Capture stdout of original main
+        stdout_backup = sys.stdout
+        captured_stdout = io.StringIO()
+        sys.stdout = captured_stdout
+
+        try:
+            original_main()
+        except SystemExit as e:
+            exit_code = e.code if e.code is not None else 0
+        except Exception as exc:
+            sys.stdout = stdout_backup
+            print(f"Error executing Graphify: {exc}", file=sys.stderr)
+            sys.exit(1)
+        finally:
+            sys.stdout = stdout_backup
+
+        output = captured_stdout.getvalue()
+        try:
+            processed = post_process_output(output)
+            print(processed)
+        except Exception as post_exc:
+            # Fallback to original output if post-processing fails
+            print(output)
+            print(f"[WARN] Graphify wrapper post-processing failed: {post_exc}", file=sys.stderr)
+
+    finally:
+        if is_gemini_cli:
+            try:
+                if has_backup and antigravity_backup.exists():
+                    shutil.move(antigravity_backup, antigravity_path)
+                elif antigravity_path.exists():
+                    antigravity_path.unlink()
+            except Exception as e:
+                print(f"[WARN] Failed to restore ANTIGRAVITY.md: {e}", file=sys.stderr)
 
     sys.exit(exit_code)
 

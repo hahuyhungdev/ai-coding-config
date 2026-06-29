@@ -17,6 +17,7 @@ from utils import (
     parse_duration,
     GEMINI_MODELS,
     CLAUDE_MODELS,
+    get_account_reset_seconds,
 )
 
 
@@ -398,12 +399,14 @@ def _apply_status_result(accounts, result):
         accounts[index].pop("blocked_until", None)
     accounts[index]["model_quotas"] = result["model_quotas"]
 
+    reset_seconds = get_account_reset_seconds(accounts[index])
     return {
         "index": index,
         "email": result["email"],
         "status": result["status"],
         "quota": result["quota"],
         "reset_info": result["reset_info"],
+        "reset_seconds": reset_seconds,
     }
 
 

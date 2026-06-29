@@ -51,12 +51,34 @@ def run_graphify_update(project_dir: Path, force: bool = False) -> dict:
         "returncode": result.returncode
     }
 
+import shlex
+from .constants import REPO_DIR
+from .utils import is_safe_path
+
 def execute_simulator_command(cmd_line: str, repo_dir: Path) -> dict:
     """Safely run a command inside repository root with a strict timeout limit."""
     try:
+        args = shlex.split(cmd_line)
+    except Exception as e:
+        return {"status": "error", "message": f"Invalid command line: {e}"}
+        
+    if not args:
+        return {"status": "error", "message": "Command is empty."}
+        
+    # Strict allowlist of permitted commands/arguments
+    allowed = False
+    if args[0] == "git" and len(args) > 1 and args[1] in ("status", "diff", "log", "branch"):
+        allowed = True
+    elif args[0] == "echo" and (len(args) == 1 or (len(args) == 2 and args[1] == "hello")):
+        allowed = True
+        
+    if not allowed:
+        return {"status": "error", "message": f"Access denied: Command '{cmd_line}' is not allowed in simulator."}
+
+    try:
         proc = subprocess.run(
-            cmd_line,
-            shell=True,
+            args,
+            shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=5.0,
@@ -77,6 +99,23 @@ def execute_simulator_command(cmd_line: str, repo_dir: Path) -> dict:
 
 def read_simulator_file(file_path: Path) -> dict:
     """Read first 15 lines of a file for simulation purposes."""
+    # Map placeholder path to real REPO_DIR if present
+    path_str = str(file_path)
+    if "/absolute/path/to/project" in path_str:
+        path_str = path_str.replace("/absolute/path/to/project", str(REPO_DIR))
+        file_path = Path(path_str)
+        
+    allowed_bases = [
+        REPO_DIR,
+        Path.home() / "projects",
+        Path.home() / ".gemini",
+        Path.home() / ".claude",
+        Path.home() / ".codex"
+    ]
+    
+    if not is_safe_path(file_path, allowed_bases):
+        return {"status": "error", "message": "Access denied: Path is outside allowed directories."}
+        
     resolved_path = Path(file_path).resolve()
     if not resolved_path.exists() or not resolved_path.is_file():
         return {"status": "error", "message": f"File '{file_path}' does not exist or is not a file."}

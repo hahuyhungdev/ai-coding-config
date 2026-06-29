@@ -129,10 +129,79 @@ def parse_quota_percentages(quota_text):
             
     return five_hour_pct, weekly_pct
 
+def get_account_reset_seconds(account):
+    default_large = 99999999
+    
+    blocked_until = account.get("blocked_until")
+    if blocked_until:
+        try:
+            dt = datetime.fromisoformat(blocked_until)
+            diff = (dt - datetime.now()).total_seconds()
+            return max(0, int(diff))
+        except:
+            pass
+
+    model_quotas = account.get("model_quotas") or {}
+    if not model_quotas:
+        reset_info = account.get("reset_info") or ""
+        if "In " in reset_info:
+            try:
+                delta = parse_duration(reset_info.replace("In ", ""))
+                return int(delta.total_seconds())
+            except:
+                pass
+        return default_large
+
+    rep_model = None
+    for preferred in ["Gemini 3.5 Flash (Medium)", "Gemini 3.5 Flash (High)"]:
+        if preferred in model_quotas:
+            rep_model = preferred
+            break
+    if not rep_model:
+        if model_quotas.keys():
+            rep_model = next(iter(model_quotas.keys()))
+        else:
+            return default_large
+
+    quota = model_quotas[rep_model]
+    
+    if "weekly_pct" in quota and "five_hour_pct" in quota:
+        weekly_pct = quota["weekly_pct"]
+        five_hour_pct = quota["five_hour_pct"]
+        weekly_refresh = quota.get("weekly_refresh", "")
+        five_hour_refresh = quota.get("five_hour_refresh", "")
+        
+        if five_hour_pct < weekly_pct:
+            if five_hour_refresh and five_hour_refresh.startswith("In "):
+                try:
+                    return int(parse_duration(five_hour_refresh.replace("In ", "")).total_seconds())
+                except:
+                    pass
+            return 0
+        else:
+            if weekly_refresh and weekly_refresh.startswith("In "):
+                try:
+                    return int(parse_duration(weekly_refresh.replace("In ", "")).total_seconds())
+                except:
+                    pass
+            return 0
+
+    refresh = quota.get("refresh", "")
+    if refresh and refresh.startswith("In "):
+        try:
+            return int(parse_duration(refresh.replace("In ", "")).total_seconds())
+        except:
+            pass
+
+    return 0
+
 def sort_rows_by_remaining_quota(rows):
     return sorted(
         rows,
-        key=lambda row: remaining_quota_value(row.get("quota")),
+        key=lambda row: (
+            remaining_quota_value(row.get("quota")),
+            -row.get("reset_seconds", 99999999)
+        ),
         reverse=True,
     )
 
@@ -152,3 +221,14 @@ def format_exact_reset_time(duration_str, base_time=None):
         return reset_time.strftime("%a %H:%M")
     except Exception:
         return duration_str
+
+def clear_mcp_token_cache():
+    import os
+    for cache_name in ["mcp-oauth-tokens-v2.json", "mcp-oauth-tokens.json"]:
+        cache_file = os.path.expanduser(f"~/.gemini/{cache_name}")
+        if os.path.exists(cache_file):
+            try:
+                os.unlink(cache_file)
+            except OSError:
+                pass
+

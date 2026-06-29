@@ -136,10 +136,13 @@ Examples:
         backend = args.backend.lower()
         
         if not has_explicit_backend:
-            if claude_key and not gemini_key:
-                backend = "claude"
-            elif gemini_key:
-                backend = "gemini"
+            if backend == "gemini-cli" and shutil.which("agy"):
+                pass
+            else:
+                if claude_key and not gemini_key:
+                    backend = "claude"
+                elif gemini_key:
+                    backend = "gemini"
 
         # Map gemini-cli to a valid backend if agy (Antigravity CLI) is not installed.
         # If agy is installed, we can pass "gemini-cli" to graphify because our optimized

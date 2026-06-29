@@ -147,5 +147,24 @@ Claude Opus 4.6 (Thinking)
 
         self.assertEqual([row["index"] for row in sorted_rows], [2, 4, 1, 3])
 
+    def test_sort_rows_by_effective_remaining_quota_and_reset_seconds(self):
+        rows = [
+            {"index": 1, "quota": "5H:70%/W:100%", "reset_seconds": 356400}, # 70%, resets in 99h
+            {"index": 2, "quota": "5H:70%/W:100%", "reset_seconds": 7200},   # 70%, resets in 2h
+            {"index": 3, "quota": "100%"},                                   # 100%
+            {"index": 4, "quota": "🔴 0% (Blocked)", "reset_seconds": 86400}, # 0%, resets in 24h
+            {"index": 5, "quota": "🔴 0% (Blocked)", "reset_seconds": 7200},  # 0%, resets in 2h
+        ]
+
+        sorted_rows = agy_status.sort_rows_by_remaining_quota(rows)
+
+        # Expected order:
+        # Index 3 (100%)
+        # Index 2 (70%, 2h reset)
+        # Index 1 (70%, 99h reset)
+        # Index 5 (0%, 2h reset)
+        # Index 4 (0%, 24h reset)
+        self.assertEqual([row["index"] for row in sorted_rows], [3, 2, 1, 5, 4])
+
 if __name__ == "__main__":
     unittest.main()

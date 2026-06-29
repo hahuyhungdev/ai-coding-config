@@ -644,6 +644,65 @@ exit 0
         self.assertIn("--max-concurrency 4", args_logged)
         self.assertIn("--token-budget 120000", args_logged)
 
+    def test_init_ai_autodetect_gemini_cli_if_agy_installed(self):
+        log_path = self.project / "graphify_args.txt"
+        if log_path.exists():
+            log_path.unlink()
+
+        old_env = dict(os.environ)
+        os.environ["ANTHROPIC_API_KEY"] = "mock-claude-key"
+        if "GEMINI_API_KEY" in os.environ:
+            del os.environ["GEMINI_API_KEY"]
+        if "GOOGLE_API_KEY" in os.environ:
+            del os.environ["GOOGLE_API_KEY"]
+        try:
+            result = self._run("--init-ai")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(log_path.exists())
+            args_logged = log_path.read_text().strip()
+            self.assertIn("extract . --mode deep --backend gemini-cli", args_logged)
+        finally:
+            os.environ.clear()
+            os.environ.update(old_env)
+
+    def test_init_ai_fallback_if_agy_not_installed(self):
+        log_path = self.project / "graphify_args.txt"
+        if log_path.exists():
+            log_path.unlink()
+
+        old_env = dict(os.environ)
+        os.environ["ANTHROPIC_API_KEY"] = "mock-claude-key"
+        if "GEMINI_API_KEY" in os.environ:
+            del os.environ["GEMINI_API_KEY"]
+        if "GOOGLE_API_KEY" in os.environ:
+            del os.environ["GOOGLE_API_KEY"]
+        
+        # Filter PATH to exclude directories containing the real agy
+        sep = os.pathsep
+        filtered_paths = []
+        for p in os.environ.get("PATH", "").split(sep):
+            if p:
+                path_dir = Path(p)
+                if not (path_dir / "agy").exists() and not (path_dir / "agy.bat").exists() and not (path_dir / "agy.exe").exists():
+                    filtered_paths.append(p)
+        os.environ["PATH"] = sep.join(filtered_paths)
+
+        try:
+            ext = ".bat" if sys.platform == "win32" else ""
+            agy_bin = self.bin / f"agy{ext}"
+            if agy_bin.exists():
+                agy_bin.unlink()
+            
+            result = self._run("--init-ai")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(log_path.exists())
+            args_logged = log_path.read_text().strip()
+            self.assertIn("extract . --mode deep --backend claude", args_logged)
+        finally:
+            self._write_executable("agy", "#!/bin/sh\nexit 0\n", "@echo off\nexit /b 0\n")
+            os.environ.clear()
+            os.environ.update(old_env)
+
     def test_unrecognized_arguments_fail_on_standard_run(self):
         result = self._run("--claude", "--max-concurrency", "4")
         self.assertNotEqual(result.returncode, 0)

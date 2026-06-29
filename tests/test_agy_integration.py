@@ -14,7 +14,6 @@ sys.path.insert(0, tools_dir)
 import storage
 import utils
 import switch
-import auto_rotate_daemon
 import parser
 import status_refresh
 

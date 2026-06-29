@@ -27,7 +27,7 @@ from storage import (
     write_accounts,
 )
 from switch import auto_switch_account, post_check_and_switch, rotate_account
-from utils import AGY_DIR, TOKEN_FILE, sort_rows_by_remaining_quota
+from utils import AGY_DIR, TOKEN_FILE, sort_rows_by_remaining_quota, clear_mcp_token_cache
 
 
 TOP_LEVEL_COMMANDS = [
@@ -101,6 +101,7 @@ def account_use(target, json_output=False):
     selected = accounts[index]
     Path(TOKEN_FILE).write_text(json.dumps(selected, indent=2) + "\n", encoding="utf-8")
     os.chmod(TOKEN_FILE, 0o600)
+    clear_mcp_token_cache()
     next_index = (index + 1) % len(accounts)
     Path(AGY_DIR, ".current_index").write_text(str(next_index), encoding="utf-8")
     row = public_accounts(accounts)[index]
@@ -140,8 +141,10 @@ def account_remove(target, confirmed, json_output=False):
         if accounts:
             Path(TOKEN_FILE).write_text(json.dumps(accounts[0], indent=2) + "\n", encoding="utf-8")
             os.chmod(TOKEN_FILE, 0o600)
+            clear_mcp_token_cache()
         else:
             Path(TOKEN_FILE).unlink(missing_ok=True)
+            clear_mcp_token_cache()
     Path(AGY_DIR, ".current_index").write_text("0", encoding="utf-8")
     if json_output:
         emit_json({"removed": removed, "backup": backup_path})
@@ -377,8 +380,7 @@ def run_legacy_internal(args):
     elif command == "post-check":
         post_check_and_switch()
     elif command in ("daemon", "auto"):
-        from auto_rotate_daemon import main as daemon_main
-        daemon_main()
+        print("The background daemon has been replaced by native prompt hooks (before_agent/after_agent) and is no longer needed.", file=sys.stderr)
     elif command in ("add-token", "paste", "new-token"):
         add_token_from_input(args[1] if len(args) > 1 else None)
     elif command in ("import-file", "add-file", "load"):

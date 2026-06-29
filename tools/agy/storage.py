@@ -4,7 +4,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from utils import AGY_DIR, JSON_FILE, TOKEN_FILE, account_display_name
+from utils import AGY_DIR, JSON_FILE, TOKEN_FILE, account_display_name, get_account_reset_seconds
 
 
 BACKUP_DIR = os.path.join(AGY_DIR, "backups")
@@ -139,6 +139,7 @@ def public_accounts(accounts):
     active_index = active_account_index(accounts)
     rows = []
     for index, account in enumerate(accounts):
+        reset_seconds = get_account_reset_seconds(account)
         rows.append({
             "index": index + 1,
             "label": account.get("label"),
@@ -148,8 +149,10 @@ def public_accounts(accounts):
             "status": account.get("status", "Unknown"),
             "quota": account.get("quota", "?"),
             "reset_time": account.get("reset_info", ""),
+            "reset_info": account.get("reset_info", ""),
             "last_checked": account.get("last_checked"),
             "token_available": bool(account.get("token", {}).get("refresh_token")),
+            "reset_seconds": reset_seconds,
         })
     return rows
 

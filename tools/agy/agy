@@ -197,8 +197,8 @@ while [ $attempt -le $MAX_RETRIES ]; do
             attempt=0
             continue
         fi
-        # Always check log for quota error on exit, even if exit_code is 0
-        needs_check=true
+        # Do not check log or resume on exit for interactive mode
+        needs_check=false
     fi
 
     if [ "$needs_check" = true ] && [ -f "$AGY_DIR/agy-status.py" ]; then

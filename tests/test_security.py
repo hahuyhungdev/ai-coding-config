@@ -160,3 +160,63 @@ class TestSimulatorExecuteSecurity(unittest.TestCase):
         self.assertEqual(response.status, 200)
         res_data = json.loads(response.read().decode("utf-8"))
         self.assertEqual(res_data.get("status"), "success")
+
+    def test_execute_denies_command_injection(self):
+        url = f"http://127.0.0.1:{self.port}/api/simulator/execute"
+        payload = {"action": "run_command", "args": {"CommandLine": "echo hello; rm -rf /"}}
+        data = json.dumps(payload).encode("utf-8")
+        
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "X-Session-Token": self.token,
+                "Origin": "http://127.0.0.1"
+            }
+        )
+        response = urllib.request.urlopen(req)
+        self.assertEqual(response.status, 200)
+        res_data = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(res_data.get("status"), "error")
+        self.assertIn("Access denied", res_data.get("message", ""))
+
+    def test_execute_denies_path_traversal(self):
+        url = f"http://127.0.0.1:{self.port}/api/simulator/execute"
+        payload = {"action": "view_file", "args": {"AbsolutePath": "/etc/passwd"}}
+        data = json.dumps(payload).encode("utf-8")
+        
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "X-Session-Token": self.token,
+                "Origin": "http://127.0.0.1"
+            }
+        )
+        response = urllib.request.urlopen(req)
+        self.assertEqual(response.status, 200)
+        res_data = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(res_data.get("status"), "error")
+        self.assertIn("Access denied", res_data.get("message", ""))
+
+    def test_execute_allows_placeholder_view_file(self):
+        url = f"http://127.0.0.1:{self.port}/api/simulator/execute"
+        payload = {"action": "view_file", "args": {"AbsolutePath": "/absolute/path/to/project/server.py"}}
+        data = json.dumps(payload).encode("utf-8")
+        
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "X-Session-Token": self.token,
+                "Origin": "http://127.0.0.1"
+            }
+        )
+        response = urllib.request.urlopen(req)
+        self.assertEqual(response.status, 200)
+        res_data = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(res_data.get("status"), "success")
+        self.assertIn("ConfigHandler", res_data.get("output", ""))
