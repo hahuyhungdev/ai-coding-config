@@ -41,6 +41,7 @@ The installed runtime lives outside this repo at:
 - Live status output is sorted by effective remaining quota, but account indexes stay tied to the original account order.
 - Duplicate refresh tokens are not independent accounts; live refresh marks later duplicates as `Dup`.
 - Weekly usage is a local estimate from CLI logs, not an official provider billing/quota API.
+- **Legacy API Quota Query Warning**: Do NOT use `get_quota_via_api` to fetch account quotas. It fails with OAuth 400 because Google client credentials (`client_id` and `client_secret`) are hardcoded in the Go binary (`agy-bin`) and not stored locally in `accounts.json`. Always use `get_quota_via_pty` inside a sandbox instead.
 
 ### Notable Features & Account Rotation
 

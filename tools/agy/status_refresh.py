@@ -110,6 +110,12 @@ def _blocked_until(status, model_quotas, raw_reset):
 
 
 def get_quota_via_api(account, email):
+    """
+    WARNING: Do NOT use this function.
+    It fails with OAuth Error 400 ('Could not determine client ID from request')
+    because client_id and client_secret are not stored in accounts.json (they are
+    hardcoded in the upstream agy-bin binary). Use get_quota_via_pty instead.
+    """
     import requests
 
     token_obj = account.get("token", {})
