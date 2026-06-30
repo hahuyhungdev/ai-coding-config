@@ -200,9 +200,22 @@ while [ $attempt -le $MAX_RETRIES ]; do
         fi
 
         rm -f "$AGY_DIR/.compact_signal"
+
+        # Read conversation ID from .active_conv_id
+        CONV_ID=""
+        if [ -f "$AGY_DIR/.active_conv_id" ]; then
+            CONV_ID=$(cat "$AGY_DIR/.active_conv_id" | tr -d '\r\n[:space:]')
+            rm -f "$AGY_DIR/.active_conv_id"
+        fi
+
         echo -e "\n\033[1;32m♻️ [AUTO-RESUMING SESSION (QUOTA ROLLOVER)]...\033[0m\n"
         AUTO_PROMPT=$(echo -e "<compaction_rollover>\n<instructions>\n- You are resuming a session after a quota rollover. Read the conversation history below to restore context.\n- IMPORTANT: Do NOT execute any pending tasks or run commands automatically. Present the history summary, suggest the next step, and wait for user confirmation.\n- Use Graphify commands (e.g. rtk graphify) on-demand if you need to explore code symbols or structure.\n</instructions>\n\n<progress_summary>\n$PROGRESS_CONTENT\n</progress_summary>\n</compaction_rollover>")
-        set -- "-i" "$AUTO_PROMPT"
+        
+        if [ -n "$CONV_ID" ]; then
+            set -- "--conversation" "$CONV_ID" "-i" "$AUTO_PROMPT"
+        else
+            set -- "-i" "$AUTO_PROMPT"
+        fi
         is_print_mode=false # Always reload into interactive mode for user confirmation
         attempt=0
         continue
@@ -230,9 +243,22 @@ while [ $attempt -le $MAX_RETRIES ]; do
             if [ -f ".agy_progress.md" ]; then
                 PROGRESS_CONTENT=$(cat ".agy_progress.md")
                 rm -f ".agy_progress.md"
+
+                # Read conversation ID from .active_conv_id
+                CONV_ID=""
+                if [ -f "$AGY_DIR/.active_conv_id" ]; then
+                    CONV_ID=$(cat "$AGY_DIR/.active_conv_id" | tr -d '\r\n[:space:]')
+                    rm -f "$AGY_DIR/.active_conv_id"
+                fi
+
                 echo -e "\n\033[1;32m♻️ [AUTO-RESUMING SESSION (QUOTA ROLLOVER)]...\033[0m\n"
                 AUTO_PROMPT=$(echo -e "<compaction_rollover>\n<instructions>\n- You are resuming a session after a quota rollover. Read the conversation history below to restore context.\n- IMPORTANT: Do NOT execute any pending tasks or run commands automatically. Present the history summary, suggest the next step, and wait for user confirmation.\n- Use Graphify commands (e.g. rtk graphify) on-demand if you need to explore code symbols or structure.\n</instructions>\n\n<progress_summary>\n$PROGRESS_CONTENT\n</progress_summary>\n</compaction_rollover>")
-                set -- "-i" "$AUTO_PROMPT"
+                
+                if [ -n "$CONV_ID" ]; then
+                    set -- "--conversation" "$CONV_ID" "-i" "$AUTO_PROMPT"
+                else
+                    set -- "-i" "$AUTO_PROMPT"
+                fi
                 is_print_mode=false
             fi
 

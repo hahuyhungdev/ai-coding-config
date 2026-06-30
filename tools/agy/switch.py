@@ -709,12 +709,33 @@ def rotate_account(target=None, force=False):
 
 def generate_quota_rollover():
     _sync_paths()
+    brain_dir = os.path.expanduser(os.path.join(AGY_DIR, "brain"))
+    conv_id = None
+    if os.path.exists(brain_dir):
+        subdirs = []
+        for d in os.listdir(brain_dir):
+            path = os.path.join(brain_dir, d)
+            if os.path.isdir(path) and not d.startswith("."):
+                try:
+                    subdirs.append((path, os.path.getmtime(path)))
+                except OSError:
+                    pass
+        if subdirs:
+            subdirs.sort(key=lambda x: x[1], reverse=True)
+            conv_id = os.path.basename(subdirs[0][0])
+
+    if conv_id:
+        try:
+            with open(os.path.join(AGY_DIR, ".active_conv_id"), "w", encoding="utf-8") as f:
+                f.write(conv_id)
+        except Exception:
+            pass
+
     # Check if a custom structured progress summary already exists; if so, preserve it
     for progress_name in [".agy_progress.md", "PROGRESS.md"]:
         if os.path.exists(progress_name) and os.path.getsize(progress_name) > 0:
             return
 
-    brain_dir = os.path.expanduser(os.path.join(AGY_DIR, "brain"))
     if not os.path.exists(brain_dir):
         return
 
@@ -780,10 +801,63 @@ def generate_quota_rollover():
     # Take the last 6 turns (3 exchanges)
     recent_history = "\n\n".join(filtered_turns[-6:])
 
-    # Write to .agy_progress.md in the current directory
+    # Generate structured progress markdown
+    import subprocess
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    # Get modified files (staged and unstaged)
+    modified_files_lines = []
+    try:
+        status_output = subprocess.check_output(
+            ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL
+        ).decode()
+        for line in status_output.splitlines():
+            if len(line) > 3:
+                status = line[:2].strip()
+                filepath = line[3:].strip()
+                if " -> " in filepath:
+                    filepath = filepath.split(" -> ")[-1]
+                abs_path = os.path.abspath(filepath)
+                status_desc = "Modified" if "M" in status else "Added" if "A" in status else "Untracked" if "?" in status else status
+                modified_files_lines.append(f"- [{filepath}](file://{abs_path}) ({status_desc})")
+    except Exception:
+        pass
+
+    if modified_files_lines:
+        modified_files_markdown = "\n".join(modified_files_lines)
+    else:
+        modified_files_markdown = "- None"
+
+    # Get active account
+    active_email = "Unknown"
+    try:
+        from storage import load_accounts, active_account_index
+        accounts = load_accounts()
+        active_idx = active_account_index(accounts)
+        if active_idx is not None and 0 <= active_idx < len(accounts):
+            active_acc = accounts[active_idx]
+            active_email = active_acc.get("email") or active_acc.get("name") or f"Account {active_idx + 1}"
+    except Exception:
+        pass
+
     progress_file = ".agy_progress.md"
     try:
         with open(progress_file, "w", encoding="utf-8") as f:
-            f.write(recent_history)
+            f.write(
+                f"# Session Progress Summary\n\n"
+                f"**Date:** {current_time}\n"
+                f"**Active Account:** {active_email}\n"
+                f"**Goal:** Run tests or proceed with tasks on the active workspace.\n\n"
+                f"## Completed\n"
+                f"- [x] Auto-saved active session progress before account rollover.\n"
+                f"- [x] Switched active account successfully.\n\n"
+                f"## Recent Conversation History\n"
+                f"{recent_history}\n\n"
+                f"## Active Files Modified\n"
+                f"{modified_files_markdown}\n\n"
+                f"## Pending / Next Steps\n"
+                f"- [ ] Review the conversation history above to restore context.\n"
+                f"- [ ] Verify changes in active files (if any) and proceed with the task.\n"
+            )
     except Exception:
         pass
