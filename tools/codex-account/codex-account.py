@@ -649,7 +649,10 @@ def refresh_store_rate_limits(store, target=None, timeout=None, progress=False):
         label = row.get("label") or "-"
         if progress:
             print(f"Refreshing Codex account {position}/{total}: {label}", file=sys.stderr, flush=True)
-        snapshot, error = refresh_account_rate_limits(row, timeout=timeout)
+        try:
+            snapshot, error = refresh_account_rate_limits(row, timeout=timeout)
+        except Exception as exc:
+            snapshot, error = None, str(exc)
         if snapshot:
             row["rate_limits_snapshot"] = snapshot_payload(snapshot)
             row["last_rate_limit_refresh"] = refreshed_at
@@ -679,19 +682,45 @@ def cmd_list(_args):
 def cmd_status(args):
     refreshed_count = 0
     refresh_errors = []
-    if args.refresh:
-        store, _ = load_store(migrate=False)
-        refreshed_count, refresh_errors = refresh_store_rate_limits(
-            store,
-            target=args.account,
-            timeout=args.timeout,
-            progress=True,
-        )
+    should_refresh = not args.no_refresh
+    if should_refresh:
+        auth_file = auth_path()
+        original_auth = None
+        auth_existed = auth_file.exists()
+        if auth_existed:
+            try:
+                original_auth = auth_file.read_bytes()
+            except OSError:
+                original_auth = None
+        try:
+            store, _ = load_store(migrate=False)
+            refreshed_count, refresh_errors = refresh_store_rate_limits(
+                store,
+                target=args.account,
+                timeout=args.timeout,
+                progress=True,
+            )
+        finally:
+            if original_auth is not None:
+                current_auth = None
+                try:
+                    current_auth = auth_file.read_bytes()
+                except OSError:
+                    pass
+                if current_auth != original_auth:
+                    auth_file.parent.mkdir(parents=True, exist_ok=True)
+                    auth_file.write_bytes(original_auth)
+                    os.chmod(auth_file, 0o600)
+            elif not auth_existed:
+                try:
+                    auth_file.unlink()
+                except FileNotFoundError:
+                    pass
 
     payload = status_payload(
         threshold_used=args.threshold_used,
-        refreshed=args.refresh,
-        refresh_target=args.account,
+        refreshed=should_refresh,
+        refresh_target=args.account if should_refresh else None,
         refresh_count=refreshed_count,
         refresh_errors=refresh_errors,
     )
@@ -882,9 +911,41 @@ def cmd_add_token(args):
     print(f"{action} Codex account '{label}' from refresh token")
 
 
+def is_usage_limit_error(message):
+    text = str(message or "").lower()
+    return "usage limit" in text or "hit your usage limit" in text
+
+
+def annotate_refresh_errors(records, refresh_errors):
+    errors_by_label = {
+        str(error.get("label") or ""): str(error.get("error") or "")
+        for error in (refresh_errors or [])
+        if error.get("label")
+    }
+    for record in records:
+        error = errors_by_label.get(str(record.get("label") or ""))
+        if not error:
+            continue
+        record["stale"] = True
+        record["refresh_error"] = error
+        record["healthy"] = False
+        record["reset_time"] = "?"
+        if is_usage_limit_error(error):
+            record["status"] = "exhausted"
+            record["quota"] = "0%"
+            record["usage"] = "limit"
+            record["used_percent"] = 100
+        else:
+            record["status"] = "stale"
+            record["quota"] = "stale"
+            record["usage"] = "stale"
+            record["used_percent"] = None
+
+
 def status_payload(threshold_used, refreshed=False, refresh_target=None, refresh_count=0, refresh_errors=None):
     records = build_account_records(threshold_used=threshold_used)
     public_records = [public_account_record(record) for record in records]
+    annotate_refresh_errors(public_records, refresh_errors)
     active = next((record for record in public_records if record["active"]), None)
     return {
         "active": active,
@@ -1063,12 +1124,17 @@ def build_parser():
     guide_cmd = subcommands.add_parser("guide", help="Print the short Codex account workflow guide")
     guide_cmd.set_defaults(func=cmd_guide)
 
-    status_cmd = subcommands.add_parser("status", help="Show cached Codex account usage health")
+    status_cmd = subcommands.add_parser("status", help="Live-refresh and show Codex account usage health")
     status_cmd.add_argument("--json", action="store_true", help="Emit stable JSON without credential values")
     status_cmd.add_argument(
         "--refresh",
         action="store_true",
-        help="Run a minimal Codex exec in a temporary CODEX_HOME for each saved account before reporting",
+        help="Accepted for compatibility; status refreshes by default",
+    )
+    status_cmd.add_argument(
+        "--no-refresh",
+        action="store_true",
+        help="Use cached local usage snapshots without running a live Codex check",
     )
     status_cmd.add_argument(
         "--account",

@@ -99,6 +99,24 @@ class TestCodexWrapperInstall(unittest.TestCase):
         self.assertTrue(installed.stat().st_mode & 0o111)
         self.assertTrue(preserved.stat().st_mode & 0o111)
 
+    def test_repairs_codex_bin_when_it_points_to_account_wrapper(self):
+        real_codex = self.home / ".nvm" / "versions" / "node" / "v24.18.0" / "bin" / "codex"
+        real_codex.parent.mkdir(parents=True)
+        real_codex.write_text("#!/usr/bin/env node\n", encoding="utf-8")
+        real_codex.chmod(0o755)
+
+        bin_dir = self.home / ".local" / "bin"
+        bin_dir.mkdir(parents=True)
+        wrapper_text = (self.repo / "tools" / "codex" / "codex").read_text(encoding="utf-8")
+        (bin_dir / "codex").write_text(wrapper_text, encoding="utf-8")
+        (bin_dir / "codex-bin").write_text(wrapper_text, encoding="utf-8")
+
+        installer_setup.setup_codex_global_wrapper(self.repo)
+
+        preserved = bin_dir / "codex-bin"
+        self.assertIn(str(real_codex), preserved.read_text(encoding="utf-8"))
+        self.assertNotIn("ACCOUNT_HELPER", preserved.read_text(encoding="utf-8"))
+
     def test_bash_exact_file_read_is_allowed_before_graphify(self):
         result = install.classify_graphify_tool_use(
             "Bash", {"command": "cat src/router.py"}, graph_exists=True

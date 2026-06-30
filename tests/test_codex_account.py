@@ -265,7 +265,7 @@ class TestCodexAccount(unittest.TestCase):
         self._write_rate_limit("plus", primary_used=85, secondary_used=20, timestamp="2026-06-15T00:00:00Z")
         self._write_rate_limit("k12", primary_used=25, secondary_used=40, timestamp="2026-06-15T00:01:00Z")
 
-        result = self._run("status")
+        result = self._run("status", "--no-refresh")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Active: plus-account | low | left 5H:15%/W:80% | used 5H:85%/W:20%", result.stdout)
@@ -307,9 +307,20 @@ class TestCodexAccount(unittest.TestCase):
         result = self._run_wrapper("status", "--json")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("REAL_CODEX", result.stdout)
-        self.assertEqual(json.loads(result.stdout)["active"]["label"], "plus-account")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["active"]["label"], "plus-account")
+        self.assertTrue(payload["refreshed"])
+        self.assertEqual(payload["source"], "live_codex_exec_rate_limits")
+        self.assertEqual(payload["accounts"][0]["quota"], "5H:81%/W:79%")
 
         result = self._run_wrapper("rotate", "--dry-run", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("REAL_CODEX", result.stdout)
+        rotate_payload = json.loads(result.stdout)
+        self.assertFalse(rotate_payload["would_switch"])
+        self.assertEqual(rotate_payload["reason"], "Active Codex account is healthy; use --force to rotate anyway")
+
+        result = self._run_wrapper("rotate", "--force", "--dry-run", "--json")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("REAL_CODEX", result.stdout)
         self.assertEqual(json.loads(result.stdout)["target"]["label"], "k12-account")
@@ -488,7 +499,7 @@ class TestCodexAccount(unittest.TestCase):
         self.assertIn("usage: codex account", result.stdout)
         self.assertNotIn("usage: codex-account", result.stdout)
 
-    def test_status_json_reports_active_health_from_cached_usage(self):
+    def test_status_no_refresh_json_reports_active_health_from_cached_usage(self):
         active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
         candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
         self._write_store(
@@ -501,7 +512,7 @@ class TestCodexAccount(unittest.TestCase):
         self._write_rate_limit("plus", primary_used=85, secondary_used=20, timestamp="2026-06-15T00:00:00Z")
         self._write_rate_limit("k12", primary_used=25, secondary_used=40, timestamp="2026-06-15T00:01:00Z")
 
-        result = self._run("status", "--json")
+        result = self._run("status", "--no-refresh", "--json")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
@@ -515,6 +526,96 @@ class TestCodexAccount(unittest.TestCase):
         self.assertEqual(payload["accounts"][1]["status"], "healthy")
         self.assertEqual(payload["accounts"][1]["usage"], "5H:25%/W:40%")
         self.assertEqual(payload["accounts"][1]["quota"], "5H:75%/W:60%")
+
+    def test_status_json_refreshes_live_by_default(self):
+        active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
+        candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
+        self._write_store(
+            [
+                {"label": "plus-account", "auth": active},
+                {"label": "k12-account", "auth": candidate},
+            ],
+            active,
+        )
+        self._write_rate_limit("plus", primary_used=85, secondary_used=20, timestamp="2026-06-15T00:00:00Z")
+        self._write_rate_limit("k12", primary_used=25, secondary_used=40, timestamp="2026-06-15T00:01:00Z")
+        fake_codex = self.home / "codex-bin"
+        calls_log = self.home / "codex-live-check.log"
+        fake_codex.write_text(
+            "\n".join([
+                "#!/bin/sh",
+                "printf '%s\\n' \"$CODEX_ACCOUNT_LABEL\" >> \"$CODEX_LIVE_CHECK_LOG\"",
+                "mkdir -p \"$CODEX_HOME/sessions/2026/06/26\"",
+                "used=19",
+                "[ \"$CODEX_ACCOUNT_LABEL\" = \"k12-account\" ] && used=7",
+                "cat > \"$CODEX_HOME/sessions/2026/06/26/live.jsonl\" <<EOF",
+                "{\"timestamp\":\"2026-06-26T00:00:00Z\",\"payload\":{\"rate_limits\":{\"primary\":{\"used_percent\":$used,\"resets_at\":1781523251},\"secondary\":{\"used_percent\":21,\"resets_at\":1781867601},\"plan_type\":\"plus\"}}}",
+                "EOF",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        fake_codex.chmod(0o755)
+
+        result = self._run(
+            "status",
+            "--json",
+            extra_env={
+                "CODEX_REAL_BIN": str(fake_codex),
+                "CODEX_LIVE_CHECK_LOG": str(calls_log),
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["refreshed"])
+        self.assertEqual(payload["source"], "live_codex_exec_rate_limits")
+        self.assertEqual(payload["refresh_count"], 2)
+        self.assertEqual(payload["accounts"][0]["quota"], "5H:81%/W:79%")
+        self.assertEqual(payload["accounts"][1]["quota"], "5H:93%/W:79%")
+        self.assertEqual(calls_log.read_text(encoding="utf-8").splitlines(), [
+            "plus-account",
+            "k12-account",
+        ])
+
+    def test_status_refresh_restores_active_auth_if_live_check_mutates_it(self):
+        active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
+        candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
+        self._write_store(
+            [
+                {"label": "plus-account", "auth": active},
+                {"label": "k12-account", "auth": candidate},
+            ],
+            active,
+        )
+        fake_codex = self.home / "codex-bin"
+        candidate_json = json.dumps(candidate)
+        fake_codex.write_text(
+            "\n".join([
+                "#!/bin/sh",
+                "cat > \"$REAL_AUTH_PATH\" <<'EOF'",
+                candidate_json,
+                "EOF",
+                "mkdir -p \"$CODEX_HOME/sessions/2026/06/26\"",
+                "cat > \"$CODEX_HOME/sessions/2026/06/26/live.jsonl\" <<'EOF'",
+                "{\"timestamp\":\"2026-06-26T00:00:00Z\",\"payload\":{\"rate_limits\":{\"primary\":{\"used_percent\":12,\"resets_at\":1781523251},\"secondary\":{\"used_percent\":34,\"resets_at\":1781867601},\"plan_type\":\"plus\"}}}",
+                "EOF",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        fake_codex.chmod(0o755)
+
+        result = self._run(
+            "status",
+            "--json",
+            extra_env={
+                "CODEX_REAL_BIN": str(fake_codex),
+                "REAL_AUTH_PATH": str(self.codex_home / "auth.json"),
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        active_after = json.loads((self.codex_home / "auth.json").read_text(encoding="utf-8"))
+        self.assertEqual(active_after["tokens"]["account_id"], "acct-plus")
 
     def test_status_refresh_runs_codex_exec_and_caches_live_rate_limits(self):
         auth = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
@@ -585,6 +686,38 @@ class TestCodexAccount(unittest.TestCase):
             payload["refresh_errors"][0]["error"],
             "Codex exec exited 1 without rate limits: auth expired",
         )
+
+    def test_status_refresh_marks_usage_limit_errors_as_exhausted_not_cached(self):
+        auth = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
+        self._write_store([{"label": "plus-account", "auth": auth}], auth)
+        self._write_rate_limit("plus", primary_used=12, secondary_used=18, timestamp="2026-06-15T00:00:00Z")
+        fake_codex = self.home / "codex-bin"
+        fake_codex.write_text(
+            "\n".join([
+                "#!/bin/sh",
+                "printf '%s\\n' \"You've hit your usage limit. Try again at 2:02 PM.\" >&2",
+                "exit 1",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        fake_codex.chmod(0o755)
+
+        result = self._run(
+            "status",
+            "--json",
+            extra_env={"CODEX_REAL_BIN": str(fake_codex)},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["refresh_count"], 0)
+        self.assertTrue(payload["active"]["stale"])
+        self.assertEqual(payload["active"]["status"], "exhausted")
+        self.assertFalse(payload["active"]["healthy"])
+        self.assertEqual(payload["active"]["quota"], "0%")
+        self.assertEqual(payload["active"]["usage"], "limit")
+        self.assertEqual(payload["active"]["used_percent"], 100)
+        self.assertIn("usage limit", payload["active"]["refresh_error"])
 
     def test_status_refresh_ignores_generic_stdin_notice_when_summarizing_errors(self):
         auth = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")

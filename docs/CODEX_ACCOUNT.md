@@ -14,7 +14,9 @@ For shared AGY/Codex rotation semantics, see [ACCOUNT_ROTATION.md](ACCOUNT_ROTAT
 
 ```bash
 codex ls
+codex status
 codex check
+codex status --json
 codex check hahuyhungdev --json
 codex rotate --dry-run
 codex rotate
@@ -31,7 +33,8 @@ Use these most of the time:
 
 ```bash
 codex ls                    # cached account table
-codex check [account]       # live quota check; account is optional
+codex status                # live quota check for all accounts
+codex check [account]       # live quota check; account is optional alias
 codex rotate --dry-run      # preview automatic switch
 codex rotate                # switch when current account is low
 codex token [label]         # paste a refresh token safely
@@ -45,7 +48,9 @@ You normally do not need to run `codex-account` directly. It is the internal hel
 
 `list` reads cached local metadata only. The `LEFT` column is derived from the latest local Codex session `token_count.rate_limits` events, similar to the cached `agy account list` pattern. It does not call a live quota API.
 
-Use `codex check` when the quota must be checked live. It runs a tiny `codex-bin exec --json` for each saved account inside a temporary `CODEX_HOME`, reads the new sandbox session log, and stores the resulting `rate_limits_snapshot` back into `accounts.json`. This is the Codex equivalent of the `agy status` refresh path. The real active `auth.json` is not swapped during the check.
+Use `codex status` when the quota must be checked live. It runs a tiny `codex-bin exec --json` for each saved account inside a temporary `CODEX_HOME`, reads the new sandbox session log, and stores the resulting `rate_limits_snapshot` back into `accounts.json`. This is the Codex equivalent of the `agy status` refresh path. The real active `auth.json` is not swapped during the check. `codex check` is kept as a live-refresh alias, and `codex status --no-refresh` is available when you explicitly want cached data.
+
+If a live check returns a Codex usage-limit error instead of a rate-limit snapshot, `status` marks that account as `exhausted` with `0%` left. Other refresh failures are marked `stale` so cached percentages are not mistaken for current quota.
 
 When you just added or updated one auth file, prefer a targeted refresh:
 
@@ -55,7 +60,7 @@ codex check hahuyhungdev --json
 
 `codex check <account>` accepts a 1-based index, label, email fragment, or account id fragment. It uses a 30-second per-account timeout by default, so it keeps a broken login from making the whole refresh look stuck. Progress is printed to stderr even when JSON mode is enabled. Set `CODEX_ACCOUNT_CHECK_TIMEOUT=60` when you want a longer default timeout.
 
-Codex rate-limit events expose `used_percent`. The helper converts that to remaining quota for the JSON `quota` field and text `LEFT` display, and also exposes `usage` plus `used_percent` for diagnostics. `status` and default `rotate` treat an account as low when either usage window is at or above `70%` by default, which is equivalent to the `agy` convention of switching at `30%` remaining. A healthy active account stays active unless `codex rotate --force` is used. Accounts without cached usage are not selected automatically unless `--allow-unknown` is passed.
+Codex rate-limit events expose `used_percent`. The helper converts that to remaining quota for the JSON `quota` field and text `LEFT` display, and also exposes `usage` plus `used_percent` for diagnostics. `status` live-refreshes by default, while `list` and `status --no-refresh` use cached snapshots. `status` and default `rotate` treat an account as low when either usage window is at or above `70%` by default, which is equivalent to the `agy` convention of switching at `30%` remaining. A usage-limit refresh error is treated as exhausted rather than healthy cached quota. A healthy active account stays active unless `codex rotate --force` is used. Accounts without cached usage are not selected automatically unless `--allow-unknown` is passed.
 
 The `codex` wrapper intercepts only explicit account-management commands and passes normal Codex usage through to the original binary:
 
@@ -77,6 +82,7 @@ codex account add-token work --from /path/to/refresh-token.txt
 codex account relabel
 codex account status --json
 codex account status --refresh --json
+codex account status --no-refresh --json
 codex account status --refresh --account work --timeout 30 --json
 codex account rotate --dry-run --json
 codex account rotate --force

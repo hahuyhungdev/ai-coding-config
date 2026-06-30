@@ -102,6 +102,31 @@ def _write_codex_bin_launcher(codex_bin: Path, real_target: Path) -> None:
     codex_bin.chmod(0o755)
 
 
+def _looks_like_codex_account_wrapper(path: Path, wrapper_content: str) -> bool:
+    if not path.exists() or path.is_symlink():
+        return False
+    try:
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return content == wrapper_content or "ACCOUNT_HELPER" in content
+
+
+def _find_real_codex_candidate(bin_dir: Path, wrapper_content: str) -> Path | None:
+    candidates = []
+    nvm_dir = Path.home() / ".nvm" / "versions" / "node"
+    if nvm_dir.exists():
+        candidates.extend(nvm_dir.glob("*/bin/codex"))
+
+    for candidate in sorted(candidates, reverse=True):
+        if not candidate.exists() or _looks_like_codex_account_wrapper(candidate, wrapper_content):
+            continue
+        if candidate.resolve() in {(bin_dir / "codex").resolve(), (bin_dir / "codex-bin").resolve()}:
+            continue
+        return candidate.resolve()
+    return None
+
+
 def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
     """Install the Codex account wrapper while preserving the real Codex CLI."""
     bin_dir = Path.home() / ".local" / "bin"
@@ -117,12 +142,7 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
     codex_bin = bin_dir / "codex-bin"
     wrapper_content = wrapper_src.read_text(encoding="utf-8")
 
-    current_is_repo_wrapper = False
-    if codex_path.exists() and not codex_path.is_symlink():
-        try:
-            current_is_repo_wrapper = codex_path.read_text(encoding="utf-8") == wrapper_content
-        except UnicodeDecodeError:
-            current_is_repo_wrapper = False
+    current_is_repo_wrapper = _looks_like_codex_account_wrapper(codex_path, wrapper_content)
 
     if (codex_path.exists() or codex_path.is_symlink()) and not current_is_repo_wrapper:
         if codex_path.is_symlink():
@@ -131,6 +151,13 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
             shutil.copy2(codex_path, codex_bin)
             codex_bin.chmod(0o755)
         codex_path.unlink()
+
+    if (not codex_bin.exists()) or _looks_like_codex_account_wrapper(codex_bin, wrapper_content):
+        real_codex = _find_real_codex_candidate(bin_dir, wrapper_content)
+        if real_codex:
+            _write_codex_bin_launcher(codex_bin, real_codex)
+        else:
+            warn("Real Codex CLI target was not found; codex-bin may need manual repair")
 
     codex_path.write_text(wrapper_content, encoding="utf-8")
     codex_path.chmod(0o755)

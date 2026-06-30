@@ -33,6 +33,10 @@ Example: if local config has `threshold_5h=60`, then an AGY account with `5H:55%
 
 Codex session logs expose `used_percent`, not remaining percentage.
 
+`codex status` live-refreshes accounts by default, matching the practical role of `agy status`. Use `codex status --no-refresh` or `codex ls` when you intentionally want cached local snapshots.
+
+When Codex live refresh returns a usage-limit error instead of a fresh `rate_limits` event, the account is reported as `exhausted` with `0%` left. Other refresh failures are reported as `stale` instead of presenting cached percentages as current quota.
+
 The active Codex account is low when the highest known usage window is greater than or equal to `--threshold-used`.
 
 The default is:

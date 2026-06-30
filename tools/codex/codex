@@ -66,7 +66,7 @@ case "${1:-}" in
         ;;
     status)
         shift
-        run_account_helper status "$@"
+        run_account_helper status --timeout "${CODEX_ACCOUNT_CHECK_TIMEOUT:-30}" "$@"
         ;;
     rotate)
         shift
