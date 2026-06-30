@@ -1,6 +1,7 @@
 """Setup functions for different AI coding assistants."""
 
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -90,6 +91,50 @@ def ensure_codex_rtk_reference(agents_path: Path, rtk_path: Path) -> None:
     stripped = content.rstrip()
     next_content = f"{stripped}\n\n{reference}\n" if stripped else f"{reference}\n"
     agents_path.write_text(next_content, encoding="utf-8")
+
+
+def _write_codex_bin_launcher(codex_bin: Path, real_target: Path) -> None:
+    codex_bin.write_text(
+        "#!/usr/bin/env bash\n"
+        f"exec {json.dumps(str(real_target))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    codex_bin.chmod(0o755)
+
+
+def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
+    """Install the Codex account wrapper while preserving the real Codex CLI."""
+    bin_dir = Path.home() / ".local" / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+
+    wrapper_src = repo_dir / "tools" / "codex" / "codex"
+    helper_src = repo_dir / "tools" / "codex-account" / "codex-account.py"
+    if not wrapper_src.exists() or not helper_src.exists():
+        warn("Codex wrapper source is missing; skipped global codex wrapper")
+        return
+
+    codex_path = bin_dir / "codex"
+    codex_bin = bin_dir / "codex-bin"
+    wrapper_content = wrapper_src.read_text(encoding="utf-8")
+
+    current_is_repo_wrapper = False
+    if codex_path.exists() and not codex_path.is_symlink():
+        try:
+            current_is_repo_wrapper = codex_path.read_text(encoding="utf-8") == wrapper_content
+        except UnicodeDecodeError:
+            current_is_repo_wrapper = False
+
+    if (codex_path.exists() or codex_path.is_symlink()) and not current_is_repo_wrapper:
+        if codex_path.is_symlink():
+            _write_codex_bin_launcher(codex_bin, codex_path.resolve())
+        else:
+            shutil.copy2(codex_path, codex_bin)
+            codex_bin.chmod(0o755)
+        codex_path.unlink()
+
+    codex_path.write_text(wrapper_content, encoding="utf-8")
+    codex_path.chmod(0o755)
+    ok("codex wrapper installed to ~/.local/bin/codex")
 
 
 def setup_claude(force: bool) -> None:
@@ -198,6 +243,8 @@ def setup_codex(force: bool) -> None:
 
     # Skills
     _copy_skills(CODEX_DIR, force)
+
+    setup_codex_global_wrapper(REPO_DIR)
 
 
 def setup_gemini(force: bool) -> None:

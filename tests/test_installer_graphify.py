@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 import install
+from installer import setup as installer_setup
 
 
 class TestGraphifyCommandClassification(unittest.TestCase):
@@ -53,6 +54,50 @@ class TestGraphifyCommandClassification(unittest.TestCase):
             "Read", {"file_path": "src/router.py"}, graph_exists=True
         )
         self.assertEqual(result, {"decision": "allow"})
+
+
+class TestCodexWrapperInstall(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.home = self.root / "home"
+        self.home.mkdir()
+        self.repo = self.root / "repo"
+        (self.repo / "tools" / "codex").mkdir(parents=True)
+        (self.repo / "tools" / "codex-account").mkdir(parents=True)
+        (self.repo / "tools" / "codex" / "codex").write_text(
+            "#!/usr/bin/env bash\nprintf 'WRAPPER\\n'\n",
+            encoding="utf-8",
+        )
+        (self.repo / "tools" / "codex-account" / "codex-account.py").write_text(
+            "#!/usr/bin/env python3\n",
+            encoding="utf-8",
+        )
+        self.home_patcher = mock.patch.object(Path, "home", return_value=self.home)
+        self.home_patcher.start()
+
+    def tearDown(self):
+        self.home_patcher.stop()
+        self.tmp.cleanup()
+
+    def test_installs_codex_wrapper_and_preserves_real_cli_target(self):
+        real_codex = self.root / "node" / "codex.js"
+        real_codex.parent.mkdir()
+        real_codex.write_text("#!/usr/bin/env node\n", encoding="utf-8")
+        real_codex.chmod(0o755)
+
+        bin_dir = self.home / ".local" / "bin"
+        bin_dir.mkdir(parents=True)
+        (bin_dir / "codex").symlink_to(real_codex)
+
+        installer_setup.setup_codex_global_wrapper(self.repo)
+
+        installed = bin_dir / "codex"
+        preserved = bin_dir / "codex-bin"
+        self.assertEqual(installed.read_text(encoding="utf-8"), "#!/usr/bin/env bash\nprintf 'WRAPPER\\n'\n")
+        self.assertIn(str(real_codex), preserved.read_text(encoding="utf-8"))
+        self.assertTrue(installed.stat().st_mode & 0o111)
+        self.assertTrue(preserved.stat().st_mode & 0o111)
 
     def test_bash_exact_file_read_is_allowed_before_graphify(self):
         result = install.classify_graphify_tool_use(
