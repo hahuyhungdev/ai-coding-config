@@ -16,7 +16,7 @@ def parse_quota_output(output):
     found_new_format = False
     current_group = None
     current_limit = None
-    
+
     def get_group_quota(group_data):
         w = group_data["weekly"]
         f = group_data["five_hour"]
@@ -43,7 +43,7 @@ def parse_quota_output(output):
             current_limit = None
             found_new_format = True
             continue
-            
+
         if current_group:
             if "Weekly Limit" in line:
                 current_limit = "weekly"
@@ -51,7 +51,7 @@ def parse_quota_output(output):
             elif "Five Hour Limit" in line or "5-Hour Limit" in line:
                 current_limit = "five_hour"
                 continue
-                
+
             if current_limit:
                 if "remaining" in line_strip or "Refreshes in" in line_strip:
                     m_ref = re.search(r"Refreshes in\s*(.*)", line_strip)
@@ -63,7 +63,7 @@ def parse_quota_output(output):
                     group_quotas[current_group][current_limit]["refresh"] = ""
                     current_limit = None
                     continue
-                
+
                 m_pct = re.search(r"(\d+(?:\.\d+)?)%", line_strip)
                 if m_pct:
                     pct_val = float(m_pct.group(1))
@@ -74,10 +74,10 @@ def parse_quota_output(output):
     if found_new_format:
         gemini_pct, gemini_ref = get_group_quota(group_quotas["GEMINI"])
         claude_pct, claude_ref = get_group_quota(group_quotas["CLAUDE"])
-        
+
         for model in GEMINI_MODELS:
             model_quotas[model] = {
-                "pct": gemini_pct, 
+                "pct": gemini_pct,
                 "refresh": gemini_ref,
                 "weekly_pct": group_quotas["GEMINI"]["weekly"]["pct"],
                 "weekly_refresh": group_quotas["GEMINI"]["weekly"]["refresh"],
@@ -86,7 +86,7 @@ def parse_quota_output(output):
             }
         for model in CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
             model_quotas[model] = {
-                "pct": claude_pct, 
+                "pct": claude_pct,
                 "refresh": claude_ref,
                 "weekly_pct": group_quotas["CLAUDE"]["weekly"]["pct"],
                 "weekly_refresh": group_quotas["CLAUDE"]["weekly"]["refresh"],
@@ -118,7 +118,7 @@ def parse_quota_output(output):
                     if m_ref:
                         refresh = "In " + m_ref.group(1).split("·")[0].strip()
                 model_quotas[model_name] = {
-                    "pct": pct, 
+                    "pct": pct,
                     "refresh": refresh,
                     "weekly_pct": pct,
                     "weekly_refresh": refresh,
@@ -126,7 +126,7 @@ def parse_quota_output(output):
                     "five_hour_refresh": refresh
                 }
             i += 1
-            
+
     return model_quotas
 
 def get_log_email(log_path, accounts):
@@ -145,6 +145,7 @@ def get_log_email(log_path, accounts):
                                 return acc_email
     except:
         pass
+
     return None
 
 def get_remaining_reset_from_logs(email, accounts):

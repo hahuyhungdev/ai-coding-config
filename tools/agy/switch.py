@@ -84,24 +84,24 @@ def load_quota_thresholds():
         or settings.get("quota_threshold")
         or 15
     )
-    
+
     raw_weekly = (
         settings.get("threshold_weekly")
         or settings.get("thresholdWeekly")
         or settings.get("threshold_weekly_limit")
         or 10
     )
-    
+
     try:
         t_5h = int(raw_5h)
     except (ValueError, TypeError):
         t_5h = 15
-        
+
     try:
         t_weekly = int(raw_weekly)
     except (ValueError, TypeError):
         t_weekly = 10
-        
+
     return t_5h, t_weekly
 
 
@@ -213,7 +213,7 @@ def is_account_blocked_or_low(acc, accounts):
     email = acc.get("email") or acc.get("name")
     if not email:
         return True
-    
+
     # 1. Check cached quota percentage first (proactive check before expensive log scan)
     quota_val = acc.get("quota")
     if quota_val:
@@ -222,12 +222,12 @@ def is_account_blocked_or_low(acc, accounts):
         t_5h, t_w = load_quota_thresholds()
         if (pct_5h != -1 and pct_5h <= t_5h) or (pct_w != -1 and pct_w <= t_w):
             return True
-        
+
     # 2. Real-time log check (most accurate for active blocks)
     reset_time = get_remaining_reset_from_logs(email, accounts)
     if reset_time:
         return True
-        
+
     # 3. Check cached status
     status = acc.get("status")
     if status == "🔴 Blocked":
@@ -265,6 +265,63 @@ def is_account_blocked_or_low(acc, accounts):
                         return False
                 except:
                     pass
+            return True
+
+    return False
+
+def is_account_blocked_only(acc, accounts):
+    _sync_paths()
+    email = acc.get("email") or acc.get("name")
+    if not email:
+        return True
+
+    # 1. Real-time log check (indicates hard API block)
+    reset_time = get_remaining_reset_from_logs(email, accounts)
+    if reset_time:
+        return True
+
+    # 2. Check cached status block
+    status = acc.get("status")
+    if status == "🔴 Blocked":
+        blocked_until_str = acc.get("blocked_until")
+        if blocked_until_str:
+            try:
+                blocked_until = datetime.fromisoformat(blocked_until_str)
+                if datetime.now() < blocked_until:
+                    return True
+            except:
+                pass
+        else:
+            return True
+
+        last_checked_str = acc.get("last_checked")
+        reset_info = acc.get("reset_info", "")
+        if last_checked_str and reset_info and reset_info.startswith("In "):
+            try:
+                last_checked = datetime.fromisoformat(last_checked_str)
+                duration = parse_duration(reset_info[3:])
+                blocked_until = last_checked + duration
+                if datetime.now() < blocked_until:
+                    return True
+            except:
+                pass
+        else:
+            if last_checked_str:
+                try:
+                    last_checked = datetime.fromisoformat(last_checked_str)
+                    if datetime.now() < last_checked + timedelta(hours=2):
+                        return True
+                except:
+                    pass
+            else:
+                return True
+
+    # 3. Check if quota percentage is strictly 0%
+    quota_val = acc.get("quota")
+    if quota_val:
+        from utils import parse_quota_percentages
+        pct_5h, pct_w = parse_quota_percentages(quota_val)
+        if pct_5h == 0 or pct_w == 0:
             return True
 
     return False
@@ -526,7 +583,7 @@ def kill_ancestor_agy_bin():
                 parts = f.read().split()
             ppid = int(parts[3])
             comm = parts[1].strip("()")
-            
+
             if "agy-bin" in comm.lower():
                 print(f"Found agy-bin ancestor (PID: {pid}). Terminating cleanly...", file=sys.stderr)
                 os.kill(pid, signal.SIGTERM)
@@ -616,7 +673,7 @@ def rotate_account(target=None, force=False):
     quota_str = f" - Quota: {new_quota}"
     if reset_info:
         quota_str += f" ({reset_info})"
-        
+
     print(f"🔄 Switched active account to: {new_email} (Index: [{found_idx + 1} / {len(accounts)}]){quota_str}")
 
     # Check if we are running inside an active agy-bin session
@@ -638,7 +695,7 @@ def rotate_account(target=None, force=False):
     if is_inside_session and os.environ.get("AGY_TESTING") != "1":
         print("📝 Saving active conversation history...")
         generate_quota_rollover()
-        
+
         # Touch the compaction signal file
         from pathlib import Path
         signal_file = Path(AGY_DIR) / ".compact_signal"
@@ -646,7 +703,7 @@ def rotate_account(target=None, force=False):
             signal_file.touch()
         except:
             pass
-            
+
         kill_ancestor_agy_bin()
 
 
@@ -656,11 +713,11 @@ def generate_quota_rollover():
     for progress_name in [".agy_progress.md", "PROGRESS.md"]:
         if os.path.exists(progress_name) and os.path.getsize(progress_name) > 0:
             return
-            
+
     brain_dir = os.path.expanduser(os.path.join(AGY_DIR, "brain"))
     if not os.path.exists(brain_dir):
         return
-        
+
     subdirs = []
     for d in os.listdir(brain_dir):
         path = os.path.join(brain_dir, d)
@@ -669,17 +726,17 @@ def generate_quota_rollover():
                 subdirs.append((path, os.path.getmtime(path)))
             except OSError:
                 pass
-            
+
     if not subdirs:
         return
-        
+
     subdirs.sort(key=lambda x: x[1], reverse=True)
     latest_session_dir = subdirs[0][0]
-    
+
     transcript_path = os.path.join(latest_session_dir, ".system_generated/logs/transcript.jsonl")
     if not os.path.exists(transcript_path):
         return
-        
+
     # Read the transcript and extract the last few turns
     turns = []
     try:
@@ -703,7 +760,7 @@ def generate_quota_rollover():
                     turns.append(f"Assistant: {content}")
     except Exception:
         return
-        
+
     # Filter out turns relating to the account rotation or switch command to prevent infinite loop
     filtered_turns = []
     for turn in turns:
@@ -719,10 +776,10 @@ def generate_quota_rollover():
 
     if not filtered_turns:
         filtered_turns = ["No recent history before rotation."]
-        
+
     # Take the last 6 turns (3 exchanges)
     recent_history = "\n\n".join(filtered_turns[-6:])
-    
+
     # Write to .agy_progress.md in the current directory
     progress_file = ".agy_progress.md"
     try:

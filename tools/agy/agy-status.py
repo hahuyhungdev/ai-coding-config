@@ -202,7 +202,7 @@ def run_restore(path, confirmed, json_output=False):
 
 def run_config(key=None, value=None, show_all=False):
     from switch import SETTINGS_FILE
-    
+
     settings = {}
     if os.path.exists(SETTINGS_FILE):
         try:
@@ -210,7 +210,7 @@ def run_config(key=None, value=None, show_all=False):
                 settings = json.load(f)
         except Exception:
             pass
-            
+
     if not key and not show_all:
         if not settings:
             print("No configurations set. settings.json is empty or missing.")
@@ -222,13 +222,13 @@ def run_config(key=None, value=None, show_all=False):
                     print(f"  {k:<16}: {settings[k]}")
             print("\nHint: Run 'agy config --all' to view the entire settings file.")
         return
-        
+
     if (show_all or key in ("--all", "all")) and value is None:
         print("All Configurations:")
         for k, v in settings.items():
             print(f"  {k:<16}: {v}")
         return
-        
+
     key_map = {
         "threshold": "threshold",
         "quota_threshold": "threshold",
@@ -243,9 +243,9 @@ def run_config(key=None, value=None, show_all=False):
         "rotation-policy": "rotationPolicy",
         "rotationpolicy": "rotationPolicy",
     }
-    
+
     norm_key = key_map.get(key.lower(), key)
-    
+
     if value is None:
         val = settings.get(norm_key)
         if val is None:
@@ -253,7 +253,7 @@ def run_config(key=None, value=None, show_all=False):
         else:
             print(f"{norm_key}: {val}")
         return
-        
+
     if norm_key in ("threshold", "threshold_5h", "threshold_weekly"):
         try:
             val_to_set = int(value)
@@ -262,9 +262,9 @@ def run_config(key=None, value=None, show_all=False):
             return
     else:
         val_to_set = value
-        
+
     settings[norm_key] = val_to_set
-    
+
     try:
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f, indent=2)
@@ -320,7 +320,7 @@ Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
     rotate = subparsers.add_parser("rotate", help="Rotate active account to the next healthy account in the pool")
     rotate.add_argument("target", nargs="?", help="Optional target index or email to switch to manually")
     rotate.add_argument("--force", action="store_true", help="Force rotation to the next account even if the current account is healthy")
-    
+
     config_parser = subparsers.add_parser("config", help="View or modify settings")
     config_parser.add_argument("key", nargs="?", help="Setting key (e.g. threshold)")
     config_parser.add_argument("value", nargs="?", help="New value to set")

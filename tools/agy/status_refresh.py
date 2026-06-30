@@ -65,7 +65,7 @@ def _quota_summary(model_quotas):
         if preferred in model_quotas:
             rep_model = preferred
             break
-            
+
     if not rep_model:
         rep_model = next(iter(model_quotas.keys()))
 
@@ -111,15 +111,15 @@ def _blocked_until(status, model_quotas, raw_reset):
 
 def get_quota_via_api(account, email):
     import requests
-    
+
     token_obj = account.get("token", {})
     ref_token = token_obj.get("refresh_token") or account.get("refresh_token")
     if not ref_token:
         return None, None
-        
+
     client_id = token_obj.get("client_id") or account.get("client_id")
     client_secret = token_obj.get("client_secret") or account.get("client_secret")
-    
+
     # Load shared/global candidate list from settings.json
     from switch import SETTINGS_FILE
     settings = {}
@@ -136,10 +136,10 @@ def get_quota_via_api(account, email):
         for candidate in extra_candidates:
             if isinstance(candidate, list) and len(candidate) == 2:
                 client_candidates.append((candidate[0], candidate[1]))
-    
+
     access_token = None
     refreshed_token_obj = None
-    
+
     for cid, cs in client_candidates:
         if not cid or not cs:
             continue
@@ -162,10 +162,10 @@ def get_quota_via_api(account, email):
                 break
         except Exception:
             pass
-            
+
     if not access_token:
         return None, None
-        
+
     proj_url = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
     proj_payload = {
         "metadata": {
@@ -188,10 +188,10 @@ def get_quota_via_api(account, email):
         project_id = r.json().get("cloudaicompanionProject")
     except Exception:
         return None, None
-        
+
     if not project_id:
         return None, None
-        
+
     quota_url = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"
     try:
         r = requests.post(
@@ -207,11 +207,11 @@ def get_quota_via_api(account, email):
         quota_data = r.json()
     except Exception:
         return None, None
-        
+
     buckets = quota_data.get("buckets", [])
     if not buckets:
         return None, None
-        
+
     def parse_api_reset_time(reset_time_str):
         if not reset_time_str:
             return ""
@@ -236,7 +236,7 @@ def get_quota_via_api(account, email):
 
     gemini_pct = 100
     gemini_refresh = ""
-    
+
     for b in buckets:
         model_id = b.get("modelId", "").lower()
         if "gemini" in model_id:
@@ -245,9 +245,9 @@ def get_quota_via_api(account, email):
             if pct < gemini_pct:
                 gemini_pct = pct
                 gemini_refresh = parse_api_reset_time(b.get("resetTime"))
-                
+
     model_quotas = {}
-    
+
     for model in GEMINI_MODELS:
         model_quotas[model] = {
             "pct": gemini_pct,
@@ -257,7 +257,7 @@ def get_quota_via_api(account, email):
             "five_hour_pct": gemini_pct,
             "five_hour_refresh": gemini_refresh
         }
-        
+
     for model in CLAUDE_MODELS + ["GPT-OSS 120B (Medium)"]:
         model_quotas[model] = {
             "pct": 100,
@@ -267,7 +267,7 @@ def get_quota_via_api(account, email):
             "five_hour_pct": 100,
             "five_hour_refresh": ""
         }
-        
+
     return model_quotas, refreshed_token_obj
 
 

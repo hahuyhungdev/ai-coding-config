@@ -9,14 +9,14 @@ def get_quota_via_pty(email, sandbox_dir=None):
     import fcntl
     import termios
     import struct
-    
+
     master, slave = pty.openpty()
     s = struct.pack("HHHH", 24, 80, 0, 0)
     try:
         fcntl.ioctl(master, termios.TIOCSWINSZ, s)
     except:
         pass
-        
+
     pid = os.fork()
     if pid == 0:
         os.setsid()
@@ -25,7 +25,7 @@ def get_quota_via_pty(email, sandbox_dir=None):
         os.dup2(slave, 2)
         os.close(master)
         os.close(slave)
-        
+
         env = os.environ.copy()
         if sandbox_dir:
             env["HOME"] = sandbox_dir
@@ -33,16 +33,16 @@ def get_quota_via_pty(email, sandbox_dir=None):
                 os.chdir(sandbox_dir)
             except OSError:
                 pass
-            
+
         try:
             os.execve(REAL_AGY, [REAL_AGY], env)
         except:
             os._exit(127)
     else:
         os.close(slave)
-        
+
         output = b""
-        
+
         # Wait dynamically for prompt (e.g. '>') or 'shortcuts' up to 12 seconds
         start_time = time.time()
         while time.time() - start_time < 12.0:
@@ -70,13 +70,13 @@ def get_quota_via_pty(email, sandbox_dir=None):
                     break
             else:
                 time.sleep(0.05)
-        
+
         # Send /usage
         try:
             os.write(master, b"/usage\x0d")
         except:
             pass
-            
+
         # Read quota output (up to 4 seconds)
         quota_start = time.time()
         while time.time() - quota_start < 4:
@@ -95,13 +95,13 @@ def get_quota_via_pty(email, sandbox_dir=None):
                         break
                 except OSError:
                     break
-                    
+
         # Send exit command
         try:
             os.write(master, b"/exit\x0d")
         except:
             pass
-            
+
         # The CLI may ignore /exit while it is still rendering. Never return
         # while it can still rewrite the shared token file.
         try:
@@ -126,5 +126,5 @@ def get_quota_via_pty(email, sandbox_dir=None):
             pass
         finally:
             os.close(master)
-            
+
         return strip_ansi(output.decode(errors="ignore"))

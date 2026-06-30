@@ -126,7 +126,7 @@ class TestCodexWrapperInstall(unittest.TestCase):
     def test_graphify_skill_read_requests_graphify_query_first(self):
         result = install.classify_graphify_tool_use(
             "Read",
-            {"file_path": "/home/huyhung/.gemini/config/skills/graphify/SKILL.md"},
+            {"file_path": "/home/mockuser/.gemini/config/skills/graphify/SKILL.md"},
             graph_exists=True,
         )
         self.assertEqual(result["decision"], "deny")
@@ -135,7 +135,7 @@ class TestCodexWrapperInstall(unittest.TestCase):
     def test_bash_graphify_skill_read_requests_graphify_query_first(self):
         result = install.classify_graphify_tool_use(
             "Bash",
-            {"command": "cat /home/huyhung/.gemini/config/skills/graphify/SKILL.md"},
+            {"command": "cat /home/mockuser/.gemini/config/skills/graphify/SKILL.md"},
             graph_exists=True,
         )
         self.assertEqual(result["decision"], "deny")

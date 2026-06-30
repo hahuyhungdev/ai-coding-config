@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 from contextlib import redirect_stdout
 from unittest.mock import patch, MagicMock
 
+# Set testing environment variable to prevent tests from killing active agy session
+os.environ["AGY_TESTING"] = "1"
+
 # Load the modular agy package components
 tools_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../tools/agy'))
 if tools_dir not in sys.path:

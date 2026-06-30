@@ -114,24 +114,24 @@ def parse_quota_percentages(quota_text):
     m_5h = re.search(r"5H:(\d+)%", text)
     if m_5h:
         five_hour_pct = int(m_5h.group(1))
-        
+
     weekly_pct = -1
     m_w = re.search(r"W:(\d+)%", text)
     if m_w:
         weekly_pct = int(m_w.group(1))
-        
+
     if five_hour_pct == -1 or weekly_pct == -1:
         percentages = [int(p) for p in re.findall(r"(\d+)%", text)]
         if len(percentages) >= 2:
             five_hour_pct, weekly_pct = percentages[0], percentages[1]
         elif len(percentages) == 1:
             five_hour_pct = weekly_pct = percentages[0]
-            
+
     return five_hour_pct, weekly_pct
 
 def get_account_reset_seconds(account):
     default_large = 99999999
-    
+
     blocked_until = account.get("blocked_until")
     if blocked_until:
         try:
@@ -164,13 +164,13 @@ def get_account_reset_seconds(account):
             return default_large
 
     quota = model_quotas[rep_model]
-    
+
     if "weekly_pct" in quota and "five_hour_pct" in quota:
         weekly_pct = quota["weekly_pct"]
         five_hour_pct = quota["five_hour_pct"]
         weekly_refresh = quota.get("weekly_refresh", "")
         five_hour_refresh = quota.get("five_hour_refresh", "")
-        
+
         if five_hour_pct < weekly_pct:
             if five_hour_refresh and five_hour_refresh.startswith("In "):
                 try:

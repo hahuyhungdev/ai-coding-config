@@ -60,6 +60,7 @@ class TestAgyCliE2E(unittest.TestCase):
     def run_agy(self, args, env_override=None):
         env = os.environ.copy()
         env["AGY_DIR_OVERRIDE"] = self.sandbox_dir
+        env["AGY_TESTING"] = "1"
         if env_override:
             env.update(env_override)
         

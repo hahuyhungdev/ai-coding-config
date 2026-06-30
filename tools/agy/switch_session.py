@@ -19,7 +19,7 @@ def kill_ancestor_agy_bin():
                 parts = f.read().split()
             ppid = int(parts[3])
             comm = parts[1].strip("()")
-            
+
             # Check if this process is agy-bin
             if "agy-bin" in comm.lower():
                 print(f"Found agy-bin ancestor (PID: {pid}). Terminating cleanly...")
@@ -41,7 +41,7 @@ def main():
         except Exception as e:
             print(f"❌ Failed to load accounts: {e}")
             sys.exit(1)
-            
+
         found_idx = None
         if target.isdigit():
             idx = int(target) - 1
@@ -63,14 +63,14 @@ def main():
     else:
         print("🔄 Initiating manual account rotation...")
         rotate_account()
-    
+
     print("📝 Saving active conversation history...")
     generate_quota_rollover()
-    
+
     # Touch the compaction signal file
     signal_file = Path(AGY_DIR) / ".compact_signal"
     signal_file.touch()
-    
+
     # Terminate agy-bin to trigger the wrapper's restart loop
     if not kill_ancestor_agy_bin():
         # If running inside python directly or no ancestor found, print fallback

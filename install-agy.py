@@ -11,7 +11,7 @@ from installer.constants import REAL_HOME
 
 def uninstall():
     print("🗑️ Uninstalling Antigravity CLI (agy) standalone...")
-    
+
     # Define paths
     home = REAL_HOME
     gemini_dir = home / ".gemini" / "config"
@@ -62,7 +62,7 @@ def uninstall():
                     print(f"   Removed agent {item.name}")
                 except Exception as e:
                     print(f"⚠️ Warning: Failed to remove agent {item.name}: {e}")
-                    
+
     # 4b. Clean up copied custom commands
     dest_dirs = [
         gemini_dir / "commands",
@@ -96,7 +96,7 @@ def uninstall():
         except Exception as e:
             print(f"⚠️ Warning: Failed to remove {agy_cli_dir / 'README.md'}: {e}")
         print(f"   Removed installed modules from {agy_cli_dir}")
-        
+
     # 6. Remove BeforeAgent and AfterAgent hooks from ~/.gemini/settings.json
     official_settings_file = home / ".gemini" / "settings.json"
     if official_settings_file.exists():
@@ -104,11 +104,11 @@ def uninstall():
             import json
             with open(official_settings_file, "r") as f:
                 official_settings = json.load(f)
-            
+
             updated = False
             if "hooks" in official_settings and isinstance(official_settings["hooks"], dict):
                 hooks_cfg = official_settings["hooks"]
-                
+
                 # Clean UserPromptSubmit
                 if "UserPromptSubmit" in hooks_cfg:
                     before_list = hooks_cfg["UserPromptSubmit"]
@@ -122,7 +122,7 @@ def uninstall():
                             new_before.append(entry)
                     hooks_cfg["UserPromptSubmit"] = new_before
                     updated = True
-                    
+
                 # Clean Stop
                 if "Stop" in hooks_cfg:
                     after_list = hooks_cfg["Stop"]
@@ -136,7 +136,49 @@ def uninstall():
                             new_after.append(entry)
                     hooks_cfg["Stop"] = new_after
                     updated = True
-                    
+
+                # Clean PreToolUse
+                if "PreToolUse" in hooks_cfg:
+                    pt_list = hooks_cfg["PreToolUse"]
+                    new_pt = []
+                    for entry in pt_list:
+                        if isinstance(entry, dict) and "hooks" in entry:
+                            entry["hooks"] = [h for h in entry["hooks"] if isinstance(h, dict) and h.get("name") not in ["quota-pre-check-tool", "quota-pre-check"]]
+                            if entry["hooks"]:
+                                new_pt.append(entry)
+                        else:
+                            new_pt.append(entry)
+                    hooks_cfg["PreToolUse"] = new_pt
+                    updated = True
+
+                # Clean BeforeAgent
+                if "BeforeAgent" in hooks_cfg:
+                    ba_list = hooks_cfg["BeforeAgent"]
+                    new_ba = []
+                    for entry in ba_list:
+                        if isinstance(entry, dict) and "hooks" in entry:
+                            entry["hooks"] = [h for h in entry["hooks"] if isinstance(h, dict) and h.get("name") != "quota-pre-check"]
+                            if entry["hooks"]:
+                                new_ba.append(entry)
+                        else:
+                            new_ba.append(entry)
+                    hooks_cfg["BeforeAgent"] = new_ba
+                    updated = True
+
+                # Clean AfterAgent
+                if "AfterAgent" in hooks_cfg:
+                    aa_list = hooks_cfg["AfterAgent"]
+                    new_aa = []
+                    for entry in aa_list:
+                        if isinstance(entry, dict) and "hooks" in entry:
+                            entry["hooks"] = [h for h in entry["hooks"] if isinstance(h, dict) and h.get("name") != "quota-auto-switch"]
+                            if entry["hooks"]:
+                                new_aa.append(entry)
+                        else:
+                            new_aa.append(entry)
+                    hooks_cfg["AfterAgent"] = new_aa
+                    updated = True
+
             if updated:
                 with open(official_settings_file, "w") as f:
                     json.dump(official_settings, f, indent=2)
@@ -162,21 +204,21 @@ def main():
         return
 
     print("🚀 Installing Antigravity CLI (agy) standalone...")
-    
+
     # Define paths
     repo_dir = Path(__file__).resolve().parent
     home = REAL_HOME
     gemini_dir = home / ".gemini" / "config"
     agy_cli_dir = home / ".gemini" / "antigravity-cli"
     bin_dir = home / ".local" / "bin"
-    
+
     # Create directories
     gemini_dir.mkdir(parents=True, exist_ok=True)
     (gemini_dir / "skills").mkdir(parents=True, exist_ok=True)
     (gemini_dir / "agents").mkdir(parents=True, exist_ok=True)
     agy_cli_dir.mkdir(parents=True, exist_ok=True)
     bin_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 1. Copy modular Python files
     src_dir = repo_dir / "tools" / "agy"
     if src_dir.exists():
@@ -189,7 +231,7 @@ def main():
     else:
         print(f"❌ Error: {src_dir} not found.", file=sys.stderr)
         sys.exit(1)
-        
+
     # 2. Copy bash wrapper (for Ubuntu/Linux, WSL, Git Bash)
     src_wrapper = src_dir / "agy"
     if src_wrapper.exists():
@@ -228,13 +270,13 @@ def main():
         print(f"   Created and installed agy.bat wrapper to {dst_bat}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to write Windows agy.bat wrapper: {e}")
-        
+
     # 4. Copy ANTIGRAVITY.md
     src_readme = repo_dir / "gemini" / "ANTIGRAVITY.md"
     if src_readme.exists():
         shutil.copy2(src_readme, gemini_dir / "ANTIGRAVITY.md")
         print(f"   Copied ANTIGRAVITY.md to {gemini_dir / 'ANTIGRAVITY.md'}")
-        
+
     # 5. Copy settings.json (copying if not exists)
     src_settings = repo_dir / "gemini" / "settings.json"
     dst_settings = agy_cli_dir / "settings.json"
@@ -244,7 +286,7 @@ def main():
             print(f"   Created default settings.json in {dst_settings}")
         else:
             print(f"   settings.json already exists at {dst_settings}, keeping existing configuration.")
-            
+
     # 6. Copy skills if directory exists
     src_skills = repo_dir / "skills"
     if src_skills.exists():
@@ -268,7 +310,7 @@ def main():
         if dst_agents.exists():
             shutil.rmtree(dst_agents)
         dst_agents.mkdir(parents=True, exist_ok=True)
-        
+
         for item in src_agents.glob("*.md"):
             try:
                 content = item.read_text(encoding="utf-8")
@@ -290,7 +332,7 @@ def main():
                             else:
                                 in_codex = False
                         clean_lines.append(line)
-                    
+
                     clean_frontmatter = "\n".join(clean_lines)
                     clean_content = f"---\n{clean_frontmatter}\n---\n{parts[2]}"
                     (dst_agents / item.name).write_text(clean_content, encoding="utf-8")
@@ -328,22 +370,22 @@ def main():
         "timeout": 10000,
         "description": "Pre-check active account quota"
     }
-    
+
     # We want UserPromptSubmit entry for matcher "*"
     before_list = hooks_cfg.get("UserPromptSubmit", [])
     if not isinstance(before_list, list):
         before_list = []
-    
+
     wildcard_before = None
     for entry in before_list:
         if isinstance(entry, dict) and entry.get("matcher") == "*":
             wildcard_before = entry
             break
-            
+
     if wildcard_before is None:
         wildcard_before = {"matcher": "*", "hooks": []}
         before_list.append(wildcard_before)
-        
+
     hook_exists = False
     for h in wildcard_before["hooks"]:
         if isinstance(h, dict) and h.get("name") == "quota-pre-check":
@@ -352,7 +394,7 @@ def main():
             break
     if not hook_exists:
         wildcard_before["hooks"].append(before_hook)
-        
+
     hooks_cfg["UserPromptSubmit"] = before_list
 
     # Stop hook
@@ -363,21 +405,21 @@ def main():
         "timeout": 10000,
         "description": "Switch account on quota error and retry"
     }
-    
+
     after_list = hooks_cfg.get("Stop", [])
     if not isinstance(after_list, list):
         after_list = []
-        
+
     wildcard_after = None
     for entry in after_list:
         if isinstance(entry, dict) and entry.get("matcher") == "*":
             wildcard_after = entry
             break
-            
+
     if wildcard_after is None:
         wildcard_after = {"matcher": "*", "hooks": []}
         after_list.append(wildcard_after)
-        
+
     hook_exists = False
     for h in wildcard_after["hooks"]:
         if isinstance(h, dict) and h.get("name") == "quota-auto-switch":
@@ -386,8 +428,61 @@ def main():
             break
     if not hook_exists:
         wildcard_after["hooks"].append(after_hook)
-        
+
     hooks_cfg["Stop"] = after_list
+
+    # PreToolUse hook
+    tool_hook = {
+        "name": "quota-pre-check-tool",
+        "type": "command",
+        "command": f"python3 {agy_cli_dir}/before_agent.py",
+        "timeout": 10000,
+        "description": "Pre-check active account quota before tool use"
+    }
+
+    tool_list = hooks_cfg.get("PreToolUse", [])
+    if not isinstance(tool_list, list):
+        tool_list = []
+
+    # Ensure Gemini specific matchers exist
+    existing_matchers = [entry.get("matcher") for entry in tool_list if isinstance(entry, dict)]
+    for gm in ["Bash", "Read", "Write", "Grep"]:
+        if gm not in existing_matchers:
+            tool_list.insert(0, {"matcher": gm, "hooks": []})
+
+    # Prepend to all existing specific matchers
+    for entry in tool_list:
+        if isinstance(entry, dict) and "hooks" in entry and entry.get("matcher") != "*":
+            exists = False
+            for h in entry["hooks"]:
+                if isinstance(h, dict) and h.get("name") == "quota-pre-check-tool":
+                    h["command"] = tool_hook["command"]
+                    exists = True
+                    break
+            if not exists:
+                entry["hooks"].insert(0, tool_hook)
+
+    # Also add wildcard * entry as a fallback at the end
+    wildcard_tool = None
+    for entry in tool_list:
+        if isinstance(entry, dict) and entry.get("matcher") == "*":
+            wildcard_tool = entry
+            break
+
+    if wildcard_tool is None:
+        wildcard_tool = {"matcher": "*", "hooks": []}
+        tool_list.append(wildcard_tool)
+
+    hook_exists = False
+    for h in wildcard_tool["hooks"]:
+        if isinstance(h, dict) and h.get("name") == "quota-pre-check-tool":
+            h["command"] = tool_hook["command"]
+            hook_exists = True
+            break
+    if not hook_exists:
+        wildcard_tool["hooks"].append(tool_hook)
+
+    hooks_cfg["PreToolUse"] = tool_list
 
     try:
         with open(official_settings_file, "w") as f:
@@ -395,7 +490,7 @@ def main():
         print(f"   Configured UserPromptSubmit & Stop hooks in {official_settings_file}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to write to {official_settings_file}: {e}")
-                    
+
     # 9. Copy custom commands to ~/.gemini/commands/, ~/.claude/commands/, and project-level commands
     src_commands = repo_dir / "tools" / "agy" / "commands"
     if src_commands.exists():

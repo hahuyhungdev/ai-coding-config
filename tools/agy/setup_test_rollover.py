@@ -73,7 +73,7 @@ def main():
             if (acc.get("email") or acc.get("name")) == target_email:
                 target_idx = idx
                 break
-        
+
         if target_idx is None:
             # Fall back to first account
             target_idx = 0
@@ -94,7 +94,7 @@ def main():
         print("   -> Once loaded, just type /exit (or press Ctrl+D) to trigger the rollover!")
         print("   -> Mock files will be created in the background in 4 seconds.")
         print("------------------------------------------------------------------------")
-        
+
         # Fork and start mock writer in background
         pid = os.fork()
         if pid == 0:
@@ -112,7 +112,7 @@ def main():
     hh_idx = None
     for idx, acc in enumerate(accounts):
         email = acc.get("email") or acc.get("name")
-        if email == "hahuyhungdev":
+        if "hahuyhungdev" in str(email).lower():
             hh_idx = idx
             break
 

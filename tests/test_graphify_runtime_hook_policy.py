@@ -148,7 +148,7 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
             {
                 "conversationId": self.session,
                 "tool_input": {
-                    "file_path": "/home/huyhung/.gemini/config/skills/graphify/SKILL.md",
+                    "file_path": "/home/mockuser/.gemini/config/skills/graphify/SKILL.md",
                     "toolAction": "Exploring codebase",
                 },
                 "Cwd": str(self.project),
@@ -166,7 +166,7 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
             {
                 "conversationId": self.session,
                 "tool_input": {
-                    "command": "cat /home/huyhung/.gemini/config/skills/graphify/SKILL.md",
+                    "command": "cat /home/mockuser/.gemini/config/skills/graphify/SKILL.md",
                     "toolAction": "Exploring codebase",
                 },
                 "Cwd": str(self.project),
