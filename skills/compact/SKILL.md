@@ -36,26 +36,12 @@ You are executing the `/compact` command in the Antigravity CLI (`agy`). Since `
      - [file.py](file:///path/to/file.py)
      ```
 
-3. **Trigger Auto-Compaction & Exit**:
-   - Check the active account's remaining quota:
-     - Read the active account's quota from `~/.gemini/antigravity-cli/antigravity-oauth-token` or by running `agy status --json`.
-     - **If the quota is low (≤ 30%) or blocked**:
-       - Run: `python3 tools/agy/switch_session.py`
-       - This script will automatically rotate the account to a healthy one, save the progress summary to `.agy_progress.md`, and trigger the compaction restart cleanly.
-     - **If the quota is healthy (> 30%)**:
-       - Create the signal file: `touch ~/.gemini/antigravity-cli/.compact_signal`
-       - Find the parent `agy-bin` process and terminate it cleanly:
-         ```bash
-         PID=$$
-         while [ -n "$PID" ] && [ "$PID" -gt 1 ]; do
-             if ps -p "$PID" -o comm= | grep -q "agy-bin"; then
-                 kill "$PID"
-                 break
-             fi
-             PID=$(ps -p "$PID" -o ppid= | tr -d ' ')
-         done
-         ```
-   - Respond to the user: Inform them that you have successfully saved the session state to `.agy_progress.md` (and rotated the account if it was low/blocked) and are initiating a seamless automatic session rollover. The shell wrapper will automatically read the progress file, delete it from disk, and resume the session with your summary. Do NOT ask the user to exit manually.
+3. **Trigger Auto-Compaction, Rotate & Exit**:
+   - Run the following command to save progress, rotate the active account, set the reload signal, and cleanly restart the TUI session:
+     ```bash
+     python3 tools/agy/switch_session.py
+     ```
+   - Respond to the user: Inform them that you have successfully saved the session state to `.agy_progress.md`, rotated the active account, and are initiating a seamless automatic session rollover. The shell wrapper will automatically read the progress file and resume the session with your summary. Do NOT ask the user to exit manually.
 
 ---
 

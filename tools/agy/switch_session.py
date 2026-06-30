@@ -31,8 +31,38 @@ def kill_ancestor_agy_bin():
     return False
 
 def main():
-    print("🔄 Initiating manual account rotation...")
-    rotate_account()
+    if len(sys.argv) > 1:
+        target = sys.argv[1]
+        print(f"🔄 Switching active account to target '{target}' manually...")
+        from storage import load_accounts
+        from switch import _write_active_account
+        try:
+            accounts = load_accounts()
+        except Exception as e:
+            print(f"❌ Failed to load accounts: {e}")
+            sys.exit(1)
+            
+        found_idx = None
+        if target.isdigit():
+            idx = int(target) - 1
+            if 0 <= idx < len(accounts):
+                found_idx = idx
+        else:
+            for idx, acc in enumerate(accounts):
+                email = acc.get("email") or acc.get("name") or ""
+                if target.lower() in email.lower():
+                    found_idx = idx
+                    break
+        if found_idx is not None:
+            _write_active_account(accounts, found_idx)
+            email = accounts[found_idx].get("email") or accounts[found_idx].get("name")
+            print(f"✅ Switched active account to: {email}")
+        else:
+            print(f"❌ Error: Target '{target}' not found in accounts pool.")
+            sys.exit(1)
+    else:
+        print("🔄 Initiating manual account rotation...")
+        rotate_account()
     
     print("📝 Saving active conversation history...")
     generate_quota_rollover()

@@ -2,15 +2,38 @@
 import json
 import os
 import sys
+import signal
 from pathlib import Path
 from datetime import datetime, timedelta
 
 # Add tools/agy/ directory to python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from utils import AGY_DIR, TOKEN_FILE
-from switch import select_replacement_index, _write_active_account, JSON_FILE, is_account_blocked_or_low
+from switch import select_replacement_index, _write_active_account, JSON_FILE, is_account_blocked_or_low, generate_quota_rollover
 from storage import load_accounts, active_account_index, write_accounts
 from status_refresh import _check_single_account, _apply_status_result
+
+def kill_ancestor_agy_bin():
+    if os.environ.get("AGY_TESTING") == "1":
+        return False
+    pid = os.getpid()
+    while pid > 1:
+        try:
+            # Read command and parent PID from proc fs
+            with open(f"/proc/{pid}/stat", "r") as f:
+                parts = f.read().split()
+            ppid = int(parts[3])
+            comm = parts[1].strip("()")
+            
+            # Check if this process is agy-bin
+            if "agy-bin" in comm.lower():
+                print(f"[AfterAgent] Found agy-bin ancestor (PID: {pid}). Terminating cleanly...", file=sys.stderr)
+                os.kill(pid, signal.SIGTERM)
+                return True
+            pid = ppid
+        except Exception:
+            break
+    return False
 
 def log(message):
     print(f"[AfterAgent] {message}", file=sys.stderr)
@@ -139,10 +162,27 @@ def main():
                     f"🔄 **Hạn mức tài khoản sắp hết hoặc bị chặn!** | Quota warning/exhaustion.\n"
                     f"   Đang tự động chuyển sang tài khoản mới: {new_email} và thử lại..."
                 )
+                
+                log("Saving active conversation history...")
+                try:
+                    generate_quota_rollover()
+                except Exception as ex_roll:
+                    log(f"Failed to generate quota rollover: {ex_roll}")
+
+                # Touch the compaction signal file
+                signal_file = Path(AGY_DIR) / ".compact_signal"
+                try:
+                    signal_file.touch()
+                except Exception as ex_touch:
+                    log(f"Failed to touch signal file: {ex_touch}")
+
                 print(json.dumps({
                     "decision": "retry",
                     "systemMessage": msg
                 }, ensure_ascii=False))
+                
+                log("Killing ancestor agy-bin to trigger wrapper restart loop...")
+                kill_ancestor_agy_bin()
                 sys.exit(0)
             else:
                 log("All accounts are low or blocked. Staying on current account.")

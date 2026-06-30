@@ -300,7 +300,7 @@ exit /b 0
         self.assertEqual(wrapped.returncode, 0, wrapped.stderr)
         self.assertIn("UPSTREAM_AGY:models", wrapped.stdout)
 
-    def test_setup_agy_installs_rotate_skill_and_removes_switch_account(self):
+    def test_setup_agy_installs_compact_skill_and_removes_switch_account(self):
         stale_skill = self.home / ".gemini" / "config" / "skills" / "switch-account"
         stale_skill.mkdir(parents=True, exist_ok=True)
         (stale_skill / "SKILL.md").write_text("stale")
@@ -309,9 +309,9 @@ exit /b 0
 
         self.assertEqual(result.returncode, 0, result.stderr)
         skills_dir = self.home / ".gemini" / "config" / "skills"
-        rotate_skill = skills_dir / "rotate" / "SKILL.md"
-        self.assertTrue(rotate_skill.is_file())
-        self.assertIn("name: rotate", rotate_skill.read_text())
+        compact_skill = skills_dir / "compact" / "SKILL.md"
+        self.assertTrue(compact_skill.is_file())
+        self.assertIn("name: compact", compact_skill.read_text())
         self.assertFalse(stale_skill.exists())
 
     def test_add_current_account_alias_bootstraps_missing_account_pool(self):

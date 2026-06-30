@@ -515,7 +515,28 @@ def post_check_and_switch():
         print("❌ All accounts are blocked! Cannot retry.")
         sys.exit(2)
 
-def rotate_account():
+def kill_ancestor_agy_bin():
+    import signal
+    if os.environ.get("AGY_TESTING") == "1":
+        return False
+    pid = os.getpid()
+    while pid > 1:
+        try:
+            with open(f"/proc/{pid}/stat", "r") as f:
+                parts = f.read().split()
+            ppid = int(parts[3])
+            comm = parts[1].strip("()")
+            
+            if "agy-bin" in comm.lower():
+                print(f"Found agy-bin ancestor (PID: {pid}). Terminating cleanly...", file=sys.stderr)
+                os.kill(pid, signal.SIGTERM)
+                return True
+            pid = ppid
+        except Exception:
+            break
+    return False
+
+def rotate_account(target=None, force=True):
     _sync_paths()
     from storage import load_accounts, write_accounts
     from status_refresh import _check_single_account, _apply_status_result
@@ -543,64 +564,83 @@ def rotate_account():
         except:
             pass
 
-    active_acc = accounts[active_idx]
-    email = active_acc.get("email") or active_acc.get("name") or f"Account {active_idx + 1}"
+    found_idx = None
+    if target:
+        target_str = str(target)
+        if target_str.isdigit():
+            idx = int(target_str) - 1
+            if 0 <= idx < len(accounts):
+                found_idx = idx
+        else:
+            for idx, acc in enumerate(accounts):
+                email = acc.get("email") or acc.get("name") or ""
+                if target_str.lower() in email.lower():
+                    found_idx = idx
+                    break
+        if found_idx is None:
+            print(f"❌ Error: Target '{target}' not found in accounts pool.")
+            return
+    else:
+        if len(accounts) <= 1:
+            print("ℹ️ Only one account in accounts.json. No rotation possible.")
+            return
+            
+        policy = load_rotation_policy()
+        if force:
+            found_idx = (active_idx + 1) % len(accounts)
+        else:
+            found_idx = select_replacement_index(accounts, active_idx, policy=policy)
+            if found_idx is None:
+                found_idx = (active_idx + 1) % len(accounts)
 
-    print(f"⏳ Checking live quota status for current account {email}...", flush=True)
-    
-    original_token = None
-    if os.path.exists(TOKEN_FILE):
-        try:
-            with open(TOKEN_FILE, "r") as f:
-                original_token = json.load(f)
-        except:
-            pass
-
-    try:
-        result = _check_single_account(
-            active_idx, 
-            active_acc, 
-            accounts, 
-            duplicate_tokens={}, 
-            active_email=email, 
-            original_token=original_token
-        )
-        _apply_status_result(accounts, result)
-        write_accounts(accounts, create_backup=False)
-        active_acc = accounts[active_idx]
-    except Exception as check_exc:
-        print(f"⚠️ Warning: Live check failed ({check_exc}). Using cached values.")
-
-    is_low = is_account_blocked_or_low(active_acc, accounts)
-    quota = active_acc.get("quota", "?")
-    
-    if not is_low:
-        print(f"🟢 Current account {email} is healthy (Quota: {quota}), no rotate needed.")
-        return
-
-    if len(accounts) <= 1:
-        print("ℹ️ Only one account in accounts.json. No rotation possible.")
-        return
-
-    print(f"⚠️ Current account quota is low/blocked (Quota: {quota}). Rotating...")
-    
-    policy = load_rotation_policy()
-    best_idx = select_replacement_index(accounts, active_idx, policy=policy)
-    if best_idx is None:
-        best_idx = (active_idx + 1) % len(accounts)
-
-    selected_acc = _write_active_account(accounts, best_idx)
-    new_email = selected_acc.get("email") or selected_acc.get("name") or f"Account {best_idx + 1}"
+    selected_acc = _write_active_account(accounts, found_idx)
+    new_email = selected_acc.get("email") or selected_acc.get("name") or f"Account {found_idx + 1}"
     new_quota = selected_acc.get("quota", "?")
     reset_info = selected_acc.get("reset_info", "")
     quota_str = f" - Quota: {new_quota}"
     if reset_info:
         quota_str += f" ({reset_info})"
-    print(f"🔄 Manually rotated active account to: {new_email} (Index: [{best_idx + 1} / {len(accounts)}], policy: {policy}){quota_str}")
+        
+    print(f"🔄 Switched active account to: {new_email} (Index: [{found_idx + 1} / {len(accounts)}]){quota_str}")
+
+    # Check if we are running inside an active agy-bin session
+    is_inside_session = False
+    curr_pid = os.getpid()
+    while curr_pid > 1:
+        try:
+            with open(f"/proc/{curr_pid}/stat", "r") as f:
+                parts = f.read().split()
+            ppid = int(parts[3])
+            comm = parts[1].strip("()")
+            if "agy-bin" in comm.lower():
+                is_inside_session = True
+                break
+            curr_pid = ppid
+        except:
+            break
+
+    if is_inside_session and os.environ.get("AGY_TESTING") != "1":
+        print("📝 Saving active conversation history...")
+        generate_quota_rollover()
+        
+        # Touch the compaction signal file
+        from pathlib import Path
+        signal_file = Path(AGY_DIR) / ".compact_signal"
+        try:
+            signal_file.touch()
+        except:
+            pass
+            
+        kill_ancestor_agy_bin()
 
 
 def generate_quota_rollover():
     _sync_paths()
+    # Check if a custom structured progress summary already exists; if so, preserve it
+    for progress_name in [".agy_progress.md", "PROGRESS.md"]:
+        if os.path.exists(progress_name) and os.path.getsize(progress_name) > 0:
+            return
+            
     brain_dir = os.path.expanduser(os.path.join(AGY_DIR, "brain"))
     if not os.path.exists(brain_dir):
         return

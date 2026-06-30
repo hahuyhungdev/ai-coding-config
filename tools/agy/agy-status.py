@@ -26,7 +26,7 @@ from storage import (
     restore_accounts,
     write_accounts,
 )
-from switch import auto_switch_account, post_check_and_switch, rotate_account
+from switch import auto_switch_account, post_check_and_switch, rotate_account, generate_quota_rollover
 from utils import AGY_DIR, TOKEN_FILE, sort_rows_by_remaining_quota, clear_mcp_token_cache
 
 
@@ -317,6 +317,8 @@ Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
     restore.add_argument("--yes", action="store_true", help="Confirm restore")
     subparsers.add_parser("weekly", help="Show local seven-day usage")
     subparsers.add_parser("clean", help="Clean up automated or orphaned session logs")
+    rotate = subparsers.add_parser("rotate", help="Rotate active account to the next healthy account in the pool")
+    rotate.add_argument("target", nargs="?", help="Optional target index or email to switch to manually")
     
     config_parser = subparsers.add_parser("config", help="View or modify settings")
     config_parser.add_argument("key", nargs="?", help="Setting key (e.g. threshold)")
@@ -373,9 +375,7 @@ def translate_legacy_args(args):
 
 def run_legacy_internal(args):
     command = args[0] if args else ""
-    if command == "rotate":
-        rotate_account()
-    elif command == "auto-switch":
+    if command == "auto-switch":
         auto_switch_account()
     elif command == "post-check":
         post_check_and_switch()
@@ -421,7 +421,7 @@ def main(argv=None):
         if subcmd == "--json":
             subcmd = translated_args[1] if len(translated_args) > 1 else ""
         valid_subcommands = {"status", "list", "add", "current", "use", "rename",
-                             "remove", "doctor", "backup", "restore", "weekly", "clean"}
+                             "remove", "doctor", "backup", "restore", "weekly", "clean", "config", "rotate"}
         if subcmd and subcmd not in valid_subcommands:
             # Check if original had "account" prefix for display
             had_account = len(raw_args) > 1 and raw_args[0 if raw_args[0] != "--json" else 1] == "account"
@@ -471,6 +471,8 @@ def main(argv=None):
             clean_conversations(args.json)
         elif args.command == "config":
             run_config(args.key, args.value, args.show_all)
+        elif args.command == "rotate":
+            rotate_account(getattr(args, "target", None))
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         if getattr(args, "json", False):
             print(json.dumps({"error": str(exc)}))

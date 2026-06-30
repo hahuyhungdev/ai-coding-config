@@ -29,6 +29,10 @@ def get_quota_via_pty(email, sandbox_dir=None):
         env = os.environ.copy()
         if sandbox_dir:
             env["HOME"] = sandbox_dir
+            try:
+                os.chdir(sandbox_dir)
+            except OSError:
+                pass
             
         try:
             os.execve(REAL_AGY, [REAL_AGY], env)

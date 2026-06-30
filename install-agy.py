@@ -64,16 +64,23 @@ def uninstall():
                     print(f"⚠️ Warning: Failed to remove agent {item.name}: {e}")
                     
     # 4b. Clean up copied custom commands
-    dst_commands = gemini_dir / "commands"
-    if dst_commands.exists():
-        for name in ["rotate.toml"]:
-            p = dst_commands / name
-            if p.exists():
-                try:
-                    p.unlink()
-                    print(f"   Removed custom command {name}")
-                except Exception as e:
-                    print(f"⚠️ Warning: Failed to remove custom command {name}: {e}")
+    dest_dirs = [
+        gemini_dir / "commands",
+        home / ".gemini" / "commands",
+        home / ".claude" / "commands",
+        repo_dir / ".gemini" / "commands",
+        repo_dir / ".claude" / "commands"
+    ]
+    for d in dest_dirs:
+        if d.exists():
+            for name in ["rotate.toml", "rotate.md"]:
+                p = d / name
+                if p.exists():
+                    try:
+                        p.unlink()
+                        print(f"   Removed custom command {name} from {d}")
+                    except Exception as e:
+                        print(f"⚠️ Warning: Failed to remove custom command {name} from {d}: {e}")
 
     # 5. Remove only installed modules; preserve credentials and runtime data.
     src_dir = repo_dir / "tools" / "agy"
@@ -102,9 +109,9 @@ def uninstall():
             if "hooks" in official_settings and isinstance(official_settings["hooks"], dict):
                 hooks_cfg = official_settings["hooks"]
                 
-                # Clean BeforeAgent
-                if "BeforeAgent" in hooks_cfg:
-                    before_list = hooks_cfg["BeforeAgent"]
+                # Clean UserPromptSubmit
+                if "UserPromptSubmit" in hooks_cfg:
+                    before_list = hooks_cfg["UserPromptSubmit"]
                     new_before = []
                     for entry in before_list:
                         if isinstance(entry, dict) and "hooks" in entry:
@@ -113,12 +120,12 @@ def uninstall():
                                 new_before.append(entry)
                         else:
                             new_before.append(entry)
-                    hooks_cfg["BeforeAgent"] = new_before
+                    hooks_cfg["UserPromptSubmit"] = new_before
                     updated = True
                     
-                # Clean AfterAgent
-                if "AfterAgent" in hooks_cfg:
-                    after_list = hooks_cfg["AfterAgent"]
+                # Clean Stop
+                if "Stop" in hooks_cfg:
+                    after_list = hooks_cfg["Stop"]
                     new_after = []
                     for entry in after_list:
                         if isinstance(entry, dict) and "hooks" in entry:
@@ -127,7 +134,7 @@ def uninstall():
                                 new_after.append(entry)
                         else:
                             new_after.append(entry)
-                    hooks_cfg["AfterAgent"] = new_after
+                    hooks_cfg["Stop"] = new_after
                     updated = True
                     
             if updated:
@@ -313,7 +320,7 @@ def main():
 
     hooks_cfg = official_settings["hooks"]
 
-    # BeforeAgent hook
+    # UserPromptSubmit hook
     before_hook = {
         "name": "quota-pre-check",
         "type": "command",
@@ -322,8 +329,8 @@ def main():
         "description": "Pre-check active account quota"
     }
     
-    # We want BeforeAgent entry for matcher "*"
-    before_list = hooks_cfg.get("BeforeAgent", [])
+    # We want UserPromptSubmit entry for matcher "*"
+    before_list = hooks_cfg.get("UserPromptSubmit", [])
     if not isinstance(before_list, list):
         before_list = []
     
@@ -346,9 +353,9 @@ def main():
     if not hook_exists:
         wildcard_before["hooks"].append(before_hook)
         
-    hooks_cfg["BeforeAgent"] = before_list
+    hooks_cfg["UserPromptSubmit"] = before_list
 
-    # AfterAgent hook
+    # Stop hook
     after_hook = {
         "name": "quota-auto-switch",
         "type": "command",
@@ -357,7 +364,7 @@ def main():
         "description": "Switch account on quota error and retry"
     }
     
-    after_list = hooks_cfg.get("AfterAgent", [])
+    after_list = hooks_cfg.get("Stop", [])
     if not isinstance(after_list, list):
         after_list = []
         
@@ -380,23 +387,30 @@ def main():
     if not hook_exists:
         wildcard_after["hooks"].append(after_hook)
         
-    hooks_cfg["AfterAgent"] = after_list
+    hooks_cfg["Stop"] = after_list
 
     try:
         with open(official_settings_file, "w") as f:
             json.dump(official_settings, f, indent=2)
-        print(f"   Configured BeforeAgent & AfterAgent hooks in {official_settings_file}")
+        print(f"   Configured UserPromptSubmit & Stop hooks in {official_settings_file}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to write to {official_settings_file}: {e}")
                     
-    # 9. Copy custom commands to ~/.gemini/config/commands/
+    # 9. Copy custom commands to ~/.gemini/commands/, ~/.claude/commands/, and project-level commands
     src_commands = repo_dir / "tools" / "agy" / "commands"
-    dst_commands = gemini_dir / "commands"
     if src_commands.exists():
-        dst_commands.mkdir(parents=True, exist_ok=True)
-        for item in src_commands.glob("*.toml"):
-            shutil.copy2(item, dst_commands / item.name)
-        print(f"   Copied custom commands to {dst_commands}")
+        dest_dirs = [
+            gemini_dir / "commands",
+            home / ".gemini" / "commands",
+            home / ".claude" / "commands",
+            repo_dir / ".gemini" / "commands",
+            repo_dir / ".claude" / "commands"
+        ]
+        for d in dest_dirs:
+            d.mkdir(parents=True, exist_ok=True)
+            for item in src_commands.glob("*.*"):
+                shutil.copy2(item, d / item.name)
+            print(f"   Copied custom commands to {d}")
 
     print("\n🎉 Standalone Antigravity CLI (agy) installation completed successfully!")
     print(f"\nMake sure your PATH environment variable includes: {bin_dir}")
