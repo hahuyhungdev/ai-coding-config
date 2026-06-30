@@ -50,6 +50,48 @@ def find_child_agy_bin(parent_pid):
             continue
     return None
 
+def check_active_account_quota():
+    try:
+        accounts = load_accounts()
+        active_idx = active_account_index(accounts)
+        if active_idx is None:
+            return False
+            
+        active_acc = accounts[active_idx]
+        email = active_acc.get("email") or active_acc.get("name")
+        if not email:
+            return False
+            
+        from status_refresh import get_quota_via_api, _quota_summary
+        model_quotas, refreshed_token = get_quota_via_api(active_acc, email)
+        if not model_quotas:
+            return False
+            
+        quota_text, reset_text = _quota_summary(model_quotas)
+        active_acc["quota"] = quota_text
+        active_acc["reset_info"] = reset_text
+        if refreshed_token:
+            active_acc["token"] = refreshed_token
+        write_accounts(accounts, create_backup=False)
+        
+        from switch import is_account_blocked_or_low
+        if is_account_blocked_or_low(active_acc, accounts):
+            found_idx = select_replacement_index(accounts, active_idx)
+            if found_idx is not None:
+                _write_active_account(accounts, found_idx)
+                try:
+                    generate_quota_rollover()
+                except:
+                    pass
+                try:
+                    (Path(AGY_DIR) / ".compact_signal").touch()
+                except:
+                    pass
+                return True
+    except Exception:
+        pass
+    return False
+
 def main():
     if len(sys.argv) < 2:
         sys.exit(1)
@@ -91,6 +133,7 @@ def main():
     try:
         with open(active_log, "r", errors="ignore") as f:
             f.seek(0, 2)
+            last_quota_check = time.time()
             while True:
                 # Check if target process is still running
                 try:
@@ -98,6 +141,19 @@ def main():
                 except OSError:
                     # Process died, exit monitor
                     break
+
+                # Periodic active quota threshold check (every 30 seconds)
+                if time.time() - last_quota_check >= 30.0:
+                    last_quota_check = time.time()
+                    if check_active_account_quota():
+                        print("\n⚠️ Active account quota dropped below threshold.")
+                        print("♻️ Initiating automatic context compaction and account rotation...")
+                        sys.stdout.flush()
+                        try:
+                            os.kill(target_pid, signal.SIGTERM)
+                        except OSError:
+                            pass
+                        break
 
                 line = f.readline()
                 if not line:
