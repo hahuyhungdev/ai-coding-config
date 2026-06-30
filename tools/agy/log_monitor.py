@@ -50,6 +50,44 @@ def find_child_agy_bin(parent_pid):
             continue
     return None
 
+def get_live_quota_for_active_account(active_acc, active_idx):
+    try:
+        from pty_client import get_quota_via_pty
+        from status_refresh import _quota_summary
+        from parser import parse_quota_output
+        import shutil
+        import json
+        
+        email = active_acc.get("email") or active_acc.get("name")
+        sandbox_dir = os.path.join(AGY_DIR, f"scratch/sandbox_active_check_{active_idx}")
+        sandbox_gemini_dir = os.path.join(sandbox_dir, ".gemini/antigravity-cli")
+        os.makedirs(sandbox_gemini_dir, exist_ok=True)
+        
+        sandbox_token_file = os.path.join(sandbox_gemini_dir, "antigravity-oauth-token")
+        with open(sandbox_token_file, "w") as handle:
+            json.dump(active_acc, handle)
+            
+        # Copy settings and installation_id
+        for filename in ["settings.json", "installation_id"]:
+            src = os.path.join(AGY_DIR, filename)
+            if os.path.exists(src):
+                shutil.copy2(src, os.path.join(sandbox_gemini_dir, filename))
+                
+        output = get_quota_via_pty(email, sandbox_dir=sandbox_dir)
+        
+        try:
+            shutil.rmtree(sandbox_dir)
+        except:
+            pass
+            
+        model_quotas = parse_quota_output(output)
+        if model_quotas:
+            quota_text, reset_text = _quota_summary(model_quotas)
+            return quota_text, reset_text, model_quotas
+    except Exception:
+        pass
+    return None, None, None
+
 def check_active_account_quota():
     try:
         accounts = load_accounts()
@@ -62,16 +100,13 @@ def check_active_account_quota():
         if not email:
             return False
             
-        from status_refresh import get_quota_via_api, _quota_summary
-        model_quotas, refreshed_token = get_quota_via_api(active_acc, email)
-        if not model_quotas:
+        quota_text, reset_text, model_quotas = get_live_quota_for_active_account(active_acc, active_idx)
+        if not quota_text:
             return False
             
-        quota_text, reset_text = _quota_summary(model_quotas)
         active_acc["quota"] = quota_text
         active_acc["reset_info"] = reset_text
-        if refreshed_token:
-            active_acc["token"] = refreshed_token
+        active_acc["model_quotas"] = model_quotas
         write_accounts(accounts, create_backup=False)
         
         from switch import is_account_blocked_or_low
@@ -142,8 +177,8 @@ def main():
                     # Process died, exit monitor
                     break
 
-                # Periodic active quota threshold check (every 30 seconds)
-                if time.time() - last_quota_check >= 30.0:
+                # Periodic active quota threshold check (every 60 seconds)
+                if time.time() - last_quota_check >= 60.0:
                     last_quota_check = time.time()
                     if check_active_account_quota():
                         print("\n⚠️ Active account quota dropped below threshold.")
