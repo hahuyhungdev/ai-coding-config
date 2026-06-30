@@ -73,6 +73,14 @@ def get_live_quota_for_active_account(active_acc, active_idx):
             if os.path.exists(src):
                 shutil.copy2(src, os.path.join(sandbox_gemini_dir, filename))
                 
+        # Copy global cache directory if exists (holds ToS acceptance state)
+        global_cache = os.path.join(AGY_DIR, "cache")
+        if os.path.exists(global_cache):
+            try:
+                shutil.copytree(global_cache, os.path.join(sandbox_gemini_dir, "cache"))
+            except Exception:
+                pass
+                
         output = get_quota_via_pty(email, sandbox_dir=sandbox_dir)
         
         try:
