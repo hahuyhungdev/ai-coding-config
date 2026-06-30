@@ -12,10 +12,12 @@ from utils import AGY_DIR, LOG_DIR
 from storage import load_accounts, write_accounts, active_account_index
 from switch import select_replacement_index, _write_active_account, generate_quota_rollover
 
-def get_newest_log_file():
+def get_newest_log_file(min_mtime=None):
     if not os.path.exists(LOG_DIR):
         return None
     files = [os.path.join(LOG_DIR, f) for f in os.listdir(LOG_DIR) if f.startswith("cli-") and f.endswith(".log")]
+    if min_mtime is not None:
+        files = [f for f in files if os.path.getmtime(f) >= min_mtime]
     if not files:
         return None
     files.sort(key=os.path.getmtime, reverse=True)
@@ -159,15 +161,19 @@ def main():
     # Wait for the active log file to be created and bound to target_pid
     active_log = None
     start_wait = time.time()
+    try:
+        proc_start_time = os.path.getmtime(f"/proc/{target_pid}")
+    except:
+        proc_start_time = time.time() - 5.0
+
     while time.time() - start_wait < 5.0:
         active_log = get_log_file_for_pid(target_pid)
         if active_log:
             break
-        # Fallback to newest log if /proc/{target_pid}/fd is empty/denied
-        active_log = get_newest_log_file()
+        # Fallback to newest log, but only if modified after the target process started
+        active_log = get_newest_log_file(min_mtime=proc_start_time - 2.0)
         if active_log:
-            if os.path.getmtime(active_log) > time.time() - 10:
-                break
+            break
         time.sleep(0.1)
 
     if not active_log:

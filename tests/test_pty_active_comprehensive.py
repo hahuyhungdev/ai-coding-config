@@ -9,9 +9,63 @@ import fcntl
 import termios
 import struct
 import re
+import atexit
+import tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools" / "agy"))
 from datetime import datetime, timedelta
+
+# Generate mock agy-bin to avoid hitting real Google API and getting stuck on ToS/login prompts
+MOCK_BIN_PATH = str(Path(tempfile.gettempdir()) / f"mock_agy_bin_{os.getpid()}.py")
+mock_code = """#!/usr/bin/env python3
+import sys
+
+# Disable buffering
+sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
+
+if len(sys.argv) > 1 and ("-p" in sys.argv or "--print" in sys.argv):
+    print("Mock print response")
+    sys.exit(0)
+
+if len(sys.argv) > 1 and "models" in sys.argv:
+    print("Gemini 3.5 Flash (High)")
+    sys.exit(0)
+
+if "-i" in sys.argv or "--prompt-interactive" in sys.argv:
+    flag = "-i" if "-i" in sys.argv else "--prompt-interactive"
+    idx = sys.argv.index(flag)
+    if idx + 1 < len(sys.argv):
+        print(sys.argv[idx + 1])
+
+print("Welcome to the Antigravity CLI.")
+print("> ")
+sys.stdout.flush()
+
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    if line == "/usage":
+        print("GEMINI MODELS")
+        print("  Weekly Limit")
+        print("    [██████████████████████████████████████████████████] 100.00%")
+        print("    100% remaining")
+        print("  Five Hour Limit")
+        print("    [██████████████████████████████████████████████████] 100.00%")
+        print("    100% remaining")
+        sys.stdout.flush()
+    elif line == "/exit":
+        sys.exit(0)
+    else:
+        print("Mock response")
+        sys.stdout.flush()
+        sys.exit(0)
+"""
+with open(MOCK_BIN_PATH, "w") as f:
+    f.write(mock_code)
+os.chmod(MOCK_BIN_PATH, 0o755)
+atexit.register(lambda: os.path.exists(MOCK_BIN_PATH) and os.remove(MOCK_BIN_PATH))
+
 
 # Paths
 AGY_DIR = os.path.expanduser("~/.gemini/antigravity-cli")
@@ -246,11 +300,13 @@ def run_pty_session(args_list, submit_prompt=None, write_log_cb=None):
         env = os.environ.copy()
         env["PATH"] = os.path.expanduser("~/.local/bin:") + env.get("PATH", "")
         env["AGY_TESTING"] = "0"
+        env["REAL_AGY_OVERRIDE"] = MOCK_BIN_PATH
         env["TERM"] = "xterm-256color"
         env["PAGER"] = "cat"
         
         try:
-            os.execvpe("agy", ["agy"] + args_list, env)
+            repo_agy = str(Path(__file__).resolve().parent.parent / "tools" / "agy" / "agy")
+            os.execvpe("bash", ["bash", repo_agy] + args_list, env)
         except Exception as e:
             os._exit(127)
     else:
@@ -473,7 +529,7 @@ def run_suite():
         # T10: Skip blocked candidates
         setup_test_accounts([
             {"quota": "5H:14%/W:50%", "status": "🟢 Ready"},
-            {"quota": "5H:100%/W:100%", "status": "🔴 Blocked"}, 
+            {"quota": "5H:100%/W:100%", "status": "🔴 Blocked", "blocked_until": (datetime.now() + timedelta(hours=2)).isoformat()},
             {"quota": "5H:90%/W:90%", "status": "🟢 Ready"}
         ])
         out = run_pty_session([])
@@ -492,9 +548,9 @@ def run_suite():
 
         # T12: All candidates blocked fallback
         setup_test_accounts([
-            {"quota": "5H:14%/W:50%", "status": "🔴 Blocked"},
-            {"quota": "5H:100%/W:100%", "status": "🔴 Blocked"},
-            {"quota": "5H:90%/W:90%", "status": "🔴 Blocked"}
+            {"quota": "5H:14%/W:50%", "status": "🔴 Blocked", "blocked_until": (datetime.now() + timedelta(hours=2)).isoformat()},
+            {"quota": "5H:100%/W:100%", "status": "🔴 Blocked", "blocked_until": (datetime.now() + timedelta(hours=2)).isoformat()},
+            {"quota": "5H:90%/W:90%", "status": "🔴 Blocked", "blocked_until": (datetime.now() + timedelta(hours=2)).isoformat()}
         ])
         out = run_pty_session([])
         success = "Switched to" not in out and "Auto-switched" not in out
