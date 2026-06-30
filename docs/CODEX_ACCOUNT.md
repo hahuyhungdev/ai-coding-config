@@ -8,6 +8,8 @@ The source lives in:
 tools/codex-account/codex-account.py
 ```
 
+For shared AGY/Codex rotation semantics, see [ACCOUNT_ROTATION.md](ACCOUNT_ROTATION.md).
+
 ## Quick Start
 
 ```bash
@@ -53,7 +55,7 @@ codex check hahuyhungdev --json
 
 `codex check <account>` accepts a 1-based index, label, email fragment, or account id fragment. It uses a 30-second per-account timeout by default, so it keeps a broken login from making the whole refresh look stuck. Progress is printed to stderr even when JSON mode is enabled. Set `CODEX_ACCOUNT_CHECK_TIMEOUT=60` when you want a longer default timeout.
 
-Codex rate-limit events expose `used_percent`. The helper converts that to remaining quota for the JSON `quota` field and text `LEFT` display, and also exposes `usage` plus `used_percent` for diagnostics. `status` and `rotate` treat an account as low when either usage window is at or above `70%` by default, which is equivalent to the `agy` convention of switching at `30%` remaining. Accounts without cached usage are not selected automatically unless `--allow-unknown` is passed.
+Codex rate-limit events expose `used_percent`. The helper converts that to remaining quota for the JSON `quota` field and text `LEFT` display, and also exposes `usage` plus `used_percent` for diagnostics. `status` and default `rotate` treat an account as low when either usage window is at or above `70%` by default, which is equivalent to the `agy` convention of switching at `30%` remaining. A healthy active account stays active unless `codex rotate --force` is used. Accounts without cached usage are not selected automatically unless `--allow-unknown` is passed.
 
 The `codex` wrapper intercepts only explicit account-management commands and passes normal Codex usage through to the original binary:
 

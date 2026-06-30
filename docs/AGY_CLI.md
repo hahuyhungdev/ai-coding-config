@@ -2,6 +2,8 @@
 
 `agy` launches Antigravity normally and provides safe account-management commands when a management subcommand is used.
 
+For shared AGY/Codex rotation semantics, see [ACCOUNT_ROTATION.md](ACCOUNT_ROTATION.md).
+
 ## Quick Start
 
 ```bash
@@ -147,12 +149,13 @@ agy auto
 
 The daemon scans CLI logs (`log/cli-*.log`) and subagent transcripts (`brain/**/*.jsonl`) every 5 minutes (`--interval 300`) to immediately switch accounts upon detecting any `429` or `RESOURCE_EXHAUSTED` API errors.
 
-### Auto-Switching Strategy (Round-Robin With Health Gate)
-- When starting a session, the wrapper checks if the active account is blocked or running low on quota ($\le 30\%$).
-- If a switch is needed, `agy` selects the next configured account in round-robin order, skipping accounts that are blocked or below the health threshold.
+### Auto-Switching Strategy (Threshold Health Gate)
+- When starting a session, the wrapper checks if the active account is blocked or running below the configured quota thresholds.
+- The active account is low if its 5-hour quota is less than or equal to `threshold_5h` (default `15`) or its weekly quota is less than or equal to `threshold_weekly` (default `10`).
+- If a switch is needed, `agy` skips accounts that are blocked or below the health threshold and selects the healthy candidate with the highest effective remaining quota.
 - If no healthy candidate exists, it falls back to the non-blocked low-quota candidate with the best remaining quota as a last-resort continuation path.
 - The next-index marker is stored in `~/.gemini/antigravity-cli/.current_index`.
-- To restore the previous highest-quota behavior, set `"rotationPolicy": "highest-quota"` in `~/.gemini/antigravity-cli/settings.json`. The default is `"round-robin"`.
+- Manual `agy rotate` uses the same threshold gate by default. Use `agy rotate --force` to intentionally move to the next account even if the active account is healthy.
 
 ### Real-Time Session Rescue (Quota Rollover)
 If a quota/rate-limit error occurs *during* an active interactive session:

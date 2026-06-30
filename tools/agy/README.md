@@ -44,15 +44,16 @@ The installed runtime lives outside this repo at:
 
 ### Notable Features & Account Rotation
 
-### 1. Health-Gated Round-Robin Rotation Algorithm
-All account rotation mechanisms—including manual command `agy rotate`, the `/rotate` slash command, and CLI hook-based checks—use a unified **round-robin with health gate** algorithm:
+### 1. Health-Gated Rotation Algorithm
+Default account rotation mechanisms—including manual command `agy rotate`, the `/rotate` slash command, and CLI hook-based checks—use a unified **health gate** algorithm:
 - **Ratio-Based Independent Thresholds**: The active account's health is evaluated independently against two distinct thresholds:
   - `threshold_5h` (defaults to 15%): The minimum remaining quota for the 5-Hour Session Limit.
   - `threshold_weekly` (defaults to 10%): The minimum remaining quota for the Weekly Limit.
   - **Low-Quota Condition**: An account is rotated if `five_hour_quota_percentage <= threshold_5h` OR `weekly_quota_percentage <= threshold_weekly`.
-- **First Pass (Healthy Round-Robin)**: Scans candidate accounts after the active account in configured order, filtering out accounts marked as blocked or with remaining quota below their respective thresholds. It selects the first healthy account in that order.
+- **First Pass (Healthy Candidates)**: Scans candidate accounts after the active account, filtering out accounts marked as blocked or with remaining quota below their respective thresholds. It selects the best remaining-quota candidate from the healthy set.
 - **Second Pass (Best-Effort Fallback)**: If all healthy candidates are unavailable, the algorithm selects the non-blocked low-quota candidate with the best remaining quota to make a best-effort continuation.
-- **Optional Policy**: Set `"rotationPolicy": "highest-quota"` in `~/.gemini/antigravity-cli/settings.json` to restore highest-quota-first selection. The default is `"round-robin"`.
+- **Selection Policy**: The current implementation selects the healthy candidate with the highest effective remaining quota. The `rotationPolicy` setting is still accepted for compatibility, but it resolves to highest-quota selection.
+- **Force Override**: Use `agy rotate --force` when you intentionally want to move to the next account even if the current account is healthy.
 
 ### 2. Proactive Hook (`BeforeAgent`)
 Integrated directly as an official shell hook in `~/.gemini/settings.json`, running before every prompt:
@@ -70,7 +71,7 @@ Integrated directly as a post-prompt hook in `~/.gemini/settings.json`:
 ### 4. Custom Slash Command `/rotate`
 For manual intervention during active sessions, users can run the `/rotate` command (defined globally in `~/.gemini/config/commands/rotate.toml` mapping to `agy-status.py rotate`).
 - Performs a live PTY status check on the current active account first.
-- If the current account is healthy, it displays its quota and stays active.
+- If the current account is healthy, it displays its quota and stays active. Use `agy rotate --force` to bypass this guard.
 - If the current account is low-quota/blocked, it immediately rotates to the next healthy candidate without requiring a CLI restart.
 
 ## Refactor Boundaries

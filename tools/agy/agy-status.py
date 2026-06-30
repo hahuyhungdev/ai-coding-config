@@ -319,6 +319,7 @@ Use 'agy help <command>' or 'agy <command> --help' for command-specific help.
     subparsers.add_parser("clean", help="Clean up automated or orphaned session logs")
     rotate = subparsers.add_parser("rotate", help="Rotate active account to the next healthy account in the pool")
     rotate.add_argument("target", nargs="?", help="Optional target index or email to switch to manually")
+    rotate.add_argument("--force", action="store_true", help="Force rotation to the next account even if the current account is healthy")
     
     config_parser = subparsers.add_parser("config", help="View or modify settings")
     config_parser.add_argument("key", nargs="?", help="Setting key (e.g. threshold)")
@@ -472,7 +473,7 @@ def main(argv=None):
         elif args.command == "config":
             run_config(args.key, args.value, args.show_all)
         elif args.command == "rotate":
-            rotate_account(getattr(args, "target", None))
+            rotate_account(getattr(args, "target", None), force=getattr(args, "force", False))
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         if getattr(args, "json", False):
             print(json.dumps({"error": str(exc)}))

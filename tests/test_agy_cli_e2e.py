@@ -170,6 +170,23 @@ class TestAgyCliE2E(unittest.TestCase):
         data = json.loads(res3.stdout)
         self.assertEqual(data["account"]["email"], "user2@gmail.com")
 
+    def test_rotate_default_respects_threshold_and_force_overrides(self):
+        # Healthy active account should not rotate by default.
+        res = self.run_agy(["rotate"])
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("No rotation needed", res.stdout)
+        with open(self.token_file, "r") as f:
+            active_token = json.load(f)
+            self.assertEqual(active_token["email"], "user1@gmail.com")
+
+        # Explicit force keeps the old manual "next account" behavior.
+        res_force = self.run_agy(["rotate", "--force"])
+        self.assertEqual(res_force.returncode, 0)
+        self.assertIn("Switched active account to", res_force.stdout)
+        with open(self.token_file, "r") as f:
+            active_token = json.load(f)
+            self.assertEqual(active_token["email"], "user2@gmail.com")
+
     def test_rename_command(self):
         # 1. Verify rename (standard output)
         res = self.run_agy(["rename", "1", "SuperUser1"])

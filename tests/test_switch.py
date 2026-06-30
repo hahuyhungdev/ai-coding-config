@@ -3,7 +3,9 @@ import sys
 import json
 import unittest
 import tempfile
+import io
 from datetime import datetime, timedelta
+from contextlib import redirect_stdout
 from unittest.mock import patch, MagicMock
 
 # Load the modular agy package components
@@ -429,6 +431,126 @@ Rate limit reached on model
             ]
 
             self.assertEqual(switch.select_replacement_index(accounts, 0), 2)
+
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_independent_5h_and_weekly_thresholds(self, mock_reset_logs):
+        mock_reset_logs.return_value = None
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
+            with open(switch.SETTINGS_FILE, "w") as f:
+                json.dump({"threshold_5h": 30, "threshold_weekly": 20}, f)
+
+            self.assertTrue(switch.is_account_blocked_or_low({
+                "email": "weekly-low@gmail.com",
+                "quota": "5H:31%/W:20%",
+                "status": "🟢 Ready",
+            }, []))
+            self.assertTrue(switch.is_account_blocked_or_low({
+                "email": "five-hour-low@gmail.com",
+                "quota": "5H:30%/W:21%",
+                "status": "🟢 Ready",
+            }, []))
+            self.assertFalse(switch.is_account_blocked_or_low({
+                "email": "healthy@gmail.com",
+                "quota": "5H:31%/W:21%",
+                "status": "🟢 Ready",
+            }, []))
+
+    @patch("switch.check_last_log_for_quota_error")
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_rotate_account_default_stays_on_healthy_account(self, mock_reset_logs, mock_quota_err):
+        mock_reset_logs.return_value = None
+        mock_quota_err.return_value = (False, "", "")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file = os.path.join(tmpdir, "accounts.json")
+            token_file = os.path.join(tmpdir, "token")
+
+            switch.JSON_FILE = json_file
+            switch.TOKEN_FILE = token_file
+            switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
+
+            accounts = [
+                {"email": "acc1@gmail.com", "token": {"refresh_token": "rt1"}, "quota": "5H:80%/W:90%", "status": "🟢 Ready"},
+                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "5H:100%/W:100%", "status": "🟢 Ready"},
+            ]
+            with open(json_file, "w") as f:
+                json.dump(accounts, f)
+            with open(token_file, "w") as f:
+                json.dump(accounts[0], f)
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                switch.rotate_account()
+
+            with open(token_file, "r") as f:
+                saved = json.load(f)
+            self.assertEqual(saved["token"]["refresh_token"], "rt1")
+            self.assertIn("No rotation needed", output.getvalue())
+
+    @patch("switch.check_last_log_for_quota_error")
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_rotate_account_default_selects_healthy_replacement_when_low(self, mock_reset_logs, mock_quota_err):
+        mock_reset_logs.return_value = None
+        mock_quota_err.return_value = (False, "", "")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file = os.path.join(tmpdir, "accounts.json")
+            token_file = os.path.join(tmpdir, "token")
+
+            switch.JSON_FILE = json_file
+            switch.TOKEN_FILE = token_file
+            switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
+
+            accounts = [
+                {"email": "acc1@gmail.com", "token": {"refresh_token": "rt1"}, "quota": "5H:10%/W:90%", "status": "🟢 Ready"},
+                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "5H:12%/W:90%", "status": "🟢 Ready"},
+                {"email": "acc3@gmail.com", "token": {"refresh_token": "rt3"}, "quota": "5H:80%/W:90%", "status": "🟢 Ready"},
+            ]
+            with open(json_file, "w") as f:
+                json.dump(accounts, f)
+            with open(token_file, "w") as f:
+                json.dump(accounts[0], f)
+
+            switch.rotate_account()
+
+            with open(token_file, "r") as f:
+                saved = json.load(f)
+            self.assertEqual(saved["token"]["refresh_token"], "rt3")
+
+    @patch("switch.check_last_log_for_quota_error")
+    @patch("switch.get_remaining_reset_from_logs")
+    def test_rotate_account_force_switches_even_when_healthy(self, mock_reset_logs, mock_quota_err):
+        mock_reset_logs.return_value = None
+        mock_quota_err.return_value = (False, "", "")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file = os.path.join(tmpdir, "accounts.json")
+            token_file = os.path.join(tmpdir, "token")
+
+            switch.JSON_FILE = json_file
+            switch.TOKEN_FILE = token_file
+            switch.AGY_DIR = tmpdir
+            switch.SETTINGS_FILE = os.path.join(tmpdir, "settings.json")
+
+            accounts = [
+                {"email": "acc1@gmail.com", "token": {"refresh_token": "rt1"}, "quota": "5H:80%/W:90%", "status": "🟢 Ready"},
+                {"email": "acc2@gmail.com", "token": {"refresh_token": "rt2"}, "quota": "5H:100%/W:100%", "status": "🟢 Ready"},
+            ]
+            with open(json_file, "w") as f:
+                json.dump(accounts, f)
+            with open(token_file, "w") as f:
+                json.dump(accounts[0], f)
+
+            switch.rotate_account(force=True)
+
+            with open(token_file, "r") as f:
+                saved = json.load(f)
+            self.assertEqual(saved["token"]["refresh_token"], "rt2")
 
 
 if __name__ == "__main__":

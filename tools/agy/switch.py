@@ -536,10 +536,9 @@ def kill_ancestor_agy_bin():
             break
     return False
 
-def rotate_account(target=None, force=True):
+def rotate_account(target=None, force=False):
     _sync_paths()
-    from storage import load_accounts, write_accounts
-    from status_refresh import _check_single_account, _apply_status_result
+    from storage import load_accounts
     try:
         accounts = load_accounts()
     except Exception as e:
@@ -584,14 +583,31 @@ def rotate_account(target=None, force=True):
         if len(accounts) <= 1:
             print("ℹ️ Only one account in accounts.json. No rotation possible.")
             return
-            
-        policy = load_rotation_policy()
+
         if force:
             found_idx = (active_idx + 1) % len(accounts)
         else:
+            active_acc = accounts[active_idx]
+            if not is_account_blocked_or_low(active_acc, accounts):
+                active_email = active_acc.get("email") or active_acc.get("name") or f"Account {active_idx + 1}"
+                quota = active_acc.get("quota", "?")
+                reset_info = active_acc.get("reset_info", "")
+                t_5h, t_w = load_quota_thresholds()
+                quota_str = f" - Quota: {quota}"
+                if reset_info:
+                    quota_str += f" ({reset_info})"
+                print(
+                    f"ℹ️ Current account '{active_email}' is healthy "
+                    f"(thresholds: 5H<={t_5h}%, W<={t_w}%){quota_str}. "
+                    "No rotation needed. Use 'agy rotate --force' to rotate anyway."
+                )
+                return
+
+            policy = load_rotation_policy()
             found_idx = select_replacement_index(accounts, active_idx, policy=policy)
             if found_idx is None:
-                found_idx = (active_idx + 1) % len(accounts)
+                print("⚠️ No replacement account is currently eligible. Staying on the current account.")
+                return
 
     selected_acc = _write_active_account(accounts, found_idx)
     new_email = selected_acc.get("email") or selected_acc.get("name") or f"Account {found_idx + 1}"

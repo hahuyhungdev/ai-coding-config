@@ -875,6 +875,51 @@ class TestCodexAccount(unittest.TestCase):
         self.assertEqual(active_after["tokens"]["account_id"], "acct-k12")
         self.assertTrue(list(self.codex_home.glob("auth.json.bak-*")))
 
+    def test_rotate_default_keeps_healthy_active_account(self):
+        active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
+        candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
+        self._write_store(
+            [
+                {"label": "plus-account", "auth": active},
+                {"label": "k12-account", "auth": candidate},
+            ],
+            active,
+        )
+        self._write_rate_limit("plus", primary_used=20, secondary_used=30, timestamp="2026-06-15T00:00:00Z")
+        self._write_rate_limit("k12", primary_used=10, secondary_used=15, timestamp="2026-06-15T00:01:00Z")
+
+        result = self._run("rotate", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertFalse(payload["switched"])
+        self.assertFalse(payload["would_switch"])
+        self.assertEqual(payload["reason"], "Active Codex account is healthy; use --force to rotate anyway")
+        active_after = json.loads((self.codex_home / "auth.json").read_text(encoding="utf-8"))
+        self.assertEqual(active_after["tokens"]["account_id"], "acct-plus")
+
+    def test_rotate_force_switches_even_when_active_account_is_healthy(self):
+        active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
+        candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
+        self._write_store(
+            [
+                {"label": "plus-account", "auth": active},
+                {"label": "k12-account", "auth": candidate},
+            ],
+            active,
+        )
+        self._write_rate_limit("plus", primary_used=20, secondary_used=30, timestamp="2026-06-15T00:00:00Z")
+        self._write_rate_limit("k12", primary_used=10, secondary_used=15, timestamp="2026-06-15T00:01:00Z")
+
+        result = self._run("rotate", "--force", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["switched"])
+        self.assertEqual(payload["target"]["label"], "k12-account")
+        active_after = json.loads((self.codex_home / "auth.json").read_text(encoding="utf-8"))
+        self.assertEqual(active_after["tokens"]["account_id"], "acct-k12")
+
     def test_rotate_help_is_safe_and_does_not_switch_accounts(self):
         active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
         candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
