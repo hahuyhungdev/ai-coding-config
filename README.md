@@ -10,7 +10,7 @@
 ### 1. Global Setup (Run Once)
 Clone the repository and link your configurations globally:
 ```bash
-git clone git@github.com:hahuyhungdev/ai-coding-config.git ~/projects/ai-coding-config
+git clone git@github.com:your-github-user/ai-coding-config.git ~/projects/ai-coding-config
 cd ~/projects/ai-coding-config
 ./install.py
 ```

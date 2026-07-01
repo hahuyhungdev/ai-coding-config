@@ -130,6 +130,18 @@ class TestAgyIntegration(unittest.TestCase):
         # 4. Verify get_model_pct returns 100 (default) for an unknown model
         self.assertEqual(utils.get_model_pct(acc["model_quotas"], "Unknown Model"), 100)
 
+    def test_after_agent_ignores_synthetic_rollover_text(self):
+        import after_agent
+
+        rollover_text = """
+        <compaction_rollover>
+        Assistant: Quota exhausted on gemini model, resuming after quota rollover.
+        </compaction_rollover>
+        """
+
+        self.assertFalse(after_agent.check_for_quota_error(rollover_text))
+        self.assertTrue(after_agent.check_for_quota_error("RESOURCE_EXHAUSTED: quota exceeded"))
+
     def test_duplicate_tokens_handling(self):
         # Configure accounts where #1 and #2 have the same refresh token
         accounts = [

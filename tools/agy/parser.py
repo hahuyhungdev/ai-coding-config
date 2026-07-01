@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from utils import (
     GEMINI_MODELS, CLAUDE_MODELS, LOG_DIR, JSON_FILE,
     parse_log_timestamp, parse_duration, get_username,
-    account_display_name, account_key
+    account_display_name, account_key, is_provider_quota_error_line
 )
 
 def parse_quota_output(output):
@@ -173,15 +173,7 @@ def get_remaining_reset_from_logs(email, accounts):
             with open(log_path, "r", errors="ignore") as lf:
                 lines = lf.readlines()
             for line in reversed(lines):
-                line_lower = line.lower()
-                if (
-                    "resource_exhausted" in line_lower
-                    or "quota exceeded" in line_lower
-                    or "429" in line_lower
-                    or "individual quota reached" in line_lower
-                    or "too many tokens" in line_lower
-                    or "rate limit" in line_lower
-                ):
+                if is_provider_quota_error_line(line):
                     m = re.search(r"resets in ([0-9hms]+)", line, re.IGNORECASE)
                     if m:
                         duration_str = m.group(1)

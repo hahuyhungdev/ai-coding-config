@@ -13,6 +13,18 @@ import log_monitor
 
 
 class TestLogMonitor(unittest.TestCase):
+    def test_provider_quota_error_line_ignores_tool_output(self):
+        self.assertFalse(
+            log_monitor.is_provider_quota_error_line(
+                '+ self.assertTrue(after_agent.check_for_quota_error("RESOURCE_EXHAUSTED: quota exceeded"))'
+            )
+        )
+        self.assertTrue(
+            log_monitor.is_provider_quota_error_line(
+                "E0701 12:00:00 RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 2h."
+            )
+        )
+
     def test_get_newest_log_file_filters_by_min_mtime(self):
         with tempfile.TemporaryDirectory() as tmp:
             log_dir = Path(tmp)

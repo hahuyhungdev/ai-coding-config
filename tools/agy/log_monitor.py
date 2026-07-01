@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Add tools/agy/ to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils import AGY_DIR, LOG_DIR
+from utils import AGY_DIR, LOG_DIR, is_provider_quota_error_line
 from storage import load_accounts, write_accounts, active_account_index
 from switch import select_replacement_index, _write_active_account, generate_quota_rollover
 
@@ -209,15 +209,7 @@ def main():
                     time.sleep(0.1)
                     continue
 
-                line_lower = line.lower()
-                if (
-                    "resource_exhausted" in line_lower
-                    or "quota exceeded" in line_lower
-                    or "429" in line_lower
-                    or "individual quota reached" in line_lower
-                    or "too many tokens" in line_lower
-                    or "rate limit" in line_lower
-                ):
+                if is_provider_quota_error_line(line):
                     accounts = load_accounts()
                     active_idx = active_account_index(accounts)
                     if active_idx is not None:

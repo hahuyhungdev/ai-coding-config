@@ -10,7 +10,7 @@ from utils import (
     GEMINI_MODELS, CLAUDE_MODELS,
     get_username, parse_duration, parse_log_timestamp,
     get_model_pct, format_exact_reset_time, remaining_quota_value,
-    clear_mcp_token_cache
+    clear_mcp_token_cache, is_provider_quota_error_line
 )
 from parser import get_remaining_reset_from_logs
 
@@ -371,15 +371,7 @@ def check_last_log_for_quota_error():
 
         # Step 2: Scan lines for quota error
         for line in reversed(lines):
-            line_lower = line.lower()
-            if (
-                "resource_exhausted" in line_lower
-                or "quota exceeded" in line_lower
-                or "429" in line_lower
-                or "individual quota reached" in line_lower
-                or "too many tokens" in line_lower
-                or "rate limit" in line_lower
-            ):
+            if is_provider_quota_error_line(line):
                 m = re.search(r"resets in\s*([0-9hms]+)", line, re.IGNORECASE)
                 reset_str = ""
                 if m:

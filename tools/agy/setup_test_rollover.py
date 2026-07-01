@@ -52,6 +52,11 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--dynamic", action="store_true", help="Run dynamic rollover test")
+    parser.add_argument(
+        "--account-fragment",
+        default=os.environ.get("AGY_TEST_ACCOUNT_FRAGMENT", ""),
+        help="Account email/name fragment to use for the static rollover setup",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(JSON_FILE):
@@ -109,23 +114,30 @@ def main():
         return
 
     # Static test setup
-    hh_idx = None
-    for idx, acc in enumerate(accounts):
-        email = acc.get("email") or acc.get("name")
-        if "hahuyhungdev" in str(email).lower():
-            hh_idx = idx
-            break
-
-    if hh_idx is None:
-        print("❌ Error: hahuyhungdev account not found in accounts.json")
+    account_fragment = args.account_fragment.strip().lower()
+    if not account_fragment:
+        print("❌ Error: provide --account-fragment or AGY_TEST_ACCOUNT_FRAGMENT")
         return
 
-    print("1. Setting active account to 'hahuyhungdev'...")
+    static_idx = None
+    static_email = ""
+    for idx, acc in enumerate(accounts):
+        email = acc.get("email") or acc.get("name")
+        if account_fragment in str(email).lower():
+            static_idx = idx
+            static_email = email
+            break
+
+    if static_idx is None:
+        print("❌ Error: matching account not found in accounts.json")
+        return
+
+    print(f"1. Setting active account to '{static_email}'...")
     with open(TOKEN_FILE, "w") as f:
-        json.dump(accounts[hh_idx], f)
+        json.dump(accounts[static_idx], f)
     os.chmod(TOKEN_FILE, 0o600)
 
-    configure_mock_state("hahuyhungdev")
+    configure_mock_state(static_email)
 
     print("\n✅ Test environment configured successfully!")
     print("------------------------------------------------------------------------")

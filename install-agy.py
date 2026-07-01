@@ -9,6 +9,85 @@ from pathlib import Path
 
 from installer.constants import REAL_HOME
 
+def _load_settings(settings_file):
+    if not settings_file.exists():
+        return {}
+    try:
+        with open(settings_file, "r") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _upsert_wildcard_hook(hooks_cfg, event, hook):
+    event_list = hooks_cfg.get(event, [])
+    if not isinstance(event_list, list):
+        event_list = []
+
+    wildcard_entry = None
+    for entry in event_list:
+        if isinstance(entry, dict) and entry.get("matcher") == "*":
+            wildcard_entry = entry
+            break
+
+    if wildcard_entry is None:
+        wildcard_entry = {"matcher": "*", "hooks": []}
+        event_list.append(wildcard_entry)
+
+    entry_hooks = wildcard_entry.get("hooks", [])
+    if not isinstance(entry_hooks, list):
+        entry_hooks = []
+        wildcard_entry["hooks"] = entry_hooks
+
+    for existing_hook in entry_hooks:
+        if isinstance(existing_hook, dict) and existing_hook.get("name") == hook["name"]:
+            existing_hook.update(hook)
+            break
+    else:
+        entry_hooks.append(dict(hook))
+
+    hooks_cfg[event] = event_list
+
+
+def configure_quota_hooks(home=REAL_HOME, agy_cli_dir=None):
+    home = Path(home)
+    agy_cli_dir = Path(agy_cli_dir) if agy_cli_dir is not None else home / ".gemini" / "antigravity-cli"
+    settings_files = [
+        home / ".gemini" / "settings.json",
+        agy_cli_dir / "settings.json",
+    ]
+
+    before_hook = {
+        "name": "quota-pre-check",
+        "type": "command",
+        "command": f"python3 {agy_cli_dir}/before_agent.py",
+        "timeout": 10000,
+        "description": "Pre-check active account quota",
+    }
+    after_hook = {
+        "name": "quota-auto-switch",
+        "type": "command",
+        "command": f"python3 {agy_cli_dir}/after_agent.py",
+        "timeout": 10000,
+        "description": "Switch account on quota error and retry",
+    }
+
+    for settings_file in settings_files:
+        settings_file.parent.mkdir(parents=True, exist_ok=True)
+        settings = _load_settings(settings_file)
+        hooks_cfg = settings.get("hooks")
+        if not isinstance(hooks_cfg, dict):
+            hooks_cfg = {}
+            settings["hooks"] = hooks_cfg
+
+        _upsert_wildcard_hook(hooks_cfg, "UserPromptSubmit", before_hook)
+        _upsert_wildcard_hook(hooks_cfg, "Stop", after_hook)
+
+        with open(settings_file, "w") as f:
+            json.dump(settings, f, indent=2)
+
+
 def uninstall():
     print("🗑️ Uninstalling Antigravity CLI (agy) standalone...")
 
@@ -490,6 +569,12 @@ def main():
         print(f"   Configured UserPromptSubmit & Stop hooks in {official_settings_file}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to write to {official_settings_file}: {e}")
+
+    try:
+        configure_quota_hooks(home, agy_cli_dir)
+        print(f"   Synced quota hooks to {official_settings_file} and {agy_cli_dir / 'settings.json'}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to sync quota hooks: {e}")
 
     # 9. Copy custom commands to ~/.gemini/commands/, ~/.claude/commands/, and project-level commands
     src_commands = repo_dir / "tools" / "agy" / "commands"

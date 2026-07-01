@@ -78,6 +78,53 @@ def account_key(name):
 def strip_ansi(text):
     return re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
 
+def is_provider_quota_error_line(line):
+    text = str(line or "")
+    text_lower = text.lower()
+    stripped = text.lstrip()
+
+    quota_terms = (
+        "resource_exhausted",
+        "quota exceeded",
+        "individual quota reached",
+        "too many tokens",
+        "rate limit",
+    )
+    if not any(term in text_lower for term in quota_terms):
+        if not ("429" in text_lower and ("quota" in text_lower or "rate limit" in text_lower)):
+            return False
+
+    if stripped.startswith(("+", "-", ">", "|")):
+        return False
+    if "check_for_quota_error(" in text_lower or "<compaction_rollover" in text_lower:
+        return False
+
+    if re.match(r"^[EWF]\d{4}\s+\d{2}:\d{2}:\d{2}", stripped):
+        return True
+
+    if "resource_exhausted" in text_lower and (
+        "code" in text_lower or "resets in" in text_lower or "quota" in text_lower
+    ):
+        return True
+
+    provider_context = (
+        re.search(r"\berror\b", text_lower)
+        or "exception" in text_lower
+        or "failed" in text_lower
+        or "resets in" in text_lower
+        or "code" in text_lower
+        or "429" in text_lower
+    )
+    if provider_context and (
+        "quota exceeded" in text_lower
+        or "individual quota reached" in text_lower
+        or "too many tokens" in text_lower
+        or "rate limit" in text_lower
+    ):
+        return True
+
+    return False
+
 def get_model_pct(model_quotas, model_name, default=100):
     quota = model_quotas.get(model_name, {})
     try:
@@ -231,4 +278,3 @@ def clear_mcp_token_cache():
                 os.unlink(cache_file)
             except OSError:
                 pass
-

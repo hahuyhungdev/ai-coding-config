@@ -219,11 +219,11 @@ class TestSwitch(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 switch.LOG_DIR = tmpdir
-                
+
                 # Case 1: No log files
                 res = switch.check_last_log_for_quota_error()
                 self.assertEqual(res, (False, "", ""))
-                
+
                 # Case 2: Log file exists but is too old (>15 mins)
                 log_path = os.path.join(tmpdir, "cli-old.log")
                 with open(log_path, "w") as f:
@@ -236,14 +236,24 @@ RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 4h47m6s.
                 
                 res = switch.check_last_log_for_quota_error()
                 self.assertEqual(res, (False, "", ""))
-                
-                # Case 3: Recent log file with quota error and model override
+
+                # Case 3b: Recent tool output mentioning quota strings is not a provider error
                 log_path_recent = os.path.join(tmpdir, "cli-recent.log")
                 with open(log_path_recent, "w") as f:
                     f.write('''label="Gemini 3.5 Flash (High)"
-RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 4h47m6s.
++ self.assertTrue(after_agent.check_for_quota_error("RESOURCE_EXHAUSTED: quota exceeded"))
 ''')
                 recent_time = time.time() - 10
+                os.utime(log_path_recent, (recent_time, recent_time))
+
+                res = switch.check_last_log_for_quota_error()
+                self.assertEqual(res, (False, "", ""))
+
+                # Case 3: Recent log file with quota error and model override
+                with open(log_path_recent, "w") as f:
+                    f.write('''label="Gemini 3.5 Flash (High)"
+E0701 12:00:00 RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 4h47m6s.
+''')
                 os.utime(log_path_recent, (recent_time, recent_time))
                 
                 res = switch.check_last_log_for_quota_error()
@@ -252,7 +262,7 @@ RESOURCE_EXHAUSTED (code 429): Individual quota reached. Resets in 4h47m6s.
                 # Case 4: Recent log file with "Rate limit" and no "Resets in"
                 with open(log_path_recent, "w") as f:
                     f.write('''label="Claude Opus 4.6 (Thinking)"
-Rate limit reached on model
+E0701 12:00:00 Rate limit error reached on model
 ''')
                 os.utime(log_path_recent, (recent_time, recent_time))
                 

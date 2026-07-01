@@ -17,14 +17,14 @@ codex ls
 codex status
 codex check
 codex status --json
-codex check hahuyhungdev --json
+codex check account-alias --json
 codex rotate --dry-run
 codex rotate
 codex current
 codex token
 codex login-temp
 codex add active-copy
-codex switch hahuyhungdev
+codex switch account-alias
 ```
 
 ## Short Command Guide
@@ -55,7 +55,7 @@ If a live check returns a Codex usage-limit error instead of a rate-limit snapsh
 When you just added or updated one auth file, prefer a targeted refresh:
 
 ```bash
-codex check hahuyhungdev --json
+codex check account-alias --json
 ```
 
 `codex check <account>` accepts a 1-based index, label, email fragment, or account id fragment. It uses a 30-second per-account timeout by default, so it keeps a broken login from making the whole refresh look stuck. Progress is printed to stderr even when JSON mode is enabled. Set `CODEX_ACCOUNT_CHECK_TIMEOUT=60` when you want a longer default timeout.

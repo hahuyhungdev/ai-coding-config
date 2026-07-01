@@ -25,6 +25,13 @@ def log(message):
 
 def check_for_quota_error(text):
     text_lower = str(text).lower()
+    if (
+        "<compaction_rollover" in text_lower
+        or "auto-resuming session (quota rollover)" in text_lower
+        or "resuming after quota rollover" in text_lower
+    ):
+        return False
+
     return (
         "resource_exhausted" in text_lower
         or "quota exceeded" in text_lower
@@ -32,7 +39,6 @@ def check_for_quota_error(text):
         or "individual quota reached" in text_lower
         or "too many tokens" in text_lower
         or "rate limit" in text_lower
-        or "exhausted" in text_lower
     )
 
 def main():
