@@ -24,6 +24,39 @@ CLAUDE_MODELS = [
     "Claude Sonnet 4.6 (Thinking)",
 ]
 
+def get_session_state_dir(create=False):
+    state_dir = os.environ.get("AGY_WRAPPER_STATE_DIR")
+    if state_dir:
+        if create:
+            os.makedirs(state_dir, mode=0o700, exist_ok=True)
+        return state_dir
+    return AGY_DIR
+
+def session_state_path(filename, create_dir=False):
+    state_dir = get_session_state_dir(create=create_dir)
+    return os.path.join(state_dir, filename)
+
+def get_session_token_file(default_token_file=None):
+    token_file = os.environ.get("AGY_SESSION_TOKEN_FILE")
+    if token_file and os.path.exists(token_file):
+        return token_file
+    return default_token_file or TOKEN_FILE
+
+def get_session_log_file():
+    log_file = os.environ.get("AGY_SESSION_LOG_FILE")
+    if log_file and os.path.exists(log_file):
+        return log_file
+
+    active_log_path = session_state_path("active_log_path")
+    if os.path.exists(active_log_path):
+        try:
+            stored = open(active_log_path, "r", encoding="utf-8").read().strip()
+        except OSError:
+            stored = ""
+        if stored and os.path.exists(stored):
+            return stored
+    return None
+
 def parse_duration(duration_str):
     hours = 0
     minutes = 0

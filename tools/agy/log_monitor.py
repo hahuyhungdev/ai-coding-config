@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Add tools/agy/ to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils import AGY_DIR, LOG_DIR, is_provider_quota_error_line
+from utils import AGY_DIR, LOG_DIR, is_provider_quota_error_line, session_state_path
 from storage import load_accounts, write_accounts, active_account_index
 from switch import select_replacement_index, _write_active_account, generate_quota_rollover
 
@@ -129,7 +129,7 @@ def check_active_account_quota():
                 except:
                     pass
                 try:
-                    (Path(AGY_DIR) / ".compact_signal").touch()
+                    Path(session_state_path(".compact_signal", create_dir=True)).touch()
                 except:
                     pass
                 return True
@@ -178,6 +178,13 @@ def main():
 
     if not active_log:
         sys.exit(0)
+
+    try:
+        state_log_file = Path(session_state_path("active_log_path", create_dir=True))
+        state_log_file.write_text(active_log, encoding="utf-8")
+        os.environ["AGY_SESSION_LOG_FILE"] = active_log
+    except Exception:
+        pass
 
     try:
         with open(active_log, "r", errors="ignore") as f:
@@ -230,7 +237,7 @@ def main():
                             except:
                                 pass
                             try:
-                                (Path(AGY_DIR) / ".compact_signal").touch()
+                                Path(session_state_path(".compact_signal", create_dir=True)).touch()
                             except:
                                 pass
 

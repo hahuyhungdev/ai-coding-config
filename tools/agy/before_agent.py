@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 # Add tools/agy/ directory to python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils import AGY_DIR, TOKEN_FILE
+from utils import AGY_DIR, TOKEN_FILE, session_state_path
 from switch import (
     is_account_blocked_or_low,
     select_replacement_index,
@@ -91,7 +91,7 @@ def main():
                     log(f"Failed to generate quota rollover: {ex_roll}")
 
                 # 4. Touch reload/compaction signal file
-                signal_file = Path(AGY_DIR) / ".compact_signal"
+                signal_file = Path(session_state_path(".compact_signal", create_dir=True))
                 try:
                     signal_file.touch()
                 except Exception as ex_touch:

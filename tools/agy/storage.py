@@ -4,7 +4,14 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from utils import AGY_DIR, JSON_FILE, TOKEN_FILE, account_display_name, get_account_reset_seconds
+from utils import (
+    AGY_DIR,
+    JSON_FILE,
+    TOKEN_FILE,
+    account_display_name,
+    get_account_reset_seconds,
+    get_session_token_file,
+)
 
 
 BACKUP_DIR = os.path.join(AGY_DIR, "backups")
@@ -119,11 +126,12 @@ def resolve_account(accounts, target):
     return matches[0]
 
 
-def active_account_index(accounts):
-    if not os.path.exists(TOKEN_FILE):
+def active_account_index(accounts, token_file=None):
+    token_path = token_file or get_session_token_file(TOKEN_FILE)
+    if not os.path.exists(token_path):
         return None
     try:
-        token_data = json.loads(Path(TOKEN_FILE).read_text(encoding="utf-8"))
+        token_data = json.loads(Path(token_path).read_text(encoding="utf-8"))
         active_token = (token_data.get("token") or token_data).get("refresh_token")
     except (OSError, ValueError, AttributeError):
         return None

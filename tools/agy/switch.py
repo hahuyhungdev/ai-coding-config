@@ -10,7 +10,8 @@ from utils import (
     GEMINI_MODELS, CLAUDE_MODELS,
     get_username, parse_duration, parse_log_timestamp,
     get_model_pct, format_exact_reset_time, remaining_quota_value,
-    clear_mcp_token_cache, is_provider_quota_error_line
+    clear_mcp_token_cache, is_provider_quota_error_line,
+    get_session_log_file, get_session_token_file, session_state_path,
 )
 from parser import get_remaining_reset_from_logs
 
@@ -166,6 +167,17 @@ def _write_active_account(accounts, selected_idx):
     if os.name == 'posix':
         try:
             os.chmod(TOKEN_FILE, 0o600)
+        except OSError:
+            pass
+
+    session_token_file = get_session_token_file(TOKEN_FILE)
+    if session_token_file != TOKEN_FILE:
+        try:
+            os.makedirs(os.path.dirname(session_token_file), mode=0o700, exist_ok=True)
+            with open(session_token_file, "w") as f:
+                json.dump(selected_acc, f)
+            if os.name == 'posix':
+                os.chmod(session_token_file, 0o600)
         except OSError:
             pass
 
@@ -333,14 +345,22 @@ def check_last_log_for_quota_error():
       - reset_time_str: e.g. "In 2h30m"
       - blocked_model: "gemini" or "claude" or "unknown"
     """
-    if not os.path.exists(LOG_DIR):
-        return False, "", ""
-
     log_files = []
-    for f in os.listdir(LOG_DIR):
-        if f.startswith("cli-") and f.endswith(".log"):
-            path = os.path.join(LOG_DIR, f)
-            log_files.append((path, os.path.getmtime(path)))
+    session_log = get_session_log_file()
+    if session_log:
+        try:
+            log_files.append((session_log, os.path.getmtime(session_log)))
+        except OSError:
+            pass
+
+    if not log_files:
+        if not os.path.exists(LOG_DIR):
+            return False, "", ""
+
+        for f in os.listdir(LOG_DIR):
+            if f.startswith("cli-") and f.endswith(".log"):
+                path = os.path.join(LOG_DIR, f)
+                log_files.append((path, os.path.getmtime(path)))
     if not log_files:
         return False, "", ""
 
@@ -403,20 +423,11 @@ def auto_switch_account(quiet=False):
             print("❌ No accounts in accounts.json!")
         return ""
 
-    # Find active account index
-    active_idx = None
-    if os.path.exists(TOKEN_FILE):
-        try:
-            with open(TOKEN_FILE, "r") as f:
-                token_data = json.load(f)
-                active_rt = token_data.get("token", {}).get("refresh_token")
-                if active_rt:
-                    for idx, acc in enumerate(accounts):
-                        if acc.get("token", {}).get("refresh_token") == active_rt:
-                            active_idx = idx
-                            break
-        except:
-            pass
+    # Find active account index. Inside a wrapper session this resolves from the
+    # launch token snapshot so another terminal cannot change this session's
+    # accounting by switching the global token file.
+    from storage import active_account_index
+    active_idx = active_account_index(accounts)
 
     if active_idx is None:
         active_idx = 0
@@ -505,19 +516,8 @@ def post_check_and_switch():
         print(f"❌ Failed to load accounts: {e}", file=sys.stderr)
         sys.exit(1)
 
-    active_idx = None
-    if os.path.exists(TOKEN_FILE):
-        try:
-            with open(TOKEN_FILE, "r") as f:
-                token_data = json.load(f)
-                active_rt = token_data.get("token", {}).get("refresh_token")
-                if active_rt:
-                    for idx, acc in enumerate(accounts):
-                        if acc.get("token", {}).get("refresh_token") == active_rt:
-                            active_idx = idx
-                            break
-        except:
-            pass
+    from storage import active_account_index
+    active_idx = active_account_index(accounts)
 
     if active_idx is not None:
         accounts[active_idx]["status"] = "🔴 Blocked"
@@ -598,19 +598,10 @@ def rotate_account(target=None, force=False):
         print("❌ No accounts in accounts.json!")
         return
 
-    active_idx = 0
-    if os.path.exists(TOKEN_FILE):
-        try:
-            with open(TOKEN_FILE, "r") as f:
-                token_data = json.load(f)
-                active_rt = token_data.get("token", {}).get("refresh_token")
-                if active_rt:
-                    for idx, acc in enumerate(accounts):
-                        if acc.get("token", {}).get("refresh_token") == active_rt:
-                            active_idx = idx
-                            break
-        except:
-            pass
+    from storage import active_account_index
+    active_idx = active_account_index(accounts)
+    if active_idx is None:
+        active_idx = 0
 
     found_idx = None
     if target:
@@ -690,7 +681,7 @@ def rotate_account(target=None, force=False):
 
         # Touch the compaction signal file
         from pathlib import Path
-        signal_file = Path(AGY_DIR) / ".compact_signal"
+        signal_file = Path(session_state_path(".compact_signal", create_dir=True))
         try:
             signal_file.touch()
         except:
@@ -718,7 +709,7 @@ def generate_quota_rollover():
 
     if conv_id:
         try:
-            with open(os.path.join(AGY_DIR, ".active_conv_id"), "w", encoding="utf-8") as f:
+            with open(session_state_path(".active_conv_id", create_dir=True), "w", encoding="utf-8") as f:
                 f.write(conv_id)
         except Exception:
             pass

@@ -6,6 +6,24 @@ MAX_RETRIES=2  # Up to 2 retries: 1 model-switch + 1 account-switch
 ROLLOVER_PROGRESS_CONTENT=""
 ROLLOVER_CONV_ID=""
 RESUME_ARGS=()
+AGY_SESSION_ID="${AGY_SESSION_ID_OVERRIDE:-$(date +%Y%m%d%H%M%S)-$$-$RANDOM}"
+AGY_STATE_ROOT="${AGY_STATE_ROOT_OVERRIDE:-$AGY_DIR/session-state}"
+AGY_WRAPPER_STATE_DIR="${AGY_WRAPPER_STATE_DIR_OVERRIDE:-$AGY_STATE_ROOT/$AGY_SESSION_ID}"
+AGY_SESSION_TOKEN_FILE="${AGY_SESSION_TOKEN_FILE_OVERRIDE:-$AGY_WRAPPER_STATE_DIR/active-token.json}"
+export AGY_WRAPPER_SESSION_ID
+export AGY_WRAPPER_STATE_DIR
+export AGY_SESSION_TOKEN_FILE
+
+mkdir -p "$AGY_WRAPPER_STATE_DIR" 2>/dev/null || true
+chmod 700 "$AGY_WRAPPER_STATE_DIR" 2>/dev/null || true
+
+snapshot_active_token() {
+    mkdir -p "$AGY_WRAPPER_STATE_DIR" 2>/dev/null || true
+    if [ -f "$AGY_DIR/antigravity-oauth-token" ]; then
+        cp "$AGY_DIR/antigravity-oauth-token" "$AGY_SESSION_TOKEN_FILE" 2>/dev/null || true
+        chmod 600 "$AGY_SESSION_TOKEN_FILE" 2>/dev/null || true
+    fi
+}
 
 consume_rollover_state() {
     ROLLOVER_PROGRESS_CONTENT="No progress summary found."
@@ -25,15 +43,15 @@ consume_rollover_state() {
         fi
     fi
 
-    rm -f "$AGY_DIR/.compact_signal"
+    rm -f "$AGY_WRAPPER_STATE_DIR/.compact_signal"
 
-    if [ -f "$AGY_DIR/.active_conv_id" ]; then
-        ROLLOVER_CONV_ID=$(cat "$AGY_DIR/.active_conv_id" | tr -d '\r\n[:space:]')
-        rm -f "$AGY_DIR/.active_conv_id"
+    if [ -f "$AGY_WRAPPER_STATE_DIR/.active_conv_id" ]; then
+        ROLLOVER_CONV_ID=$(cat "$AGY_WRAPPER_STATE_DIR/.active_conv_id" | tr -d '\r\n[:space:]')
+        rm -f "$AGY_WRAPPER_STATE_DIR/.active_conv_id"
     fi
 
-    mkdir -p "$AGY_DIR" 2>/dev/null || true
-    printf '%s\n' "$ROLLOVER_PROGRESS_CONTENT" > "$AGY_DIR/.last_rollover_summary.md" 2>/dev/null || true
+    mkdir -p "$AGY_WRAPPER_STATE_DIR" 2>/dev/null || true
+    printf '%s\n' "$ROLLOVER_PROGRESS_CONTENT" > "$AGY_WRAPPER_STATE_DIR/.last_rollover_summary.md" 2>/dev/null || true
 }
 
 prepare_idle_rollover_resume() {
@@ -43,7 +61,7 @@ prepare_idle_rollover_resume() {
     fi
 
     echo -e "\n\033[1;32m♻️ [AUTO-RESUMING SESSION (QUOTA ROLLOVER)]...\033[0m"
-    echo "Rollover summary saved to: $AGY_DIR/.last_rollover_summary.md"
+    echo "Rollover summary saved to: $AGY_WRAPPER_STATE_DIR/.last_rollover_summary.md"
     echo "No prompt was auto-submitted; the resumed session will wait for your next message."
     echo
 }
@@ -204,6 +222,7 @@ while [ $attempt -le $MAX_RETRIES ]; do
         set -- "${MODEL_ARGS[@]}"
         SUGGESTED_MODEL=""  # Only inject once
     fi
+    snapshot_active_token
 
     if [ "$is_print_mode" = true ]; then
         # Print mode: capture output to detect silent failures
@@ -229,7 +248,7 @@ while [ $attempt -le $MAX_RETRIES ]; do
     fi
 
     # Check for reload/compaction signal from before_agent or after_agent
-    if [ -f "$AGY_DIR/.compact_signal" ]; then
+    if [ -f "$AGY_WRAPPER_STATE_DIR/.compact_signal" ]; then
         consume_rollover_state
         prepare_idle_rollover_resume
         set -- "${RESUME_ARGS[@]}"

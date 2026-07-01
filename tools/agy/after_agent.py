@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 # Add tools/agy/ directory to python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils import AGY_DIR, TOKEN_FILE
+from utils import AGY_DIR, TOKEN_FILE, get_session_token_file, session_state_path
 from switch import (
     select_replacement_index,
     _write_active_account,
@@ -82,9 +82,10 @@ def main():
 
         # Load the original active token
         original_token = None
-        if os.path.exists(TOKEN_FILE):
+        token_file = get_session_token_file(TOKEN_FILE)
+        if os.path.exists(token_file):
             try:
-                with open(TOKEN_FILE, "r") as f:
+                with open(token_file, "r") as f:
                     original_token = json.load(f)
             except Exception:
                 pass
@@ -163,7 +164,7 @@ def main():
                     log(f"Failed to generate quota rollover: {ex_roll}")
 
                 # Touch the compaction signal file
-                signal_file = Path(AGY_DIR) / ".compact_signal"
+                signal_file = Path(session_state_path(".compact_signal", create_dir=True))
                 try:
                     signal_file.touch()
                 except Exception as ex_touch:

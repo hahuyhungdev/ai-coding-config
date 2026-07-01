@@ -30,6 +30,7 @@ class TestAgyWrapper(unittest.TestCase):
                 textwrap.dedent(
                     f"""\
                     #!/usr/bin/env python3
+                    import os
                     import pathlib
                     import sys
 
@@ -172,6 +173,7 @@ class TestAgyWrapper(unittest.TestCase):
                 textwrap.dedent(
                     f"""\
                     #!/usr/bin/env python3
+                    import os
                     import pathlib
                     import sys
 
@@ -183,7 +185,8 @@ class TestAgyWrapper(unittest.TestCase):
                         if switched.exists():
                             sys.exit(1)
                         switched.touch()
-                        pathlib.Path({str(agy_dir / ".active_conv_id")!r}).write_text("11111111-2222-3333-4444-555555555555", encoding="utf-8")
+                        state_dir = pathlib.Path(os.environ["AGY_WRAPPER_STATE_DIR"])
+                        (state_dir / ".active_conv_id").write_text("11111111-2222-3333-4444-555555555555", encoding="utf-8")
                         pathlib.Path(".agy_progress.md").write_text("resume me", encoding="utf-8")
                         print("SWITCH_ACCOUNT")
                     """
