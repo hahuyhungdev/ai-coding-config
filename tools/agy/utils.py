@@ -131,6 +131,12 @@ def is_provider_quota_error_line(line):
         return False
     if "check_for_quota_error(" in text_lower or "<compaction_rollover" in text_lower:
         return False
+    if (
+        "telemetry setting" in text_lower
+        or "propagate telemetry" in text_lower
+        or "cli_setting_manager" in text_lower
+    ):
+        return False
 
     if re.match(r"^[EWF]\d{4}\s+\d{2}:\d{2}:\d{2}", stripped):
         return True

@@ -153,6 +153,60 @@ class TestAgyWrapper(unittest.TestCase):
             self.assertIn("--conversation own-terminal-conversation", agy_bin_log)
             self.assertIn("RESUMED_OK", result.stdout)
 
+    def test_wrapper_exports_stable_session_id_to_children(self):
+        repo_root = Path(__file__).resolve().parents[1]
+        wrapper = repo_root / "tools" / "agy" / "agy"
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = root / "home"
+            work = root / "work"
+            agy_dir = root / "agy"
+            bin_dir = home / ".local" / "bin"
+            home.mkdir()
+            work.mkdir()
+            agy_dir.mkdir()
+            bin_dir.mkdir(parents=True)
+
+            agy_status = agy_dir / "agy-status.py"
+            agy_status.write_text(
+                "#!/usr/bin/env python3\n",
+                encoding="utf-8",
+            )
+            agy_status.chmod(0o755)
+
+            real_agy = bin_dir / "agy-bin"
+            real_agy.write_text(
+                textwrap.dedent(
+                    f"""\
+                    #!/usr/bin/env bash
+                    printf '%s\\n' "$AGY_WRAPPER_SESSION_ID" > "{root / "session-id.log"}"
+                    printf '%s\\n' "$AGY_WRAPPER_STATE_DIR" > "{root / "state-dir.log"}"
+                    exit 0
+                    """
+                ),
+                encoding="utf-8",
+            )
+            real_agy.chmod(0o755)
+
+            env = os.environ.copy()
+            env["HOME"] = str(home)
+            env["AGY_DIR_OVERRIDE"] = str(agy_dir)
+            env["AGY_SESSION_ID_OVERRIDE"] = "terminal-a"
+            result = subprocess.run(
+                ["bash", str(wrapper), "-i", "session id check"],
+                cwd=work,
+                env=env,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertEqual((root / "session-id.log").read_text(encoding="utf-8").strip(), "terminal-a")
+            self.assertTrue((root / "state-dir.log").read_text(encoding="utf-8").strip().endswith("/terminal-a"))
+
     def test_interactive_exit_runs_post_check_and_resumes_on_switch(self):
         repo_root = Path(__file__).resolve().parents[1]
         wrapper = repo_root / "tools" / "agy" / "agy"

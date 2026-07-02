@@ -89,6 +89,17 @@ class TestAgySessionIsolation(unittest.TestCase):
             self.assertEqual(reset_time, "In 2h")
             self.assertEqual(blocked_model, "gemini")
 
+    def test_telemetry_resource_exhausted_is_not_provider_quota(self):
+        from utils import is_provider_quota_error_line
+
+        line = (
+            "E0702 08:47:22.807155 145230 cli_setting_manager.go:841] "
+            "failed to propagate telemetry setting: RESOURCE_EXHAUSTED "
+            "(code 429): Resource has been exhausted (e.g. check quota)."
+        )
+
+        self.assertFalse(is_provider_quota_error_line(line))
+
 
 if __name__ == "__main__":
     unittest.main()
