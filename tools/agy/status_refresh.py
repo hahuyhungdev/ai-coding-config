@@ -367,6 +367,16 @@ def _check_single_account(index, account, accounts, duplicate_tokens, active_ema
             if all(model["pct"] == 0 for model in model_quotas.values()):
                 status = "🔴 Blocked"
                 quota_text = "0%"
+            else:
+                try:
+                    from utils import parse_quota_percentages
+                    from switch import load_quota_thresholds
+                    pct_5h, pct_w = parse_quota_percentages(quota_text)
+                    t_5h, t_w = load_quota_thresholds()
+                    if (pct_5h != -1 and pct_5h <= t_5h) or (pct_w != -1 and pct_w <= t_w):
+                        status = "🟡 Low"
+                except Exception:
+                    pass
     else:
         raw_reset = get_remaining_reset_from_logs(email, accounts)
         if raw_reset:
