@@ -151,3 +151,11 @@ See [debug-tricks.md](./debug-tricks.md) for:
 - MCP endpoint for AI-assisted debugging
 - Rebuild specific routes with `--debug-build-paths`
 
+## Turbopack & Bundling
+
+See [turbopack.md](./turbopack.md) for:
+- Incremental compilation speedups
+- Custom webpack disable flags
+- Middleware `proxy.ts` naming conventions in Next.js 16+
+
+

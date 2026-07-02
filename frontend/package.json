@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mantine/core": "^9.4.1",
+    "@mantine/hooks": "^9.4.1",
     "lucide-react": "^1.17.0",
     "marked": "^18.0.5",
     "react": "^19.2.6",

@@ -1,67 +1,100 @@
 ---
 name: karpathy-guidelines
-description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria.
-license: MIT
+description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, enforce naming standards, prioritize immutability, and write clean, surgical changes.
 ---
 
-# Karpathy Guidelines
+# Code Quality & Simplicity Standards (Karpathy Guidelines)
 
-Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
+Conventions and behavioral guidelines to reduce common LLM coding pitfalls, prioritize simplicity, enforce clean coding standards, and ensure surgical code modifications.
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+---
 
-## 1. Think Before Coding
+## 1. Simplicity First (KISS, DRY, YAGNI)
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+- **Write the minimum code that solves the problem.** Nothing speculative.
+- Do not build features or configurations beyond what was explicitly asked.
+- Avoid abstractions for single-use code.
+- If a function is over 50 lines or code is overcomplicated, stop and rewrite it.
+- **Surgical Changes:** Touch only what you must. Match existing style. Do not refactor adjacent code that is not broken. Clean up only unused imports/variables created by YOUR changes.
 
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+---
 
-## 2. Simplicity First
+## 2. Immutability & Variable/Function Naming
 
-**Minimum code that solves the problem. Nothing speculative.**
+### Immutability Default (CRITICAL)
+- **Never mutate state or arrays directly.** Always use copy-and-update spread patterns:
+```typescript
+// GOOD: Pure updates
+const updatedUser = { ...user, name: 'New Name' };
+const updatedArray = [...items, newItem];
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-## 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+// BAD: Direct mutations
+user.name = 'New Name';
+items.push(newItem);
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+### Descriptive Naming Patterns
+- **Variables:** Use descriptive nouns or booleans showing state. Avoid single letters or generic flags:
+  - `const marketSearchQuery = 'election'` (Good) vs `const q = 'election'` (Bad)
+  - `const isUserAuthenticated = true` (Good) vs `const flag = true` (Bad)
+- **Functions:** Use a clear **verb-noun** pattern:
+  - `async function fetchMarketData(id: string)` (Good) vs `async function market(id: string)` (Bad)
+
+---
+
+## 3. Defensive Programming & Error Handling
+
+- Always handle async errors using try-catch blocks.
+- Never let exceptions fail silently or leak raw database stack traces to the output.
+- **Early Returns:** Avoid deeply nested `if` statements (limit nesting to 3 levels). Use guard clauses and return early:
+```typescript
+// GOOD: Early returns
+if (!user) return;
+if (!user.isAdmin) return;
+// execute admin action...
+
+// BAD: Nesting hell
+if (user) {
+  if (user.isAdmin) {
+    // execute admin action...
+  }
+}
+```
+
+---
+
+## 4. Documentation & Magic Numbers
+
+### Explain WHY, not WHAT
+- Comments should document developer intent, hacks, or non-obvious workarounds, not re-state what the code does.
+```typescript
+// GOOD: Explains non-obvious workaround
+// Using direct mutation here for high-frequency chart rendering performance
+points.push(newPoint);
+
+// BAD: Stating the obvious
+// Push newPoint to points array
+points.push(newPoint);
+```
+
+### Avoid Magic Numbers
+- Declare constants with descriptive uppercase names instead of hardcoding raw values:
+```typescript
+const MAX_CONNECTION_RETRIES = 3;
+const API_DEBOUNCE_DELAY_MS = 500;
+
+if (retryCount > MAX_CONNECTION_RETRIES) { ... }
+```
+
+---
+
+## 5. Goal-Driven Execution
+
+- **Define success criteria before writing code.**
+- "Fix the bug" ➔ write a test that reproduces the bug, then make it pass.
+- "Refactor X" ➔ verify compilation and tests pass before and after changes.
+- Transform tasks into verifiable steps:
+  ```
+  1. [Step] ➔ verify: [check]
+  2. [Step] ➔ verify: [check]
+  ```

@@ -21,53 +21,53 @@ function getToolIcon(type: string) {
   }
 }
 
-export function getToolLabel(step: ConversationStep): string {
+function getToolLabel(step: ConversationStep): string {
   const type = step.type;
   const args = step.resolved_args;
 
   switch (type) {
     case 'RUN_COMMAND': {
-      const cmd = args?.CommandLine || args?.commandLine || args?.command || args?.script || args?.cmd || '';
+      const cmd = String(args?.CommandLine || args?.commandLine || args?.command || args?.script || args?.cmd || '');
       return cmd ? `Shell: ${truncate(cmd, 60)}` : 'Shell';
     }
     case 'VIEW_FILE': {
-      const fp = args?.AbsolutePath || args?.absolutePath || args?.file_path || args?.path || args?.filePath || '';
+      const fp = String(args?.AbsolutePath || args?.absolutePath || args?.file_path || args?.path || args?.filePath || '');
       return fp ? `View: ${basename(fp)}` : 'View';
     }
     case 'CODE_ACTION': {
-      const fp = args?.TargetFile || args?.targetFile || args?.file_path || args?.path || args?.filePath || args?.filename || '';
+      const fp = String(args?.TargetFile || args?.targetFile || args?.file_path || args?.path || args?.filePath || args?.filename || '');
       return fp ? `Edit: ${basename(fp)}` : 'Edit';
     }
     case 'GREP_SEARCH': {
-      const pattern = args?.Query || args?.query || args?.pattern || args?.regex || args?.search || '';
+      const pattern = String(args?.Query || args?.query || args?.pattern || args?.regex || args?.search || '');
       return pattern ? `Grep: ${truncate(pattern, 40)}` : 'Grep';
     }
     case 'LIST_DIRECTORY': {
-      const dir = args?.DirectoryPath || args?.directoryPath || args?.directory || args?.path || args?.dir || '';
+      const dir = String(args?.DirectoryPath || args?.directoryPath || args?.directory || args?.path || args?.dir || '');
       return dir ? `List: ${basename(dir)}` : 'List';
     }
     case 'MCP_TOOL': {
-      const name = step.name || args?.ToolName || args?.toolName || args?.name || args?.tool_name || args?.tool || args?.server || '';
+      const name = String(step.name || args?.ToolName || args?.toolName || args?.name || args?.tool_name || args?.tool || args?.server || '');
       return name ? `MCP: ${truncate(name, 40)}` : 'MCP';
     }
     case 'INVOKE_SUBAGENT': {
       let name = '';
       if (args?.agent_name || args?.name || args?.agent) {
-        name = args.agent_name || args.name || args.agent;
+        name = String(args.agent_name || args.name || args.agent);
       } else if (args?.Subagents && Array.isArray(args.Subagents)) {
-        name = args.Subagents.map((s: any) => s.Role || s.TypeName || '').filter(Boolean).join(', ');
+        name = args.Subagents.map((s: Record<string, unknown>) => String(s.Role || s.TypeName || '')).filter(Boolean).join(', ');
       } else if (args?.TypeName) {
-        name = args.Role || args.TypeName;
+        name = String(args.Role || args.TypeName);
       }
       return name ? `Agent: ${truncate(name, 40)}` : 'Agent';
     }
     case 'SEARCH_WEB':
     case 'READ_URL_CONTENT': {
-      const q = args?.query || args?.Query || args?.url || args?.Url || args?.search || '';
+      const q = String(args?.query || args?.Query || args?.url || args?.Url || args?.search || '');
       return q ? `Web: ${truncate(q, 45)}` : 'Web';
     }
     case 'ASK_QUESTION': {
-      const q = args?.question || args?.prompt || '';
+      const q = String(args?.question || args?.prompt || '');
       return q ? `Ask: ${truncate(q, 40)}` : 'Ask';
     }
     case 'CHECKPOINT': return 'Checkpoint';

@@ -28,6 +28,7 @@ export function useConversations() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
   const fetchConversationData = useCallback(async (id: string) => {
@@ -57,15 +58,22 @@ export function useConversations() {
     navigate('/conversations');
   }, [navigate]);
 
+  const [prevIdFromUrl, setPrevIdFromUrl] = useState<string | null>(null);
+  if (idFromUrl !== prevIdFromUrl) {
+    setPrevIdFromUrl(idFromUrl);
+    if (!idFromUrl) {
+      setActiveConvId(null);
+      setActiveConvData(null);
+    }
+  }
+
   // Handle URL change
   useEffect(() => {
     if (idFromUrl) {
       if (activeConvId !== idFromUrl) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConversationData(idFromUrl);
       }
-    } else {
-      setActiveConvId(null);
-      setActiveConvData(null);
     }
   }, [idFromUrl, activeConvId, fetchConversationData]);
 

@@ -1,168 +1,85 @@
 ---
 name: playwright
-description: "Unified skill for Playwright E2E testing against real servers, automated visual/accessibility QA audits, Page Object Models, and terminal-driven browser automation."
+description: Guides the usage of the Playwright MCP server to control real browsers, capture screenshots, audit layouts, and perform automated interactive actions.
 ---
 
-# Playwright E2E & Browser QA
+# Playwright Browser Automation & MCP Auditing
 
-Consolidated guidelines for conducting real-server E2E browser testing, visual checks, accessibility audits, and interactive CLI browser automation using Playwright.
+This skill guides the control of real browsers directly from the agent session using the `playwright` MCP server, enabling live audits, visual checks, and interactive task execution.
+
+## 1. Playwright MCP Tool Suite
+
+Use the following `playwright` MCP tools via `call_mcp_tool` to interact with the browser:
+
+- **`browser_navigate`:** Navigates to a target URL (e.g., local Vite dev server `http://localhost:5173`).
+- **`browser_resize`:** Resizes the browser viewport (use standard widths: Desktop `1440x900` or Mobile `375x667`).
+- **`browser_take_screenshot`:** Captures a PNG/JPEG screenshot of the current page. Save visual audits to `.frontend-scan-screens/` or temporary checks to `scratch/`.
+- **`browser_snapshot`:** Extracts a structured tree of the DOM, displaying interactive elements and their corresponding IDs or CSS selectors.
+- **`browser_click`:** Simulates clicking a specific element by selector or reference ID.
+- **`browser_type` / `browser_fill_form`:** Types text into input fields or fills out complex form schemas.
+- **`browser_press_key`:** Simulates keyboard key presses (e.g., `Enter`, `Tab`, `ArrowDown`).
+- **`browser_evaluate`:** Evaluates a custom JavaScript snippet in the page context to extract dynamic states.
+- **`browser_console_messages`:** Fetches recent console.log, warnings, or errors output by the page.
+- **`browser_network_requests`:** Audits recent HTTP requests to check for `4xx`/`5xx` api response failures.
 
 ---
 
-## ⚡ The Live-Server Testing Lifecycle
+## 2. Interactive Navigation & Action Flow
 
-When verifying frontend applications, always prefer running E2E tests against a **live local server** rather than isolated mock components. Follow this lifecycle:
+Follow these sequential steps to perform interactive actions on web applications:
 
 ```
-1. Boot Server ──→ 2. Port Check ──→ 3. Playwright E2E ──→ 4. Capture Logs/Screenshots ──→ 5. Shutdown Server
+1. Navigate ──→ 2. Snapshot ──→ 3. Interact (Click/Fill) ──→ 4. Verify (Screenshot/Console)
 ```
 
-### Phase 1: Boot & Port Check
-Always start the web server in the background and verify it is listening before launching browser tests:
-```bash
-# Start server in background (e.g. Vite or custom Python server)
-npm run dev & 
-# OR
-python3 server.py --port 8000 &
-
-# Wait for the port to accept connections
-timeout 10 bash -c 'until echo > /dev/tcp/127.0.0.1/8000; do sleep 0.5; done'
-```
-
-### Phase 2: Spec Execution with Observability
-Pipe page console logs and capture network errors during runs to ensure full debugging visibility:
+### Step 1: Navigate to target
+Always verify the local server is running, then navigate to it:
 ```javascript
-// In your Playwright script/spec
-page.on('console', msg => {
-  console.log(`[PAGE CONSOLE] ${msg.type().toUpperCase()}: ${msg.text()}`);
-});
-page.on('pageerror', err => {
-  console.error(`[PAGE UNCAUGHT ERROR]: ${err.message}`);
-});
+// Navigates the browser instance to local port
+await browser_navigate({ url: "http://localhost:5173" })
 ```
 
-### Phase 3: Artifact Collection & Cleanup
-If a test fails, save a screenshot immediately and terminate the background server:
+### Step 2: Take a snapshot to locate selectors
+Do not guess element selectors. Run a snapshot to get clean DOM references:
 ```javascript
-// Capture failure artifact
-await page.screenshot({ path: 'scratch/e2e-failure.png', fullPage: true });
+// Fetch DOM structure
+const snapshot = await browser_snapshot()
 ```
-```bash
-# Kill background processes listening on the target port
-kill $(lsof -t -i:8000) 2>/dev/null || true
+Identify the target button or input field (e.g., `#add-mcp-btn` or a button containing text "Save changes").
+
+### Step 3: Perform interactions
+Simulate user actions sequentially. Wait for the page or network to settle between interactions:
+```javascript
+// Fill connection details
+await browser_fill_form({ target: "input[name='mcpName']", value: "filesystem" })
+// Click save button
+await browser_click({ target: "button:has-text('Save')" })
 ```
 
----
-
-## 📦 Page Object Model (POM) Design
-
-Maintain highly readable, stable E2E tests by abstracting pages into Page Objects:
-
-```typescript
-import { Page, Locator } from '@playwright/test';
-
-export class DashboardPage {
-  readonly page: Page;
-  readonly sidebar: Locator;
-  readonly applyButton: Locator;
-  readonly stagedChanges: Locator;
-
-  constructor(page: Page) {
-    this.page = page;
-    this.sidebar = page.locator('aside');
-    this.applyButton = page.locator('button:has-text("Apply Changes")');
-    this.stagedChanges = page.locator('section:has-text("Staged Changes")');
-  }
-
-  async goto() {
-    await this.page.goto('http://127.0.0.1:8000');
-    await this.page.waitForLoadState('networkidle');
-  }
-
-  async applyStagedChanges() {
-    await this.applyButton.click();
-    await this.page.locator('button:has-text("Standard Apply")').click();
-  }
-}
+### Step 4: Verify console & logs
+Ensure no uncaught JS exceptions occurred during the action:
+```javascript
+const logs = await browser_console_messages()
+// Flag any log entries containing "error" or "exception"
 ```
 
 ---
 
-## 🔍 Browser QA Checklists
+## 3. Visual & Responsive Design Auditing
 
-Integrate these verification passes into your E2E flows to ensure production readiness:
+When conducting design systems audits, test layout responsiveness and dark theme completeness across viewports:
 
-### 1. Smoke & Network Pass
-* Check for console `ERROR` and `WARN` logs.
-* Verify no `4xx` or `5xx` status codes in network requests.
-* Check that loading states/spinners clear within 2.5 seconds (LCP).
+1. **Desktop Audit (1440x900):**
+   - Resize: `browser_resize({ width: 1440, height: 900 })`
+   - Capture: `browser_take_screenshot({ filename: ".frontend-scan-screens/desktop_view.png" })`
+   - Check: Grid alignments, text spacing, header positioning.
 
-### 2. Responsive Visual Pass
-* Test pages at three standard viewports:
-  * **Desktop**: 1440 × 900
-  * **Tablet**: 768 × 1024
-  * **Mobile**: 375 × 667
-* Flag overlapping text, broken flex/grid wraps, and horizontal page scrolling.
+2. **Mobile Audit (375x667):**
+   - Resize: `browser_resize({ width: 375, height: 667 })`
+   - Capture: `browser_take_screenshot({ filename: ".frontend-scan-screens/mobile_view.png" })`
+   - Check: Sidebar overlay displays, hamburger menus, no horizontal scrolling.
 
-### 3. Accessibility (A11y) Pass
-* Ensure key images have `alt` attributes.
-* Verify form fields have associated `<label>` tags or `aria-label` properties.
-* Verify keyboard focus works sequentially using Tab key navigation.
-
----
-
-## 🖥️ Terminal-Driven Browser Automation
-
-For interactive CLI-first exploration or quick debugging from the shell, use the bundled wrapper script `playwright_cli.sh`.
-
-### Skill path (set once)
-```bash
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
-```
-
-### Quick Commands
-```bash
-# Open headed browser session
-"$PWCLI" open http://127.0.0.1:8000 --headed
-
-# Capture snapshot of elements to get reference IDs (e.g. e1, e2)
-"$PWCLI" snapshot
-
-# Click element and type
-"$PWCLI" click e4
-"$PWCLI" type "mysql-connector"
-"$PWCLI" press Enter
-
-# Capture screenshot of active state
-"$PWCLI" screenshot
-```
-
----
-
-## 📊 E2E Test Report Template
-
-Upon completion of E2E verification, generate a report structured as follows:
-
-```markdown
-# Playwright E2E QA Report
-
-**Date:** YYYY-MM-DD HH:MM  
-**Environment:** http://127.0.0.1:8000  
-**Status:** ✅ PASSING / ❌ FAILING
-
-## Summary
-* **Specs Run**: X total
-* **Console Errors**: 0 critical (Y warnings ignored)
-* **Network Status**: All 200/304, zero failures
-
-## Verified User Journeys
-* [✓] **Tab Navigation**: All tabs load correct layout.
-* [✓] **State Persistence**: Adding/discarding custom servers stages changes.
-* [✓] **Install Stream**: Staged changes successfully run installer and stream stdout.
-
-## Failure Logs & Artifacts (if applicable)
-* **Failure**: `tests/dashboard.spec.ts:42` - element button not found
-* **Screenshot**: `scratch/e2e-failure.png`
-* **Log Output**: `[PAGE UNCAUGHT ERROR]: TypeError: Cannot read property 'map' of undefined`
-```
+3. **Accessibility (A11y) Focus Ring Audit:**
+   - Run tab commands: `browser_press_key({ key: "Tab" })`
+   - Take a screenshot: `browser_take_screenshot({ filename: "scratch/focus_ring_check.png" })`
+   - Verify: Clear `:focus-visible` outlines are visible on navigation buttons.

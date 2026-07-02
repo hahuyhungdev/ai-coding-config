@@ -15,9 +15,9 @@ import {
 
 import { ToastContainer } from "./components/Toast";
 import { Sidebar } from "./components/Sidebar";
-import { AddMcpModal, ApplyModal, DiscardModal } from "./components/Modals";
+import { ApplyModal, DiscardModal } from "./components/Modals";
 import { DashboardTab } from "./features/dashboard";
-import { SettingsSection, useMcpForm } from "./features/settings";
+import { SettingsSection } from "./features/settings";
 import { ExplorerTab } from "./features/explorer";
 import { SimulatorTab } from "./features/simulator";
 import { ConversationViewer } from "./features/conversations";
@@ -56,19 +56,9 @@ export default function App() {
     type: "agent" | "skill";
     name: string;
   } | null>(null);
-  const [selectedMcpServer, setSelectedMcpServer] = useState<string | null>(
-    null,
-  );
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [showMainSidebar, setShowMainSidebar] = useState(false);
-
-  const mcpForm = useMcpForm(
-    config.tempConfig,
-    config.setTempConfig,
-    setSelectedMcpServer,
-    showToast,
-  );
 
   if (!config.tempConfig || !config.initialConfig) {
     return (
@@ -149,13 +139,13 @@ export default function App() {
               {activeTab !== "conversations" && activeTab !== "graph" && (
                 <button
                   onClick={() => setShowMainSidebar(!showMainSidebar)}
-                  className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0"
+                  className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-white/[0.06] text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-accent focus:outline-none"
                   title="Toggle Sidebar"
                 >
                   <Sliders className="h-4 w-4" />
                 </button>
               )}
-              <nav className="flex gap-0.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 flex-1 max-w-full">
+              <nav className="flex gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-2.5 flex-1 max-w-full">
                 {TABS.map((tab, i) => {
                   const Icon = tab.icon;
                   const active = activeTab === tab.id;
@@ -163,17 +153,14 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`relative flex items-center gap-2 py-3.5 px-3 sm:px-3.5 text-[12px] font-medium border-b-2 transition-all duration-300 cursor-pointer flex-shrink-0 animate-fade-up stagger-${i + 1} ${
+                      className={`relative flex items-center gap-2 py-2 px-3 sm:px-4 text-[12px] font-semibold rounded-lg transition-all duration-300 cursor-pointer flex-shrink-0 animate-fade-up border stagger-${i + 1} focus-visible:ring-2 focus-visible:ring-accent focus:outline-none ${
                         active
-                          ? "text-accent border-accent"
-                          : "text-text-muted border-transparent hover:text-text-secondary hover:border-white/[0.10]"
+                          ? "text-accent bg-accent-dim border-accent/20 shadow-sm"
+                          : "text-text-muted border-transparent hover:text-text-secondary hover:bg-white/[0.04]"
                       }`}
                     >
                       <Icon className="h-3.5 w-3.5" />
                       <span>{tab.label}</span>
-                      {active && (
-                        <span className="absolute inset-x-0 -bottom-px h-px bg-accent/30 blur-sm" />
-                      )}
                     </button>
                   );
                 })}
@@ -218,14 +205,10 @@ export default function App() {
                   setTempConfig={config.setTempConfig}
                   handleClaudeEnvChange={config.handleClaudeEnvChange}
                   handleClaudePermsChange={config.handleClaudePermsChange}
-                  selectedMcpServer={selectedMcpServer}
-                  setSelectedMcpServer={setSelectedMcpServer}
                   filteredMcp={filteredMcp}
                   mcpSearch={mcpSearch}
                   setMcpSearch={setMcpSearch}
                   handleMcpToggle={config.handleMcpToggle}
-                  deleteCustomMcp={mcpForm.deleteCustomMcp}
-                  setShowAddMcpModal={mcpForm.setShowAddMcpModal}
                   showToast={showToast}
                 />
               )}
@@ -246,24 +229,6 @@ export default function App() {
       </main>
 
       <ToastContainer toasts={toasts} />
-
-      <AddMcpModal
-        isOpen={mcpForm.showAddMcpModal}
-        onClose={() => mcpForm.setShowAddMcpModal(false)}
-        newMcpName={mcpForm.newMcpName}
-        setNewMcpName={mcpForm.setNewMcpName}
-        newMcpType={mcpForm.newMcpType}
-        setNewMcpType={mcpForm.setNewMcpType}
-        newMcpCommand={mcpForm.newMcpCommand}
-        setNewMcpCommand={mcpForm.setNewMcpCommand}
-        newMcpArgs={mcpForm.newMcpArgs}
-        setNewMcpArgs={mcpForm.setNewMcpArgs}
-        newMcpEnv={mcpForm.newMcpEnv}
-        setNewMcpEnv={mcpForm.setNewMcpEnv}
-        newMcpUrl={mcpForm.newMcpUrl}
-        setNewMcpUrl={mcpForm.setNewMcpUrl}
-        onAdd={mcpForm.addCustomMcp}
-      />
       <ApplyModal
         isOpen={showApplyModal}
         onClose={() => setShowApplyModal(false)}

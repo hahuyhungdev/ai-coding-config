@@ -1,7 +1,20 @@
 import React from 'react';
-import { Sliders, ShieldCheck, FileText, X } from 'lucide-react';
+import { Sliders, ShieldCheck, FileText } from 'lucide-react';
 import type { FullConfig } from '../../../../types';
 import { Toggle } from '../../../../components/Toggle';
+import {
+  TextInput,
+  Select,
+  Textarea,
+  Button,
+  Modal,
+  Card,
+  Text,
+  Stack,
+  Group,
+  Title,
+  Badge
+} from '@mantine/core';
 
 interface GeminiTabProps {
   initialConfig: FullConfig;
@@ -13,7 +26,7 @@ const GeminiTab: React.FC<GeminiTabProps> = ({ initialConfig, tempConfig, setTem
   const [showInstructions, setShowInstructions] = React.useState(false);
   const isInstructionsModified = initialConfig.gemini_instructions !== tempConfig.gemini_instructions;
 
-  const handleGeminiChange = (key: string, value: any) => {
+  const handleGeminiChange = (key: string, value: string | boolean | string[]) => {
     setTempConfig(prev => prev ? { ...prev, gemini: { ...prev.gemini, [key]: value } } : null);
   };
   const handleWorkspacesChange = (text: string) => {
@@ -21,91 +34,119 @@ const GeminiTab: React.FC<GeminiTabProps> = ({ initialConfig, tempConfig, setTem
   };
 
   const trustedWorkspacesText = (tempConfig.gemini.trustedWorkspaces || []).join('\n');
-  const inputBase = "w-full bg-white/[0.03] border border-white/[0.10] text-text-primary text-sm rounded-lg px-3 py-2 outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/10 transition-all duration-300";
-  const labelBase = "text-sm font-medium text-text-secondary";
   const accentColor = "text-[#f59e0b]";
 
   return (
     <div className="flex flex-col gap-5 w-full">
       <div>
-        <h2 className="font-display text-2xl text-text-primary mb-1">Antigravity CLI</h2>
-        <p className="text-sm text-text-muted">Configure Gemini model and workspace trust</p>
+        <Title order={2} className="font-display text-text-primary mb-1">Antigravity CLI</Title>
+        <Text size="sm" c="dimmed">Configure Gemini model and workspace trust</Text>
       </div>
 
       <div className="flex flex-col gap-5">
-        <div className="glass rounded-xl p-6 flex flex-col gap-5 animate-fade-up stagger-1">
-          <div className={`text-[13px] font-semibold ${accentColor} border-b border-white/[0.08] pb-3 flex items-center gap-2`}>
-            <Sliders className="h-4 w-4" /> LLM & Environment
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label htmlFor="gemini-model-alias" className={labelBase}>Model Alias:</label>
-              <input id="gemini-model-alias" type="text" value={tempConfig.gemini.model || ''} placeholder="Gemini 3.5 Flash" onChange={e => handleGeminiChange('model', e.target.value)}
-                className={`${inputBase} ${(initialConfig.gemini.model || '') !== (tempConfig.gemini.model || '') ? 'border-warning/40' : ''}`} />
-            </div>
-            <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Enable Telemetry:</label>
-              <div className="flex items-center h-9">
-                <Toggle checked={!!tempConfig.gemini.enableTelemetry} onChange={val => handleGeminiChange('enableTelemetry', val)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label className={labelBase}>Instructions:</label>
-              <button type="button" onClick={() => setShowInstructions(true)}
-                className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg transition-all duration-300 cursor-pointer ${
-                  isInstructionsModified ? 'border-warning/30 text-warning bg-warning/[0.04]' : 'border-white/[0.10] hover:border-accent/30 hover:text-accent bg-white/[0.04]'
-                }`}>
-                <span className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4" /> Edit ANTIGRAVITY.md</span>
-                {isInstructionsModified && <span className="text-[9px] bg-warning/15 text-warning px-2 py-0.5 rounded font-semibold uppercase">Modified</span>}
-              </button>
-            </div>
-          </div>
-        </div>
+        <Card withBorder radius="md" p="xl" className="glass animate-fade-up stagger-1">
+          <Group gap="xs" pb="xs" mb="md" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <Sliders size={18} className="text-[#f59e0b]" />
+            <Text size="sm" fw={600} className="text-[#f59e0b]">LLM & Environment</Text>
+          </Group>
 
-        <div className="glass rounded-xl p-6 flex flex-col gap-5 animate-fade-up stagger-2">
-          <div className={`text-[13px] font-semibold ${accentColor} border-b border-white/[0.08] pb-3 flex items-center gap-2`}>
-            <ShieldCheck className="h-4 w-4" /> Security & Permissions
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-[200px_1fr] items-center gap-5">
-              <label htmlFor="gemini-tool-permission" className={labelBase}>Tool Permission:</label>
-              <select id="gemini-tool-permission" value={tempConfig.gemini.toolPermission || 'always-ask'} onChange={e => handleGeminiChange('toolPermission', e.target.value)}
-                className={`${inputBase} ${(initialConfig.gemini.toolPermission || '') !== (tempConfig.gemini.toolPermission || '') ? 'border-warning/40' : ''}`}>
-                <option value="always-ask">Always Ask — Prompt for permissions</option>
-                <option value="always-proceed">Always Proceed — Auto-approve tools</option>
-              </select>
+          <Stack gap="md">
+            <TextInput
+              label="Model Alias"
+              placeholder="Gemini 3.5 Flash"
+              value={tempConfig.gemini.model || ''}
+              onChange={e => handleGeminiChange('model', e.currentTarget.value)}
+              error={(initialConfig.gemini.model || '') !== (tempConfig.gemini.model || '') ? 'Staged Changes Pending' : undefined}
+            />
+
+            <Group justify="space-between">
+              <Text size="sm" fw={500}>Enable Telemetry:</Text>
+              <Toggle checked={!!tempConfig.gemini.enableTelemetry} onChange={val => handleGeminiChange('enableTelemetry', val)} />
+            </Group>
+
+            <div>
+              <Text size="sm" fw={500} mb={4}>Instructions</Text>
+              <Button
+                variant={isInstructionsModified ? 'light' : 'default'}
+                color={isInstructionsModified ? 'orange' : 'indigo'}
+                fullWidth
+                onClick={() => setShowInstructions(true)}
+                leftSection={<FileText size={16} />}
+                rightSection={
+                  isInstructionsModified && (
+                    <Badge color="orange" size="xs">
+                      Modified
+                    </Badge>
+                  )
+                }
+              >
+                Edit ANTIGRAVITY.md
+              </Button>
             </div>
-            <div className="grid grid-cols-[200px_1fr] items-start gap-5">
-              <label htmlFor="gemini-trusted-workspaces" className={`${labelBase} pt-2`}>Trusted Workspaces:</label>
-              <textarea id="gemini-trusted-workspaces" rows={4} value={trustedWorkspacesText} placeholder="/path/to/project1\n/path/to/project2" onChange={e => handleWorkspacesChange(e.target.value)}
-                className={`${inputBase} font-mono resize-none ${JSON.stringify(initialConfig.gemini.trustedWorkspaces || []) !== JSON.stringify(tempConfig.gemini.trustedWorkspaces || []) ? 'border-warning/40' : ''}`} />
-            </div>
-          </div>
-        </div>
+          </Stack>
+        </Card>
+
+        <Card withBorder radius="md" p="xl" className="glass animate-fade-up stagger-2">
+          <Group gap="xs" pb="xs" mb="md" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <ShieldCheck size={18} className="text-[#f59e0b]" />
+            <Text size="sm" fw={600} className="text-[#f59e0b]">Security & Permissions</Text>
+          </Group>
+
+          <Stack gap="md">
+            <Select
+              label="Tool Permission"
+              value={tempConfig.gemini.toolPermission || 'always-ask'}
+              onChange={val => handleGeminiChange('toolPermission', val || 'always-ask')}
+              data={[
+                { value: 'always-ask', label: 'Always Ask — Prompt for permissions' },
+                { value: 'always-proceed', label: 'Always Proceed — Auto-approve tools' },
+              ]}
+              error={(initialConfig.gemini.toolPermission || '') !== (tempConfig.gemini.toolPermission || '') ? 'Staged Changes Pending' : undefined}
+            />
+
+            <Textarea
+              label="Trusted Workspaces"
+              placeholder="/path/to/project1\n/path/to/project2"
+              rows={4}
+              value={trustedWorkspacesText}
+              onChange={e => handleWorkspacesChange(e.currentTarget.value)}
+              styles={{ input: { fontFamily: 'var(--font-mono)' } }}
+              error={JSON.stringify(initialConfig.gemini.trustedWorkspaces || []) !== JSON.stringify(tempConfig.gemini.trustedWorkspaces || []) ? 'Staged Changes Pending' : undefined}
+            />
+          </Stack>
+        </Card>
       </div>
 
-      {showInstructions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-md p-6 animate-fade-in">
-          <div className="glass-gold rounded-xl w-full max-w-[900px] h-[80vh] flex flex-col overflow-hidden shadow-2xl shadow-black/40">
-            <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.04]">
-              <div className={`text-[13px] font-semibold ${accentColor} flex items-center gap-2`}>
-                <FileText className="h-4 w-4" /> ANTIGRAVITY.md Instructions
-              </div>
-              <button type="button" onClick={() => setShowInstructions(false)} className="text-text-muted hover:text-text-primary cursor-pointer transition-colors p-1">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <textarea value={tempConfig.gemini_instructions || ''} onChange={e => setTempConfig(prev => prev ? { ...prev, gemini_instructions: e.target.value } : null)}
-              placeholder="# Antigravity CLI Instructions..." className="flex-1 w-full bg-bg text-text-secondary font-mono text-[13px] leading-relaxed p-6 border-0 outline-none resize-none focus:ring-0" />
-            <div className="px-6 py-4 border-t border-white/[0.08] flex items-center justify-between text-[11px] text-text-muted bg-white/[0.03]">
-              <span>Press Close to keep staged edits. Changes are saved when you click Apply.</span>
-              <button type="button" onClick={() => setShowInstructions(false)} className="px-4 py-2 bg-accent/90 hover:bg-accent text-bg font-semibold text-[12px] rounded-lg cursor-pointer transition-all duration-300">
-                Close & Stage
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        opened={showInstructions}
+        onClose={() => setShowInstructions(false)}
+        title={
+          <Group gap="xs">
+            <FileText size={16} className={accentColor} />
+            <Text size="sm" fw={600}>ANTIGRAVITY.md Instructions</Text>
+          </Group>
+        }
+        size="lg"
+        centered
+      >
+        <Stack gap="md">
+          <Textarea
+            value={tempConfig.gemini_instructions || ''}
+            onChange={e => setTempConfig(prev => prev ? { ...prev, gemini_instructions: e.currentTarget.value } : null)}
+            placeholder="# Antigravity CLI Instructions..."
+            rows={15}
+            styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '13px' } }}
+          />
+          <Text size="xs" c="dimmed">
+            Press Close to keep staged edits. Changes are saved when you click Apply.
+          </Text>
+          <Group justify="flex-end">
+            <Button color="indigo" onClick={() => setShowInstructions(false)}>
+              Close & Stage
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </div>
   );
 };

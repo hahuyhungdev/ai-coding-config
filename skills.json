@@ -2,15 +2,19 @@
   "$schema": "./skills.schema.json",
   "skills": [
     {
-      "name": "frontend-guide",
-      "path": "skills/frontend-guide/SKILL.md",
+      "name": "react-pattern",
+      "path": "skills/react-pattern/SKILL.md",
       "userInvocable": true,
       "triggers": {
         "fileExtensions": ["tsx", "jsx", "ts", "js"],
         "pathPatterns": ["**/components/**", "**/pages/**", "**/app/**", "**/frontend/**"],
-        "keywords": ["use client", "use server", "createContext", "useState", "useEffect", "useContext", "framer-motion"]
+        "keywords": [
+          "use client", "use server", "createContext", "useState", "useEffect", "useContext", "framer-motion", 
+          "react patterns", "react-pattern", "component patterns", "clean react", "refactor",
+          "components", "component", "custom hook", "quản lý state", "quan ly state", "state"
+        ]
       },
-      "dependencies": ["design-system"]
+      "dependencies": ["frontend-scan"]
     },
     {
       "name": "next-best-practices",
@@ -19,9 +23,12 @@
       "triggers": {
         "fileExtensions": ["ts", "tsx", "js", "json"],
         "pathPatterns": ["**/app/**", "**/pages/**", "next.config.*"],
-        "keywords": ["proxy.ts", "middleware.ts", "getServerSideProps", "generateStaticParams", "use cache"]
+        "keywords": [
+          "proxy.ts", "middleware.ts", "getServerSideProps", "generateStaticParams", "use cache",
+          "nextjs-turbopack", "Turbopack", "incremental bundling", "turbopack build", "turbopack dev"
+        ]
       },
-      "dependencies": ["frontend-guide"]
+      "dependencies": ["react-pattern"]
     },
     {
       "name": "playwright",
@@ -59,39 +66,30 @@
       }
     },
     {
-      "name": "ui-ux-pro-max",
-      "path": "skills/ui-ux-pro-max/SKILL.md",
+      "name": "ui-ux-design",
+      "path": "skills/ui-ux-design/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "keywords": ["ui-ux-pro-max", "color contrast", "touch-target-size", "loading-buttons", "cursor-pointer"]
+        "keywords": [
+          "ui-ux-design", "ui ux", "ui/ux", "improve ui ux", "optimize ui", "design", "styling", "theme", "aesthetic", 
+          "user experience", "accessibility", "color contrast", "touch-target-size", "loading-buttons", "cursor-pointer",
+          "glassmorphism", "claymorphism", "neumorphism", "bento grid", "micro-animations", "rich aesthetics",
+          "giao diện", "giao dien", "đẹp", "dep", "thẩm mỹ", "tham my", "tối ưu giao diện", "toi uu giao dien", "chỉnh ui", "chinh ui"
+        ]
       }
     },
     {
-      "name": "api-design",
-      "path": "skills/api-design/SKILL.md",
+      "name": "backend-pattern",
+      "path": "skills/backend-pattern/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "fileExtensions": ["ts", "js", "go", "py"],
-        "pathPatterns": ["**/api/**", "**/routes/**", "**/controllers/**", "**/handlers/**"],
-        "keywords": ["REST", "API", "endpoint", "NextResponse.json", "express", "router", "GET", "POST", "PUT", "DELETE"]
-      }
-    },
-    {
-      "name": "backend-patterns",
-      "path": "skills/backend-patterns/SKILL.md",
-      "userInvocable": true,
-      "triggers": {
-        "fileExtensions": ["ts", "js", "py", "go"],
-        "pathPatterns": ["**/backend/**", "**/services/**", "**/models/**", "**/db/**"],
-        "keywords": ["db", "query", "cache", "Redis", "Postgres", "SQL", "Prisma", "caching", "optimization", "error handling"]
-      }
-    },
-    {
-      "name": "coding-standards",
-      "path": "skills/coding-standards/SKILL.md",
-      "userInvocable": true,
-      "triggers": {
-        "keywords": ["naming", "readability", "convention", "clean code", "standards", "lint", "eslint", "prettier"]
+        "fileExtensions": ["ts", "js", "go", "py", "sql"],
+        "pathPatterns": ["**/backend/**", "**/services/**", "**/models/**", "**/db/**", "**/api/**", "**/routes/**", "**/controllers/**", "**/handlers/**"],
+        "keywords": [
+          "backend-pattern", "backend pattern", "api-design", "api design", "REST", "API", "endpoint", "NextResponse.json", 
+          "express", "router", "GET", "POST", "PUT", "DELETE", "db", "query", "cache", "Redis", "Postgres", "SQL", 
+          "Prisma", "caching", "optimization", "error handling", "tối ưu hóa", "toi uu hoa"
+        ]
       }
     },
     {
@@ -111,25 +109,99 @@
       }
     },
     {
-      "name": "tdd-workflow",
-      "path": "skills/tdd-workflow/SKILL.md",
+      "name": "quality-gate",
+      "path": "skills/quality-gate/SKILL.md",
       "userInvocable": true,
       "triggers": {
         "fileExtensions": ["test.ts", "spec.ts", "test.js", "spec.js", "test.py", "test_*.py", "*_test.go"],
         "pathPatterns": ["**/tests/**", "**/test/**", "**/__tests__/**"],
-        "keywords": ["tdd", "test-driven", "red-green-refactor", "pytest", "jest", "vitest", "mocha", "unittest", "testing", "coverage"]
+        "keywords": [
+          "quality-gate", "quality gate", "tdd", "test-driven", "red-green-refactor", "pytest", "jest", "vitest", "mocha", "unittest", 
+          "testing", "coverage", "verification-loop", "validation loop", "post-modification check", "self-correction", "verify changes"
+        ]
       }
     },
     {
-      "name": "react-feature-architecture",
-      "path": "skills/react-feature-architecture/SKILL.md",
+      "name": "context-budget",
+      "path": "skills/context-budget/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": [
+          "context-budget", "context budget", "context window", "token usage", "token consumption", "context bloat", 
+          "compact", "compaction", "switch_session", "session rollover", "rotate account"
+        ]
+      }
+    },
+    {
+      "name": "council",
+      "path": "skills/council/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["council", "architect voice", "skeptic voice", "pragmatist voice", "critic voice", "tradeoff analysis"]
+      }
+    },
+    {
+      "name": "frontend-scan",
+      "path": "skills/frontend-scan/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": [
+          "frontend-scan", "frontend scan", "scan frontend", "audit UI", "visual scan", 
+          "quét giao diện", "quet giao dien", "chụp ảnh màn hình", "playwright scan"
+        ]
+      }
+    },
+    {
+      "name": "eval-harness",
+      "path": "skills/eval-harness/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["eval-harness", "eval-driven", "evaluation harness", "run evals", "eval framework"]
+      }
+    },
+    {
+      "name": "gh-fix-ci",
+      "path": "skills/gh-fix-ci/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["gh-fix-ci", "github actions", "ci failure", "failing checks", "run checks", "ci logs"]
+      }
+    },
+    {
+      "name": "karpathy-guidelines",
+      "path": "skills/karpathy-guidelines/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": [
+          "karpathy-guidelines", "karpathy rules", "logic safety", "llm coding mistakes", "avoid overcomplication",
+          "coding-standards", "refactor", "refactoring", "clean code", "code review", "naming", "readability", 
+          "convention", "standards", "lint", "eslint", "prettier", "tối ưu hóa", "toi uu hoa", "code sạch", 
+          "code sach", "chuẩn code", "chuan code"
+        ]
+      }
+    },
+    {
+      "name": "product-lens",
+      "path": "skills/product-lens/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": ["product-lens", "product validation", "product diagnostics", "feature alignment", "user value"]
+      }
+    },
+    {
+      "name": "react-architecture",
+      "path": "skills/react-architecture/SKILL.md",
       "userInvocable": true,
       "triggers": {
         "fileExtensions": ["tsx", "jsx", "ts"],
         "pathPatterns": ["**/features/**", "**/shared/**", "**/pages/**"],
-        "keywords": ["feature-based", "compound component", "feature isolation", "generate feature", "generate component", "react feature architecture"]
+        "keywords": [
+          "react-architecture", "react architecture", "react-of-titan", "react of titan", "titan architecture", "titan framework", 
+          "refactor", "refactoring", "refactor components", "components", "component",
+          "sửa components", "sua components", "cấu trúc component", "cau truc component", "chia component", "tách component", "tach component"
+        ]
       },
-      "dependencies": ["frontend-guide", "coding-standards"]
+      "dependencies": ["react-pattern", "karpathy-guidelines"]
     }
   ]
 }

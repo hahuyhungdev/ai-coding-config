@@ -1,84 +1,55 @@
 ---
 name: context-budget
-description: Audits context window consumption across agents, skills, MCP servers, and rules in this repo. Identifies bloat and redundant components. Use before adding new skills/MCPs, or when session feels slow.
-metadata:
-  origin: ECC (adapted)
+description: Audits context window consumption across agents, skills, rules, and MCP servers, and manages manual session compaction and rollover to save tokens.
 ---
 
-# Context Budget
+# Context Budget & Compaction Management
 
-Analyze token overhead across every loaded component and surface actionable optimizations to reclaim context space.
+This skill handles token overhead analysis and context window compaction to ensure the active session remains fast, coherent, and within limits.
 
-## When to Use
+## 1. Context Overhead Audit
 
-- Before importing a new skill or MCP — check if there's room
-- Session output quality is degrading
-- You've recently added many skills/agents/MCPs
-- User runs `/context-budget` or asks "do we have too many skills?"
+Use this flow to audit loaded components when session quality degrades or before adding new skills/MCPs.
 
-## Inventory Targets (this repo)
+### Inventory Targets
+- **Skills (`skills/*/SKILL.md`):** Flag files > 400 lines (lazy-load candidates) or overlapping/redundant skills.
+- **Agents:** Flag description > 30 words (loads into system prompt) or orphaned files.
+- **MCP Servers:** Verify enabled servers via `python3 scripts/mcp-toggle.py list`. Consider disabling unnecessary ones (`python3 scripts/mcp-toggle.py disable <name>`).
+- **Rules (`AGENTS.md`):** Flag rules exceeding 300 lines or repeating skill guidelines.
 
-### Skills (`skills/*/SKILL.md`)
-- Count tokens per SKILL.md (lines × ~15 tokens/line as estimate)
-- Flag: files > 400 lines → candidate for lazy-load
-- Flag: two skills covering same domain (e.g. two "security" skills) → merge
-
-### Agents (`~/.codex/agents/*.md` or local `agents/`)
-- Count lines + frontmatter description length
-- Flag: description > 30 words → bloated (loads into system prompt)
-- Flag: agents not referenced in AGENTS.md → orphan
-
-### MCP Servers (`.mcp.json` or `scripts/mcp-toggle.py list`)
-- Count active servers and total tool count
-- Estimate ~500 tokens per tool schema
-- Flag: servers with > 20 tools → consider restricting tool list
-- Flag: MCP that wraps simple CLI (`gh`, `git`, `npm`) → use shell command instead
-- **Check**: run `python3 scripts/mcp-toggle.py list` to see enabled vs disabled state
-
-### Rules / AGENTS.md
-- Count lines in `AGENTS.md` and any `rules/` files
-- Flag: combined > 300 lines → review for redundancy
-- Check for overlapping guidance between `AGENTS.md` and individual skill SKILL.md files
-
-## Classification
-
-Sort every component into a bucket:
-
-| Bucket | Criteria | Action |
-|--------|----------|--------|
-| **Always-on** | Loaded every session, referenced in AGENTS.md, backs active workflow | Keep |
-| **On-demand** | Domain-specific, only needed for certain tasks | Mark as load-when-relevant |
-| **Candidate for removal** | No command reference, overlapping content, never triggered in recent sessions | Remove or archive |
-
-## Common Issues to Detect
-
-- **Overlap between skills**: two skills giving similar guidance (e.g. `frontend-design` + `design-system` — both exist in this repo, verify they don't repeat rules)
-- **MCP over-provisioning**: optional MCPs left enabled when not needed (`postgres`, `sqlite`, `docker`) → disable with `python3 scripts/mcp-toggle.py disable <name>`
-- **Dead agents**: agent files that exist but are never invoked
-- **Bloated AGENTS.md**: rules that repeat what's already in individual SKILL.md files
-
-## Output Format
-
-Produce a table:
-
+### Token Savings Table Format
 ```
-| Component | Type | Est. Tokens | Flag | Recommendation |
-|-----------|------|-------------|------|----------------|
-| frontend-design | skill | ~1200 | - | Keep (always-on) |
-| security-review | skill | ~900 | - | Keep (lazy-load) |
-| postgres MCP | mcp | ~3000 | disabled but registered | OK — disabled |
-| ... | | | | |
+| Component | Type | Est. Tokens | Recommendation |
+|-----------|------|-------------|----------------|
+| skill_name| skill| ~1200       | Keep           |
 ```
 
-Then produce a **token savings summary**:
-```
-Current estimated overhead: ~X tokens
-After recommended changes:  ~Y tokens
-Headroom gained:            ~Z tokens
-```
+---
 
-## Adaptation Notes
+## 2. Session Compaction & Rollover
 
-- This repo uses `rtk` prefix for commands — factor RTK overhead (~minimal) into estimates
-- MCP toggle managed via `python3 scripts/mcp-toggle.py` — always check status before recommending MCP removal
-- `compact` skill already handles manual compaction — this skill focuses on structural audit, not mid-session compaction
+When the session is running long and responses slow down, execute a clean session rollover.
+
+### Compaction Procedure
+1. **Summarize State:** Identify modified files, completed tasks, and pending next steps.
+2. **Save Progress File:** Write a concise summary into a file named `.agy_progress.md` in the root of the workspace. (This file is ignored by git). Use relative file links.
+   - *Example `.agy_progress.md` content:*
+     ```markdown
+     # Session Progress Summary
+     **Goal:** <Brief description of the main task>
+     ## Completed
+     - [x] Task 1
+     ## Pending
+     - [ ] Task 2
+     ## Modified Files
+     - [file.py](./file.py)
+     ```
+3. **Execute Rollover:** Cleanly restart the active TUI session using the session switcher script:
+   ```bash
+   python3 tools/agy/switch_session.py
+   ```
+4. **Respond to User:** Inform the user that progress is saved, account rotated, and that the shell wrapper is automatically reloading the session. Do not ask them to exit manually.
+
+### Compaction Decision Guide
+- **Compact when:** Transitioning from Planning to Implementation, completing a major milestone, or clearing out heavy error traces.
+- **Do NOT compact when:** Mid-implementation (to avoid losing variable context, paths, or active logical state).

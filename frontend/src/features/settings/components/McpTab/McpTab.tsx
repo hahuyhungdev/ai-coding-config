@@ -1,6 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { FullConfig } from '../../../../types';
 import { Toggle } from '../../../../components/Toggle';
+import {
+  TextInput,
+  Select,
+  Textarea,
+  Button,
+  Group,
+  Stack,
+  Text,
+  Badge,
+  Alert,
+  ScrollArea,
+} from '@mantine/core';
 import {
   Search, Plus, Cpu, Play, Save, Trash as TrashIcon,
   CheckCircle2, AlertTriangle, XCircle, Sliders
@@ -43,15 +55,20 @@ export const McpTab: React.FC<McpTabProps> = ({
   const [mcpTestStatus, setMcpTestStatus] = useState<'idle' | 'testing' | 'success' | 'error' | 'warning'>('idle');
   const [mcpTestMessage, setMcpTestMessage] = useState<string>('');
 
-  useEffect(() => {
+  const [prevSelectedMcpServer, setPrevSelectedMcpServer] = useState<string | null>(null);
+  const [prevTempConfig, setPrevTempConfig] = useState<FullConfig | null>(null);
+
+  if (selectedMcpServer !== prevSelectedMcpServer || tempConfig !== prevTempConfig) {
+    setPrevSelectedMcpServer(selectedMcpServer);
+    setPrevTempConfig(tempConfig);
     setMcpTestStatus('idle');
     setMcpTestMessage('');
     if (selectedMcpServer && tempConfig) {
       const config = tempConfig.mcp_servers[selectedMcpServer] || {};
       const isSse = config.type === 'sse' || !!config.url;
       setMcpEditorType(isSse ? 'sse' : 'stdio');
-      setMcpEditorCommand(config.command || '');
-      setMcpEditorUrl(config.url || '');
+      setMcpEditorCommand((config.command as string) || '');
+      setMcpEditorUrl((config.url as string) || '');
       if (Array.isArray(config.args)) {
         setMcpEditorArgs(config.args.join('\n'));
       } else {
@@ -63,7 +80,7 @@ export const McpTab: React.FC<McpTabProps> = ({
         setMcpEditorEnv('');
       }
     }
-  }, [selectedMcpServer, tempConfig]);
+  }
 
   const saveMcpEditor = () => {
     if (!selectedMcpServer) return;
@@ -73,7 +90,7 @@ export const McpTab: React.FC<McpTabProps> = ({
       catch { showToast("Invalid Environment JSON. Please verify syntax.", "error"); return; }
     }
     const argsArr = mcpEditorArgs.split('\n').map(a => a.trim()).filter(Boolean);
-    const updatedServerConfig: any = {};
+    const updatedServerConfig: Record<string, unknown> = {};
     if (mcpEditorType === 'sse') {
       updatedServerConfig.type = 'sse';
       updatedServerConfig.url = mcpEditorUrl.trim();
@@ -111,70 +128,66 @@ export const McpTab: React.FC<McpTabProps> = ({
       if (data.status === 'success') showToast('MCP test passed!', 'success');
       else if (data.status === 'warning') showToast('MCP test warning: command exists but failed run.', 'warning');
       else showToast('MCP test failed.', 'error');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       setMcpTestStatus('error');
-      setMcpTestMessage(`Test error: ${err.message}`);
-      showToast(`Test failed: ${err.message}`, 'error');
+      setMcpTestMessage(`Test error: ${errMsg}`);
+      showToast(`Test failed: ${errMsg}`, 'error');
     }
   };
-
-  const inputBase = "bg-white/[0.03] border border-white/[0.10] text-text-primary text-sm rounded-lg px-3 py-2 outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/10 transition-all duration-300";
 
   return (
     <div className="flex h-[calc(100vh-180px)] glass rounded-xl overflow-hidden">
       {/* Left pane — Server selector */}
       <aside className="w-[280px] border-r border-white/[0.08] flex flex-col shrink-0 bg-white/[0.03]">
         <div className="p-4 border-b border-white/[0.08]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted h-3.5 w-3.5" />
-            <input
-              type="text"
-              aria-label="Search MCP servers"
-              placeholder="Search servers..."
-              value={mcpSearch}
-              onChange={e => setMcpSearch(e.target.value)}
-              className="w-full bg-white/[0.03] border border-white/[0.10] text-text-primary text-xs rounded-lg pl-8 pr-3 py-2 outline-none focus:border-accent/40 transition-all duration-300"
-            />
-          </div>
+          <TextInput
+            placeholder="Search servers..."
+            leftSection={<Search size={14} />}
+            value={mcpSearch}
+            onChange={e => setMcpSearch(e.currentTarget.value)}
+          />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-0.5">
-          {filteredMcp.map(server => {
-            const isDisabled = tempConfig.disabled_mcp.includes(server);
-            const selected = selectedMcpServer === server;
-            return (
-              <div
-                key={server}
-                onClick={() => setSelectedMcpServer(server)}
-                className={`flex items-center justify-between px-3.5 py-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                  selected
-                    ? 'bg-accent-dim border border-accent text-accent'
-                    : 'hover:bg-accent-dim hover:text-accent text-text-secondary border border-transparent'
-                }`}
-              >
-                <div className="flex flex-col">
-                  <span className="text-sm font-mono font-medium">{server}</span>
-                  <span className="text-[10px] text-text-muted mt-0.5">
-                    {DEFAULT_SERVERS.has(server) ? 'Core' : 'Custom'}
-                  </span>
+        <ScrollArea className="flex-1 p-2">
+          <Stack gap={4}>
+            {filteredMcp.map(server => {
+              const isDisabled = tempConfig.disabled_mcp.includes(server);
+              const selected = selectedMcpServer === server;
+              return (
+                <div
+                  key={server}
+                  onClick={() => setSelectedMcpServer(server)}
+                  className={`flex items-center justify-between px-3.5 py-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                    selected
+                      ? 'bg-accent-dim border border-accent/25 text-accent shadow-sm'
+                      : 'hover:bg-accent-dim hover:text-accent text-text-secondary border border-transparent'
+                  }`}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-mono font-medium">{server}</span>
+                    <span className="text-[10px] text-text-muted mt-0.5">
+                      {DEFAULT_SERVERS.has(server) ? 'Core' : 'Custom'}
+                    </span>
+                  </div>
+                  <Badge color={isDisabled ? 'red' : 'green'} variant="light" size="sm">
+                    {isDisabled ? 'Off' : 'On'}
+                  </Badge>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${
-                  isDisabled ? 'bg-error-dim text-error border border-error/15' : 'bg-success-dim text-success border border-success/15'
-                }`}>
-                  {isDisabled ? 'Off' : 'On'}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </Stack>
+        </ScrollArea>
 
         <div className="p-3 border-t border-white/[0.08]">
-          <button
+          <Button
+            fullWidth
+            color="indigo"
             onClick={() => setShowAddMcpModal(true)}
-            className="w-full py-2 bg-accent/90 hover:bg-accent text-bg text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-300"
+            leftSection={<Plus size={16} />}
           >
-            <Plus className="h-4 w-4" /> Add Custom MCP
-          </button>
+            Add Custom MCP
+          </Button>
         </div>
       </aside>
 
@@ -193,87 +206,113 @@ export const McpTab: React.FC<McpTabProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-[160px_1fr] items-center gap-5">
-                <label className="text-sm font-medium text-text-secondary">Connection Type:</label>
-                <select value={mcpEditorType} onChange={e => setMcpEditorType(e.target.value as any)} className={inputBase}>
-                  <option value="stdio">stdio — Command Line</option>
-                  <option value="sse">sse — HTTP Server-Sent Events</option>
-                </select>
-              </div>
+            <Stack gap="md">
+              <Select
+                label="Connection Type"
+                value={mcpEditorType}
+                onChange={val => setMcpEditorType(val as 'stdio' | 'sse')}
+                data={[
+                  { value: 'stdio', label: 'stdio — Command Line' },
+                  { value: 'sse', label: 'sse — HTTP Server-Sent Events' },
+                ]}
+              />
 
               {mcpEditorType === 'stdio' ? (
                 <>
-                  <div className="grid grid-cols-[160px_1fr] items-center gap-5">
-                    <label className="text-sm font-medium text-text-secondary font-mono">command:</label>
-                    <input type="text" value={mcpEditorCommand} onChange={e => setMcpEditorCommand(e.target.value)} placeholder="npx" className={`${inputBase} font-mono`} />
-                  </div>
-                  <div className="grid grid-cols-[160px_1fr] items-start gap-5">
-                    <div>
-                      <label className="text-sm font-medium text-text-secondary font-mono">args:</label>
-                      <span className="text-[10px] text-text-muted block mt-1">One per line</span>
-                    </div>
-                    <textarea rows={4} value={mcpEditorArgs} onChange={e => setMcpEditorArgs(e.target.value)} placeholder="-y\n@modelcontextprotocol/server-postgres\npostgresql://localhost/postgres" className={`${inputBase} font-mono resize-none`} />
-                  </div>
-                  <div className="grid grid-cols-[160px_1fr] items-start gap-5">
-                    <div>
-                      <label className="text-sm font-medium text-text-secondary font-mono">env:</label>
-                      <span className="text-[10px] text-text-muted block mt-1">JSON format</span>
-                    </div>
-                    <textarea rows={4} value={mcpEditorEnv} onChange={e => setMcpEditorEnv(e.target.value)} placeholder={'{\n  "PGPORT": "5432"\n}'} className={`${inputBase} font-mono resize-none`} />
-                  </div>
+                  <TextInput
+                    label="command"
+                    placeholder="npx"
+                    value={mcpEditorCommand}
+                    onChange={e => setMcpEditorCommand(e.currentTarget.value)}
+                    styles={{ input: { fontFamily: 'var(--font-mono)' } }}
+                  />
+                  <Textarea
+                    label="args"
+                    description="One per line"
+                    rows={4}
+                    placeholder="-y\n@modelcontextprotocol/server-postgres\npostgresql://localhost/postgres"
+                    value={mcpEditorArgs}
+                    onChange={e => setMcpEditorArgs(e.currentTarget.value)}
+                    styles={{ input: { fontFamily: 'var(--font-mono)' } }}
+                  />
+                  <Textarea
+                    label="env"
+                    description="JSON format"
+                    rows={4}
+                    placeholder={'{\n  "PGPORT": "5432"\n}'}
+                    value={mcpEditorEnv}
+                    onChange={e => setMcpEditorEnv(e.currentTarget.value)}
+                    styles={{ input: { fontFamily: 'var(--font-mono)' } }}
+                  />
                 </>
               ) : (
-                <div className="grid grid-cols-[160px_1fr] items-center gap-5">
-                  <label className="text-sm font-medium text-text-secondary font-mono">url:</label>
-                  <input type="text" value={mcpEditorUrl} onChange={e => setMcpEditorUrl(e.target.value)} placeholder="https://mcp.context7.com/mcp" className={`${inputBase} font-mono`} />
-                </div>
+                <TextInput
+                  label="url"
+                  placeholder="https://mcp.context7.com/mcp"
+                  value={mcpEditorUrl}
+                  onChange={e => setMcpEditorUrl(e.currentTarget.value)}
+                  styles={{ input: { fontFamily: 'var(--font-mono)' } }}
+                />
               )}
-            </div>
+            </Stack>
 
             {/* Test status */}
             {mcpTestStatus !== 'idle' && (
-              <div className={`p-3 rounded-lg flex items-start gap-2.5 text-xs border ${
-                mcpTestStatus === 'testing' ? 'bg-info/[0.06] border-info/15 text-info' :
-                mcpTestStatus === 'success' ? 'bg-success/[0.06] border-success/15 text-success' :
-                mcpTestStatus === 'warning' ? 'bg-warning/[0.06] border-warning/15 text-warning' :
-                'bg-error/[0.06] border-error/15 text-error'
-              }`}>
-                <div className="shrink-0 mt-0.5">
-                  {mcpTestStatus === 'testing' && <Sliders className="h-4 w-4 animate-spin" />}
-                  {mcpTestStatus === 'success' && <CheckCircle2 className="h-4 w-4" />}
-                  {mcpTestStatus === 'warning' && <AlertTriangle className="h-4 w-4" />}
-                  {mcpTestStatus === 'error' && <XCircle className="h-4 w-4" />}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-semibold uppercase tracking-wider text-[9px]">
-                    {mcpTestStatus === 'testing' && 'Running Diagnostics...'}
-                    {mcpTestStatus === 'success' && 'Diagnostics Passed'}
-                    {mcpTestStatus === 'warning' && 'Diagnostics Warning'}
-                    {mcpTestStatus === 'error' && 'Diagnostics Failed'}
-                  </span>
-                  <span className="font-mono break-all leading-normal">{mcpTestMessage}</span>
-                </div>
-              </div>
+              <Alert
+                color={
+                  mcpTestStatus === 'testing' ? 'blue' :
+                  mcpTestStatus === 'success' ? 'green' :
+                  mcpTestStatus === 'warning' ? 'yellow' : 'red'
+                }
+                title={
+                  mcpTestStatus === 'testing' ? 'Running Diagnostics...' :
+                  mcpTestStatus === 'success' ? 'Diagnostics Passed' :
+                  mcpTestStatus === 'warning' ? 'Diagnostics Warning' : 'Diagnostics Failed'
+                }
+                icon={
+                  mcpTestStatus === 'testing' ? <Sliders className="h-4 w-4 animate-spin" /> :
+                  mcpTestStatus === 'success' ? <CheckCircle2 className="h-4 w-4" /> :
+                  mcpTestStatus === 'warning' ? <AlertTriangle className="h-4 w-4" /> :
+                  <XCircle className="h-4 w-4" />
+                }
+              >
+                <Text size="xs" style={{ fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>
+                  {mcpTestMessage}
+                </Text>
+              </Alert>
             )}
 
             {/* Actions */}
-            <div className="flex justify-between items-center border-t border-white/[0.08] pt-6 mt-4">
+            <Group justify="space-between" mt="xl" pt="md" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
               {!DEFAULT_SERVERS.has(selectedMcpServer) ? (
-                <button type="button" onClick={() => deleteCustomMcp(selectedMcpServer)} className="px-4 py-2 border border-error/20 text-error hover:bg-error/[0.04] text-xs font-medium rounded-lg flex items-center gap-1.5 cursor-pointer transition-all duration-300">
-                  <TrashIcon className="h-4 w-4" /> Delete Server
-                </button>
+                <Button
+                  color="red"
+                  variant="outline"
+                  leftSection={<TrashIcon size={14} />}
+                  onClick={() => deleteCustomMcp(selectedMcpServer)}
+                >
+                  Delete Server
+                </Button>
               ) : <div />}
 
-              <div className="flex gap-3">
-                <button type="button" onClick={testMcpConfig} disabled={mcpTestStatus === 'testing'} className="px-4 py-2 border border-white/[0.10] hover:border-accent/30 text-text-secondary text-xs font-medium rounded-lg flex items-center gap-1.5 cursor-pointer transition-all duration-300 disabled:opacity-40">
-                  <Play className="h-4 w-4 text-accent" /> Test
-                </button>
-                <button type="button" onClick={saveMcpEditor} className="px-5 py-2.5 bg-accent/90 hover:bg-accent text-bg text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(201,165,92,0.12)] transition-all duration-300">
-                  <Save className="h-4 w-4" /> Save
-                </button>
-              </div>
-            </div>
+              <Group gap="sm">
+                <Button
+                  variant="default"
+                  leftSection={<Play size={14} className="text-accent" />}
+                  onClick={testMcpConfig}
+                  disabled={mcpTestStatus === 'testing'}
+                >
+                  Test
+                </Button>
+                <Button
+                  color="indigo"
+                  leftSection={<Save size={14} />}
+                  onClick={saveMcpEditor}
+                >
+                  Save
+                </Button>
+              </Group>
+            </Group>
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-text-muted">

@@ -29,7 +29,7 @@ export function useMcpForm(
     }
 
     const argsArr = newMcpArgs.split('\n').map(a => a.trim()).filter(Boolean);
-    const serverConfig: any = {};
+    const serverConfig: Record<string, unknown> = {};
     if (newMcpType === 'sse') { serverConfig.type = 'sse'; serverConfig.url = newMcpUrl.trim(); }
     else { serverConfig.command = newMcpCommand.trim(); if (argsArr.length > 0) serverConfig.args = argsArr; if (Object.keys(envObj).length > 0) serverConfig.env = envObj; }
 
@@ -44,7 +44,8 @@ export function useMcpForm(
     if (!tempConfig || DEFAULT_SERVERS.has(name)) return;
     setTempConfig(prev => {
       if (!prev) return null;
-      const { [name]: removed, ...restServers } = prev.mcp_servers;
+      const restServers = { ...prev.mcp_servers };
+      delete restServers[name];
       return { ...prev, all_mcp: prev.all_mcp.filter(s => s !== name), disabled_mcp: prev.disabled_mcp.filter(s => s !== name), mcp_servers: restServers };
     });
     const remaining = tempConfig.all_mcp.filter(s => s !== name);

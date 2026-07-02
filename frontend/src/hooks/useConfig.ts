@@ -21,11 +21,13 @@ export function useConfig(showToast: (msg: string, type?: 'success' | 'error' | 
       const data: FullConfig = await res.json();
       setInitialConfig(data);
       setTempConfig(JSON.parse(JSON.stringify(data)));
-    } catch (err: any) {
-      showToast(err.message, 'error');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      showToast(errMsg, 'error');
     }
   }, [showToast]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
   // --- MUTATION HELPERS ---
@@ -74,7 +76,8 @@ export function useConfig(showToast: (msg: string, type?: 'success' | 'error' | 
     if (DEFAULT_SERVERS.has(name)) return;
     setTempConfig(prev => {
       if (!prev) return null;
-      const { [name]: removed, ...restServers } = prev.mcp_servers;
+      const restServers = { ...prev.mcp_servers };
+      delete restServers[name];
       return { ...prev, all_mcp: prev.all_mcp.filter(s => s !== name), disabled_mcp: prev.disabled_mcp.filter(s => s !== name), mcp_servers: restServers };
     });
     if (tempConfig) {
@@ -184,9 +187,10 @@ export function useConfig(showToast: (msg: string, type?: 'success' | 'error' | 
         if (event.data.includes("SUCCESS:") || event.data.includes("ERROR:")) { eventSource.close(); fetchConfig(); }
       };
       eventSource.onerror = () => { setLogs(prev => [...prev, "✘ Connection to log stream lost."]); eventSource.close(); fetchConfig(); };
-    } catch (err: any) {
-      setLogs(prev => [...prev, `✘ Error: ${err.message}`]);
-      showToast(`Apply failed: ${err.message}`, 'error');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setLogs(prev => [...prev, `✘ Error: ${errMsg}`]);
+      showToast(`Apply failed: ${errMsg}`, 'error');
     }
   }, [tempConfig, fetchConfig, showToast]);
 

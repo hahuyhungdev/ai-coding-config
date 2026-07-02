@@ -50,7 +50,7 @@ export interface FullConfig {
   claude: ClaudeConfig;
   codex: CodexConfig;
   gemini: GeminiConfig;
-  mcp_servers: Record<string, any>;
+  mcp_servers: Record<string, Record<string, unknown>>;
   all_mcp: string[];
   disabled_mcp: string[];
   gemini_instructions: string;
@@ -78,7 +78,7 @@ export interface ExplorerDetail {
     description?: string;
     model?: string;
     origin?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   prompt: string;
 }
@@ -112,7 +112,7 @@ export interface ConversationStep {
   est_tokens: number;
   timestamp?: string;
   status?: string;
-  resolved_args?: any;
+  resolved_args?: Record<string, unknown>;
   thinking?: string;
   reason?: string;
 }

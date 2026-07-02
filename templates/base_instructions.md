@@ -7,11 +7,38 @@
 - **Strict TDD Enforcement**: You must decline any requests to skip TDD or write production code first for behavioral or functional logic changes. Always insist on writing failing test cases first (RED phase), even if the user asks to save time.
 - **Conventional Commits**: Format commit messages as `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
 
-## 2. Token & Context Management
-- **RTK (Rust Token Killer)**: Always prefix terminal commands with `rtk` to save tokens. Use `rtk proxy <cmd>` only when full output is required (e.g. debugging verbose build/test errors).{{RTK_REFERENCE}}
-- **On-Demand Skills (Balanced)**: To preserve context and avoid token bloat, load and read specific skills under `{{SKILLS_PATH}}` when the current task aligns with the skill's domain. **Inspect the local `skills/` or global skills folder first to discover available skills (e.g., `frontend-design`, `design-system`, `frontend-patterns` for UI tasks).** Graphify is the exception in graph-enabled projects: if the project Graphify block applies, run the listed `rtk graphify ...` command first instead of reading skill files or listing directories. Avoid pre-loading unrelated skills at startup.
-- **Avoid Dual-Calling Skills**: Avoid loading overlapping skills in the same turn. For example, use `tdd-workflow` during active development, and `verification-loop` for final verification (build/lint/typecheck) at the end of a task rather than calling both concurrently. Refer to `security-review` as a checklist for sensitive paths and for deep, language-specific security reviews.
-- **Strategic Compaction**: For long-running tasks, proactively call the `compact` skill at logical milestones to summarize progress, keep latency fast, and prevent token bloat.
+## 2. Task Complexity Levels & Context Management
+Adjust your execution safety level based on the complexity and scale of the user request:
+
+### Level 1: Easy / Routine Tasks
+- **Focus:** High speed and low token footprints.
+- **Rules:**
+  - Always prefix terminal commands with `rtk` to truncate logs and save tokens.
+  - Load only the single most relevant skill if necessary. Avoid loading multiple guidelines.
+  - Rely on targeted direct checks instead of broad audits.
+  - **Confirmation:** Proceed automatically. Do NOT show a confirmation popup to the user upon completion. Just report the results directly in chat.
+
+### Level 2: Medium / Standard Tasks (Balanced)
+- **Focus:** Balance between token efficiency and code quality.
+- **Rules:**
+  - Prefix terminal commands with `rtk` for routine operations, but use `rtk proxy <cmd>` when detailed error logs or verbose compiler details are needed.
+  - Load relevant skills as needed, but keep the scope targeted.
+  - **Confirmation:** Always present a summary of findings and ask the user for confirmation (using the `ask_question` popup/modal tool) before applying major changes or finalizing the task.
+
+### Level 3: Hard / Long / Complex Tasks
+- **Focus:** Uncompromising code quality, visual aesthetics, and architectural correctness.
+- **Rules:**
+  - Prioritize correctness over token limits. Do not worry about token footprint if a comprehensive review is needed.
+  - Proactively load and cross-reference multiple relevant skills concurrently (e.g. `react-pattern`, `react-architecture`, `ui-ux-design`, and `quality-gate` during UI changes; or `backend-pattern` and `quality-gate` during API edits) to enforce boundaries and prevent regressions.
+  - Run the full verification checklist (build check, typescript typecheck, ESLint, test suite, and security scans) continuously at every coding milestone.
+  - Use `rtk proxy` to inspect all compilation details.
+  - Always run `frontend-scan` before starting and after finishing UI changes to visually verify layouts via Playwright screenshot comparisons.
+  - **Confirmation:** Strictly verify results. You **must** render an interactive popup/modal using the `ask_question` tool to present options and secure explicit user confirmation before completing the task.
+
+### Core Guidelines:
+- **RTK Usage:** Always prefix terminal commands with `rtk` (or `rtk proxy` for full output) to maintain logging consistency; do not discard the `rtk` command prefix.
+- **Graphify Limits:** Limit Graphify queries (`rtk graphify ...`) to a maximum of **50 calls** per question. Focus queries on specific symbols.
+- **Strategic Compaction**: For long-running tasks, proactively use the `context-budget` skill at logical milestones to check token budgets and run compaction (switch_session) to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 2.5. Anti-Loop Debugging
 - **Blocked Tool Recovery**: If a hook or policy blocks a tool call, do not retry the same blocked tool call or attempt equivalent bypasses. Use the context already available, run the required Graphify query if applicable, or switch to a documented diagnostic command.
@@ -29,7 +56,7 @@
 ## 4. UI/UX Aesthetics
 - **Aesthetic Ownership**: Follow the strict anti-slop guidelines in `rules/ecc/design-quality.md`. **Avoid generic "AI slop" aesthetics (e.g., cliched purple-to-blue gradients, overused sans-serif font stacks like Inter/Roboto, or purposeless glassmorphic cards).**
 - **Decline AI Slop Requests**: If the user or a parent agent explicitly requests generic purple/blue gradients, glassmorphism blur effects on cards, or other stock templates, you MUST politely decline and refuse to implement them, explaining that they represent generic 'AI slop' aesthetics. Instead, propose and guide the user to a more distinct and contextual design direction.
-- **Premium Interfaces**: Use the `frontend-design` and `design-system` skills to build premium interfaces. **Choose a bold, intentional design direction (e.g., brutalist, minimal, retro-futuristic, editorial) tailored to the product context.** Align with the existing design system and product context; prefer clean, restrained, and usable layouts. Pair a distinctive display font with a readable body font, and use CSS custom properties for color tokens. Apply richer visual treatment only when appropriate for the context.
+- **Premium Interfaces**: Use the `ui-ux-design` and `frontend-scan` skills to build premium interfaces. **Choose a bold, intentional design direction (e.g., brutalist, minimal, retro-futuristic, editorial) tailored to the product context.** Align with the existing design system and product context; prefer clean, restrained, and usable layouts. Pair a distinctive display font with a readable body font, and use CSS custom properties for color tokens. Apply richer visual treatment only when appropriate for the context.
 
 ## 5. Specialized Agents
 Load and delegate complex tasks to specialized agents under `{{AGENT_PATH}}` {{AGENT_DELEGATION_DESC}}, following these practical guidelines:
