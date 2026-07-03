@@ -56,6 +56,55 @@ class TestGraphifyCommandClassification(unittest.TestCase):
         self.assertEqual(result, {"decision": "allow"})
 
 
+class TestSkillSync(unittest.TestCase):
+    def test_copy_skills_preserves_dot_prefixed_system_directories(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            repo = root / "repo"
+            target = root / "target"
+
+            managed_skill = repo / "skills" / "react-architecture"
+            managed_skill.mkdir(parents=True)
+            (managed_skill / "SKILL.md").write_text(
+                "---\nname: react-architecture\ndescription: test\n---\n",
+                encoding="utf-8",
+            )
+
+            system_skill = target / "skills" / ".system" / "skill-creator"
+            system_skill.mkdir(parents=True)
+            (system_skill / "SKILL.md").write_text("system skill\n", encoding="utf-8")
+
+            stale_skill = target / "skills" / "stale-skill"
+            stale_skill.mkdir(parents=True)
+            (stale_skill / "SKILL.md").write_text("stale\n", encoding="utf-8")
+
+            with mock.patch.object(installer_setup, "REPO_DIR", repo):
+                installer_setup._copy_skills(target, force=True)
+
+            self.assertTrue((target / "skills" / "react-architecture" / "SKILL.md").exists())
+            self.assertTrue((target / "skills" / ".system" / "skill-creator" / "SKILL.md").exists())
+            self.assertFalse(stale_skill.exists())
+
+    def test_copy_skills_updates_nested_files_when_forced(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            repo = root / "repo"
+            target = root / "target"
+
+            source_script = repo / "skills" / "react-architecture" / "scripts" / "generate-feature.py"
+            source_script.parent.mkdir(parents=True)
+            source_script.write_text("print('new')\n", encoding="utf-8")
+
+            target_script = target / "skills" / "react-architecture" / "scripts" / "generate-feature.py"
+            target_script.parent.mkdir(parents=True)
+            target_script.write_text("print('old')\n", encoding="utf-8")
+
+            with mock.patch.object(installer_setup, "REPO_DIR", repo):
+                installer_setup._copy_skills(target, force=True)
+
+            self.assertEqual(target_script.read_text(encoding="utf-8"), "print('new')\n")
+
+
 class TestCodexWrapperInstall(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

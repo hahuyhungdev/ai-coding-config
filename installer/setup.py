@@ -18,6 +18,8 @@ def _copy_skills(target_dir: Path, force: bool) -> None:
         dst_skills = target_dir / "skills"
         if dst_skills.exists():
             for d in dst_skills.iterdir():
+                if d.name.startswith("."):
+                    continue
                 if d.is_dir() and not (skills_dir / d.name).exists():
                     try:
                         import shutil

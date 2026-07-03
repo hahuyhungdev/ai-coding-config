@@ -10,6 +10,39 @@ from pathlib import Path
 from .cli import info, ok, warn, error, run_script
 
 
+def _copytree(source: Path, target: Path) -> None:
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
+
+
+def _is_ignored_directory_entry(path: Path) -> bool:
+    return "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}
+
+
+def _directory_matches(source: Path, target: Path) -> bool:
+    source_entries = {
+        path.relative_to(source): path
+        for path in source.rglob("*")
+        if not _is_ignored_directory_entry(path.relative_to(source))
+    }
+    target_entries = {
+        path.relative_to(target): path
+        for path in target.rglob("*")
+        if not _is_ignored_directory_entry(path.relative_to(target))
+    }
+
+    if source_entries.keys() != target_entries.keys():
+        return False
+
+    for relative_path, source_path in source_entries.items():
+        target_path = target_entries[relative_path]
+        if source_path.is_dir() != target_path.is_dir():
+            return False
+        if source_path.is_file() and not filecmp.cmp(source_path, target_path, shallow=False):
+            return False
+
+    return True
+
+
 def merge_json(source: Path, target: Path) -> bool:
     """Deep-merge JSON: repo keys are base, target-only keys are preserved.
 
@@ -82,7 +115,7 @@ def copy_config(source: Path, target: Path, force: bool = False) -> bool:
     if not target.exists():
         try:
             if source.is_dir():
-                shutil.copytree(source, target)
+                _copytree(source, target)
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
@@ -94,8 +127,7 @@ def copy_config(source: Path, target: Path, force: bool = False) -> bool:
     # Target exists → check for differences
     is_same = False
     if source.is_dir() and target.is_dir():
-        dircmp = filecmp.dircmp(source, target)
-        is_same = not dircmp.left_only and not dircmp.right_only and not dircmp.diff_files
+        is_same = _directory_matches(source, target)
     elif source.is_file() and target.is_file():
         is_same = filecmp.cmp(source, target, shallow=False)
 
@@ -112,7 +144,7 @@ def copy_config(source: Path, target: Path, force: bool = False) -> bool:
         try:
             if target.is_dir():
                 shutil.rmtree(target)
-                shutil.copytree(source, target)
+                _copytree(source, target)
             else:
                 shutil.copy2(source, target)
             ok(f"Overwritten (force): {target.name}")

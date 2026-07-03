@@ -1,175 +1,202 @@
 #!/usr/bin/env python3
-import os
-import sys
+from __future__ import annotations
+
 import re
+import sys
+from pathlib import Path
 
-def to_kebab_case(s):
-    # Convert camelCase/PascalCase to kebab-case
-    s = re.sub(r'(?<!^)(?=[A-Z])', '-', s).lower()
-    return s.replace('_', '-')
 
-def to_pascal_case(s):
-    # Convert kebab-case/snake_case to PascalCase
-    return ''.join(word.capitalize() for word in re.split(r'[-_]', s))
+def to_kebab_case(value: str) -> str:
+    value = value.strip()
+    value = re.sub(r"([a-z0-9])([A-Z])", r"\1-\2", value)
+    value = re.sub(r"[^A-Za-z0-9]+", "-", value)
+    value = re.sub(r"-+", "-", value).strip("-").lower()
+    if not value:
+        raise ValueError("Feature name must contain at least one letter or digit.")
+    return value
 
-def to_camel_case(s):
-    # Convert kebab-case/snake_case to camelCase
-    pascal = to_pascal_case(s)
-    return pascal[0].lower() + pascal[1:]
 
-def generate_feature(feature_name):
+def to_pascal_case(value: str) -> str:
+    return "".join(word[:1].upper() + word[1:] for word in value.split("-") if word)
+
+
+def to_camel_case(value: str) -> str:
+    pascal = to_pascal_case(value)
+    return pascal[:1].lower() + pascal[1:]
+
+
+def write_file(path: Path, contents: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(contents, encoding="utf-8")
+
+
+def generate_feature(feature_name: str) -> None:
     kebab = to_kebab_case(feature_name)
     pascal = to_pascal_case(kebab)
     camel = to_camel_case(kebab)
+    view_name = f"{pascal}View"
+    section_name = f"{pascal}Section"
+    hook_name = f"use{pascal}"
+    api_name = f"{camel}Api"
+    type_name = f"{pascal}Data"
 
-    # Check if src folder exists, otherwise use root-level features directory
-    base_dir = os.getcwd()
-    is_src_based = os.path.exists(os.path.join(base_dir, "src"))
-    if is_src_based:
-        feature_dir = os.path.abspath(os.path.join(base_dir, "src", "features", kebab))
-        display_path = f"src/features/{kebab}"
-    else:
-        feature_dir = os.path.abspath(os.path.join(base_dir, "features", kebab))
-        display_path = f"features/{kebab}"
+    base_dir = Path.cwd()
+    source_root = base_dir / "src" if (base_dir / "src").exists() else base_dir
+    feature_dir = source_root / "features" / kebab
+    display_prefix = "src/" if source_root.name == "src" else ""
+    display_path = f"{display_prefix}features/{kebab}"
 
-    if os.path.exists(feature_dir):
+    if feature_dir.exists():
         print(f"[!] Error: Feature directory '{kebab}' already exists at {feature_dir}", file=sys.stderr)
         sys.exit(1)
 
     print(f"[*] Generating feature '{kebab}'...")
 
-    # Subdirectories
-    subdirs = ["components", "hooks", "api", "types", "utils"]
-    for sub in subdirs:
-        os.makedirs(os.path.join(feature_dir, sub), exist_ok=True)
+    for subdirectory in ["components", "hooks", "api", "types", "utils"]:
+        (feature_dir / subdirectory).mkdir(parents=True, exist_ok=True)
 
-    # 1. Component
-    comp_dir = os.path.join(feature_dir, "components", pascal)
-    os.makedirs(comp_dir, exist_ok=True)
-    comp_file = os.path.join(comp_dir, f"{pascal}.tsx")
-    with open(comp_file, "w", encoding="utf-8") as f:
-        f.write(f"""import {{ use{pascal} }} from "../../hooks/use{pascal}";
-import type {{ {pascal}Data }} from "../../types/{kebab}.types";
+    write_file(
+        feature_dir / "components" / view_name / "index.tsx",
+        f"""import type {{ {type_name} }} from "../../types/{kebab}.types";
 
-interface {pascal}Props {{
+interface {view_name}Props {{
   title: string;
+  data: {type_name} | null;
+  isLoading: boolean;
 }}
 
-export function {pascal}({{ title }}: {pascal}Props) {{
-  const {{ data, loading }} = use{pascal}();
-
-  if (loading) return <div>Loading {kebab}...</div>;
+export function {view_name}({{ title, data, isLoading }}: {view_name}Props) {{
+  if (isLoading) {{
+    return (
+      <section className="{kebab}-section" aria-busy="true">
+        <h3>{{title}}</h3>
+        <p>Loading {kebab}...</p>
+      </section>
+    );
+  }}
 
   return (
-    <div className="{kebab}-section">
+    <section className="{kebab}-section">
       <h3>{{title}}</h3>
-      {data ? (
+      {{data ? (
         <p>Data loaded successfully: {{data.name}}</p>
       ) : (
         <p>No data available.</p>
-      )}
-    </div>
+      )}}
+    </section>
   );
 }}
 
-export default {pascal};
-""")
+export default {view_name};
+""",
+    )
 
-    # 2. Hook
-    hook_file = os.path.join(feature_dir, "hooks", f"use{pascal}.ts")
-    with open(hook_file, "w", encoding="utf-8") as f:
-        f.write(f"""import {{ useState, useEffect }} from "react";
-import {{ {camel}Api }} from "../api/{camel}Api";
-import type {{ {pascal}Data }} from "../types/{kebab}.types";
+    write_file(
+        feature_dir / "hooks" / f"{hook_name}.ts",
+        f"""import {{ useEffect, useState }} from "react";
+import {{ {api_name} }} from "../api/{api_name}";
+import type {{ {type_name} }} from "../types/{kebab}.types";
 
-export function use{pascal}() {{
-  const [data, setData] = useState<{pascal}Data | null>(null);
-  const [loading, setLoading] = useState(true);
+interface {hook_name[:1].upper() + hook_name[1:]}State {{
+  data: {type_name} | null;
+  error: Error | null;
+  isLoading: boolean;
+}}
+
+export function {hook_name}(): {hook_name[:1].upper() + hook_name[1:]}State {{
+  const [data, setData] = useState<{type_name} | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {{
     let active = true;
-    setLoading(true);
 
-    async function fetchData() {{
+    async function loadData() {{
+      setIsLoading(true);
+      setError(null);
+
       try {{
-        const result = await {camel}Api.getProfile();
+        const result = await {api_name}.getProfile();
         if (active) {{
           setData(result);
         }}
-      }} catch (err) {{
-        console.error("Error loading {kebab} data:", err);
+      }} catch (nextError) {{
+        if (active) {{
+          setError(nextError instanceof Error ? nextError : new Error("Unknown {kebab} error"));
+        }}
       }} finally {{
         if (active) {{
-          setLoading(false);
+          setIsLoading(false);
         }}
       }}
     }}
 
-    fetchData();
+    loadData();
     return () => {{
       active = false;
     }};
   }}, []);
 
-  return {{ data, loading }};
+  return {{ data, error, isLoading }};
 }}
+""",
+    )
 
-export default use{pascal};
-""")
+    write_file(
+        feature_dir / "api" / f"{api_name}.ts",
+        f"""import type {{ {type_name} }} from "../types/{kebab}.types";
 
-    # 3. API Client
-    api_file = os.path.join(feature_dir, "api", f"{camel}Api.ts")
-    with open(api_file, "w", encoding="utf-8") as f:
-        f.write(f"""import {{ apiClient }} from "@/shared/lib/apiClient";
-import type {{ {pascal}Data }} from "../types/{kebab}.types";
-
-export const {camel}Api = {{
-  getProfile: async (): Promise<{pascal}Data> => {{
-    return apiClient.get<{pascal}Data>("/{kebab}");
+export const {api_name} = {{
+  async getProfile(): Promise<{type_name} | null> {{
+    return null;
   }},
 }};
+""",
+    )
 
-export default {camel}Api;
-""")
-
-    # 4. Types
-    types_file = os.path.join(feature_dir, "types", f"{kebab}.types.ts")
-    with open(types_file, "w", encoding="utf-8") as f:
-        f.write(f"""export interface {pascal}Data {{
+    write_file(
+        feature_dir / "types" / f"{kebab}.types.ts",
+        f"""export interface {type_name} {{
   id: string;
   name: string;
 }}
-""")
+""",
+    )
 
-    # 5. Public index.ts
-    index_file = os.path.join(feature_dir, "index.tsx")
-    with open(index_file, "w", encoding="utf-8") as f:
-        f.write(f"""import {{ {pascal} }} from "./components/{pascal}/{pascal}";
+    write_file(
+        feature_dir / "index.tsx",
+        f"""import {{ {view_name} }} from "./components/{view_name}";
+import {{ {hook_name} }} from "./hooks/{hook_name}";
 
-export {{ {pascal} }};
-export default {pascal};
-""")
+interface {section_name}Props {{
+  title?: string;
+}}
+
+export function {section_name}({{ title = "{pascal}" }}: {section_name}Props) {{
+  const {{ data, isLoading }} = {hook_name}();
+
+  return <{view_name} title={{title}} data={{data}} isLoading={{isLoading}} />;
+}}
+
+export default {section_name};
+""",
+    )
 
     print(f"[+] Successfully generated feature structure at: {display_path}")
-    print(f"    - Public API: {display_path}/index.tsx")
-    print(f"    - Component: {display_path}/components/{pascal}/{pascal}.tsx")
-    print(f"    - Custom Hook: {display_path}/hooks/use{pascal}.ts")
-    print(f"    - API client: {display_path}/api/{camel}Api.ts")
+    print(f"    - Public component: {display_path}/index.tsx")
+    print(f"    - View component: {display_path}/components/{view_name}/index.tsx")
+    print(f"    - Custom hook: {display_path}/hooks/{hook_name}.ts")
+    print(f"    - API client: {display_path}/api/{api_name}.ts")
     print(f"    - Types: {display_path}/types/{kebab}.types.ts")
 
-    # Check if apiClient base is present to help developer
-    api_client_paths = [
-        os.path.join(base_dir, "src", "shared", "lib", "apiClient.ts"),
-        os.path.join(base_dir, "src", "shared", "lib", "apiClient.tsx"),
-        os.path.join(base_dir, "shared", "lib", "apiClient.ts"),
-        os.path.join(base_dir, "shared", "lib", "apiClient.tsx"),
-    ]
-    if not any(os.path.exists(p) for p in api_client_paths):
-        print("\n[!] Note: Base apiClient was not found at 'shared/lib/apiClient'.")
-        print("    Make sure to create it or update imports in your new API file if using a different API client.")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python3 generate-feature.py <feature-name>")
         sys.exit(1)
-    generate_feature(sys.argv[1])
+
+    try:
+        generate_feature(sys.argv[1])
+    except ValueError as error:
+        print(f"[!] Error: {error}", file=sys.stderr)
+        sys.exit(1)

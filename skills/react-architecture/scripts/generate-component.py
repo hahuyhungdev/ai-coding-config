@@ -1,10 +1,26 @@
 #!/usr/bin/env python3
 import os
+import re
 import sys
 
+
+def to_kebab_case(value):
+    value = value.strip()
+    value = re.sub(r"([a-z0-9])([A-Z])", r"\1-\2", value)
+    value = re.sub(r"[^A-Za-z0-9]+", "-", value)
+    value = re.sub(r"-+", "-", value).strip("-").lower()
+    if not value:
+        raise ValueError("Component name must contain at least one letter or digit.")
+    return value
+
+
+def to_pascal_case(value):
+    return "".join(word[:1].upper() + word[1:] for word in value.split("-") if word)
+
+
 def generate_component(comp_name, target_dir, add_scss=False):
-    # Normalize name to PascalCase
-    pascal = comp_name[0].upper() + comp_name[1:]
+    kebab = to_kebab_case(comp_name)
+    pascal = to_pascal_case(kebab)
     
     target_abs = os.path.abspath(os.path.join(os.getcwd(), target_dir, pascal))
     
@@ -25,11 +41,13 @@ def generate_component(comp_name, target_dir, add_scss=False):
         print(f"[+] Created: {pascal}.module.scss")
         
     # 2. TSX file
-    tsx_file = os.path.join(target_abs, f"{pascal}.tsx")
+    tsx_file = os.path.join(target_abs, "index.tsx")
     with open(tsx_file, "w", encoding="utf-8") as f:
-        class_name = f"styles.container" if add_scss else f"\"{pascal.lower()}-component\""
-        f.write(f"""{scss_import}interface {pascal}Props {{
-  children?: React.ReactNode;
+        class_name = "styles.container" if add_scss else f"\"{kebab}-component\""
+        f.write(f"""{scss_import}import type {{ ReactNode }} from "react";
+
+interface {pascal}Props {{
+  children?: ReactNode;
 }}
 
 export function {pascal}({{ children }}: {pascal}Props) {{
@@ -42,7 +60,7 @@ export function {pascal}({{ children }}: {pascal}Props) {{
 
 export default {pascal};
 """)
-    print(f"[+] Created: {pascal}.tsx")
+    print("[+] Created: index.tsx")
     print(f"[+] Successfully generated component folder at: {target_dir}/{pascal}")
 
 if __name__ == "__main__":
@@ -53,4 +71,8 @@ if __name__ == "__main__":
     comp = sys.argv[1]
     target = sys.argv[2]
     scss = "--scss" in sys.argv
-    generate_component(comp, target, scss)
+    try:
+        generate_component(comp, target, scss)
+    except ValueError as error:
+        print(f"[!] Error: {error}", file=sys.stderr)
+        sys.exit(1)

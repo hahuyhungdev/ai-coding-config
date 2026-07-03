@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
-const rootDir = process.cwd();
+const rootDir = path.resolve(process.argv[2] ?? process.cwd());
 const srcDir = path.join(rootDir, "src");
 const sourceExtensions = new Set([".ts", ".tsx"]);
 const ignoredSourcePatterns = [/\.test\./, /\.spec\./, /\/testing\//];
@@ -199,22 +199,91 @@ function getReExportSpecifiers(filePath) {
   return specifiers;
 }
 
+function getImportedValueBindings(sourceFile) {
+  const bindings = new Set();
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !statement.importClause) continue;
+    if (statement.importClause.isTypeOnly) continue;
+
+    if (statement.importClause.name) {
+      bindings.add(statement.importClause.name.text);
+    }
+
+    const namedBindings = statement.importClause.namedBindings;
+    if (!namedBindings) continue;
+
+    if (ts.isNamespaceImport(namedBindings)) {
+      bindings.add(namedBindings.name.text);
+      continue;
+    }
+
+    for (const element of namedBindings.elements) {
+      if (element.isTypeOnly) continue;
+      bindings.add(element.name.text);
+    }
+  }
+
+  return bindings;
+}
+
+function getImportedFeatureIndexExports(filePath) {
+  const text = fs.readFileSync(filePath, "utf8");
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const importedBindings = getImportedValueBindings(sourceFile);
+  const exportedImportedBindings = [];
+
+  function visit(node) {
+    if (
+      ts.isExportDeclaration(node) &&
+      !node.moduleSpecifier &&
+      !node.isTypeOnly &&
+      node.exportClause &&
+      ts.isNamedExports(node.exportClause)
+    ) {
+      for (const element of node.exportClause.elements) {
+        if (element.isTypeOnly) continue;
+        const localName = element.propertyName?.text ?? element.name.text;
+        if (importedBindings.has(localName)) {
+          exportedImportedBindings.push(localName);
+        }
+      }
+    }
+
+    if (ts.isExportAssignment(node) && ts.isIdentifier(node.expression)) {
+      const localName = node.expression.text;
+      if (importedBindings.has(localName)) {
+        exportedImportedBindings.push(localName);
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return exportedImportedBindings;
+}
+
 function getComponentStructureViolation(relativeFile) {
   const parts = relativeFile.split("/");
   const fileName = parts.at(-1);
 
   if (!relativeFile.endsWith(".tsx")) return null;
 
-  const baseName = fileName.replace(".tsx", "");
-
-  // 1. Feature component structure: features/<feature-name>/components/<ComponentName>/<Filename>.tsx
+  // 1. Feature component structure: features/<feature-name>/components/<ComponentName>/index.tsx
   if (parts[0] === "features" && parts[2] === "components") {
     if (parts.length < 5) {
-      return `feature components must be in a subfolder, e.g. components/Foo/Foo.tsx (got: ${relativeFile})`;
+      return `feature components must be in a subfolder, e.g. components/Foo/index.tsx (got: ${relativeFile})`;
     }
     const componentDir = parts[3];
-    if (baseName !== componentDir) {
-      return `feature component file name must match its parent folder name: ${componentDir}/${componentDir}.tsx (got: ${fileName})`;
+    if (fileName !== "index.tsx") {
+      return `feature component file must be components/${componentDir}/index.tsx (got: ${fileName})`;
     }
   }
 
@@ -222,31 +291,23 @@ function getComponentStructureViolation(relativeFile) {
   const hasSharedRoot = fs.existsSync(path.join(srcDir, "shared"));
   if (hasSharedRoot && parts[0] === "shared" && parts[1] === "components") {
     if (parts.length < 4) {
-      return `shared components must be in a subfolder, e.g. shared/components/Foo/Foo.tsx (got: ${relativeFile})`;
+      return `shared components must be in a subfolder, e.g. shared/components/Foo/index.tsx (got: ${relativeFile})`;
     }
     const componentDir = parts[parts.length - 2];
-    if (baseName !== componentDir) {
-      return `shared component file name must match its parent folder name: ${componentDir}/${componentDir}.tsx (got: ${fileName})`;
+    if (fileName !== "index.tsx") {
+      return `shared component file must be components/${componentDir}/index.tsx (got: ${fileName})`;
     }
   } else if (!hasSharedRoot && parts[0] === "components") {
     // For projects where shared components are direct under components/
     if (parts.length >= 3) {
       const componentDir = parts[parts.length - 2];
-      if (baseName !== componentDir) {
-        return `shared component file name must match its parent folder name: ${componentDir}/${componentDir}.tsx (got: ${fileName})`;
+      if (fileName !== "index.tsx") {
+        return `shared component file must be components/${componentDir}/index.tsx (got: ${fileName})`;
       }
     }
   }
 
   return null;
-}
-
-function getFeatureComponentRoot(relativePath) {
-  const parts = relativePath.split("/");
-  if (parts[0] !== "features" || parts[2] !== "components" || parts.length < 4) {
-    return null;
-  }
-  return parts[3];
 }
 
 for (const filePath of files) {
@@ -266,6 +327,12 @@ for (const filePath of files) {
       structureViolations.push({
         file: relativeFile,
         reason: `feature indexes must compose the public component, not re-export "${specifier}"`,
+      });
+    }
+    for (const binding of getImportedFeatureIndexExports(filePath)) {
+      structureViolations.push({
+        file: relativeFile,
+        reason: `feature indexes must define public components, not export imported component "${binding}"`,
       });
     }
   }
@@ -288,21 +355,12 @@ for (const filePath of files) {
     const fromParts = fromRelative.split("/");
     const toParts = toRelative.split("/");
     if (fromParts[0] === "features" && fromParts[2] === "components") {
-      const fromComponent = getFeatureComponentRoot(fromRelative);
-      const toComponent = getFeatureComponentRoot(toRelative);
       const sameFeature = toParts[0] === "features" && toParts[1] === fromParts[1];
 
       if (sameFeature && toParts[2] === "hooks") {
         structureViolations.push({
           file: relativeFile,
           reason: `feature component imports hook "${specifier}"; compose feature hooks in features/${fromParts[1]}/index.tsx`,
-        });
-      }
-
-      if (sameFeature && toComponent && fromComponent && toComponent !== fromComponent) {
-        structureViolations.push({
-          file: relativeFile,
-          reason: `feature component imports sibling component "${specifier}"; compose sibling components in features/${fromParts[1]}/index.tsx`,
         });
       }
     }
