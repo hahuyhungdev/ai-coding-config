@@ -7,6 +7,10 @@ description: Apply and validate feature-based architecture for Vite, React, and 
 
 Use this skill to keep React apps organized by business feature with one-way dependencies, small public feature APIs, and deterministic architecture checks.
 
+## When to Use
+
+Use this skill when creating, reviewing, or refactoring React feature folders, shared layers, route/page composition, feature public indexes, or architecture checker/generator scripts. Do not use it for isolated visual styling that does not affect component boundaries.
+
 ## 1. Choose the App Shape
 
 Detect the app shape before changing files:

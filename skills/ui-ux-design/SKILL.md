@@ -1,21 +1,26 @@
 ---
 name: ui-ux-design
-description: Complete guide for web and mobile UI/UX design. Combines visual aesthetics (anti-AI slop, typography, palettes, layouts) and technical specifications (WCAG contrast, touch targets, animation timings, layout constraints, skeletal loading, responsiveness).
+description: Use for web and mobile UI/UX design, visual polish, accessibility, responsive layout, color/typography systems, and anti-AI-slop review. Helps choose contextual design direction and verify WCAG contrast, touch targets, loading states, motion, and layout constraints.
 ---
 
 # Unified UI/UX Design & Specification Guide
 
 This skill guides the creation of distinctive, production-grade frontend interfaces that are both visually striking (avoiding generic "AI slop" aesthetics) and functionally correct (accessible, comfortable, and responsive).
 
+## When to Use
+
+Use this skill for UI/UX design, visual polish, responsive layout, accessibility review, color and typography systems, interaction states, and anti-AI-slop checks. Do not use it for backend-only changes or plain content edits without interface impact.
+
 ## 1. Visual Aesthetics & Style (How it Looks)
 
 Before writing UI/style code, commit to a bold aesthetic direction that matches the product context.
 
-- **Tone & Style:** Avoid generic designs. Decide on a clear tone: brutally minimal, editorial/magazine-like, retro-futuristic, luxury/refined, playful, industrial, glassmorphism, or bento grid. Apply it consistently.
+- **Tone & Style:** Avoid generic designs. Decide on a clear tone that fits the product context: brutally minimal, editorial/magazine-like, retro-futuristic, luxury/refined, playful, industrial, or another specific direction with a reason. Apply it consistently.
+- **Developer/Admin Tools:** Prefer quiet, dense, utilitarian interfaces built for scanning and repeated action. Do not default to marketing-style cards, dark-slate glass dashboards, or decorative hero treatments.
 - **Typography:** Choose fonts that are beautiful and interesting. Opt for unexpected, characterful font choices. Pair a distinctive display/heading font with a clean, readable body font. Avoid default system fonts or overused choices like Arial or Roboto for custom brand elements.
 - **Color & Contrast:** Select cohesive, tailored color palettes. Dominant colors with sharp, deliberate accents outperform timid, evenly-distributed palettes. Use CSS variables or Tailwind tokens for color management.
-- **Backgrounds & Visual Depth:** Create atmosphere using gradient meshes, noise/grain textures, layered transparencies, geometric patterns, custom decorative borders, and shadows instead of solid background colors.
-- **Anti-AI Slop:** Never use generic cliched visual schemes (e.g., standard bright purple/blue gradients on plain white backgrounds, cookie-cutter layouts, or raw emojis as icons). Always use clean, styled SVG icons (e.g., Heroicons, Lucide).
+- **Backgrounds & Visual Depth:** Prefer product-relevant imagery, restrained surfaces, texture, geometric structure, custom borders, and purposeful shadows. Use gradients or layered transparency only when they serve the subject and do not dominate the interface.
+- **Anti-AI Slop:** Never use generic cliched visual schemes: default purple/blue gradients, "subtle glassmorphism" as a default treatment, bento-card wallpaper, decorative blobs, or raw emojis as icons. If existing code already has `.glass`, `backdrop-filter`, or excessive blur, audit whether it should be reduced or removed rather than extending it. Use clean styled icons from the project's icon system.
 
 ---
 

@@ -1,0 +1,121 @@
+[
+  {
+    "name": "react-compound-component",
+    "query": "Refactor this form into a compound component and remove prop drilling.",
+    "files": ["src/features/orders/components/OrderForm/OrderForm.tsx"],
+    "expect": ["react-pattern", "react-architecture"],
+    "forbid": ["frontend-scan", "documentation-lookup", "codebase-design", "karpathy-guidelines"]
+  },
+  {
+    "name": "next-app-route",
+    "query": "The dashboard route under the app directory fails to generate metadata correctly.",
+    "files": ["src/app/dashboard/page.tsx"],
+    "expect": ["next-best-practices", "react-pattern"],
+    "forbid": ["frontend-scan"]
+  },
+  {
+    "name": "docs-lookup-natural-language",
+    "query": "Check the official docs for the latest Prisma transaction API before changing this.",
+    "files": ["src/server/db/prisma.ts"],
+    "expect": ["documentation-lookup"],
+    "forbid": ["frontend-scan"]
+  },
+  {
+    "name": "backend-api-route",
+    "query": "Review this API endpoint error handling and database query caching.",
+    "files": ["backend/routes/orders.py"],
+    "expect": ["backend-pattern"],
+    "forbid": ["react-pattern", "frontend-scan"]
+  },
+  {
+    "name": "visual-audit",
+    "query": "Run a frontend scan and review the visual design screenshots before changing the layout.",
+    "files": ["frontend/src/features/dashboard/index.tsx"],
+    "expect": ["frontend-scan", "ui-ux-design", "react-architecture", "react-pattern"],
+    "forbid": ["backend-pattern"]
+  },
+  {
+    "name": "simple-utils-negative",
+    "query": "Rename this helper variable for readability.",
+    "files": ["src/utils/formatName.ts"],
+    "expect": [],
+    "forbid": ["react-pattern", "react-architecture", "frontend-scan", "backend-pattern", "karpathy-guidelines", "quality-gate"]
+  },
+  {
+    "name": "generic-refactor-negative",
+    "query": "Refactor this Python helper into smaller private functions.",
+    "files": ["scripts/install.py"],
+    "expect": [],
+    "forbid": ["react-pattern", "react-architecture", "frontend-scan"]
+  },
+  {
+    "name": "tdd-positive",
+    "query": "Use TDD and add a failing pytest reproducer before fixing the bug.",
+    "files": ["tests/test_orders.py"],
+    "expect": ["quality-gate"],
+    "forbid": ["frontend-scan"]
+  },
+  {
+    "name": "diagnosing-hard-bug",
+    "query": "Diagnose this flaky checkout regression and find the root cause before changing code.",
+    "files": ["backend/routes/checkout.py"],
+    "expect": ["diagnosing-bugs", "backend-pattern"],
+    "forbid": ["frontend-scan", "react-pattern", "quality-gate"]
+  },
+  {
+    "name": "codebase-design-deep-module",
+    "query": "Review this module interface and find deep module opportunities so the seam is easier to test.",
+    "files": ["src/services/orderWorkflow.ts"],
+    "expect": ["codebase-design"],
+    "forbid": ["frontend-scan", "react-pattern", "karpathy-guidelines"]
+  },
+  {
+    "name": "prototype-vague-ui",
+    "query": "Make this dashboard better by trying a few UI variations as a throwaway prototype before production work.",
+    "files": ["frontend/src/features/dashboard/index.tsx"],
+    "expect": ["prototype-spike", "react-architecture", "react-pattern"],
+    "forbid": ["backend-pattern", "product-lens", "codebase-design", "karpathy-guidelines"]
+  },
+  {
+    "name": "simple-broken-copy-negative",
+    "query": "Fix this broken sentence in the README.",
+    "files": ["README.md"],
+    "expect": [],
+    "forbid": ["diagnosing-bugs", "quality-gate", "prototype-spike"]
+  },
+  {
+    "name": "unit-test-not-playwright",
+    "query": "Add unit tests for the date formatting helper.",
+    "files": ["src/utils/formatDate.test.ts"],
+    "expect": ["quality-gate"],
+    "forbid": ["playwright", "frontend-scan"]
+  },
+  {
+    "name": "readme-get-started-not-backend",
+    "query": "Update the GET started wording in the README.",
+    "files": ["README.md"],
+    "expect": [],
+    "forbid": ["backend-pattern", "quality-gate", "diagnosing-bugs"]
+  },
+  {
+    "name": "design-tokens-not-security",
+    "query": "Review the design tokens and theme naming for this UI.",
+    "files": ["frontend/src/theme/tokens.ts"],
+    "expect": ["ui-ux-design"],
+    "forbid": ["security-review", "backend-pattern", "frontend-scan"]
+  },
+  {
+    "name": "generic-make-better-not-prototype",
+    "query": "Make this dashboard better.",
+    "files": ["frontend/src/features/dashboard/index.tsx"],
+    "expect": ["react-architecture", "react-pattern"],
+    "forbid": ["prototype-spike", "frontend-scan", "backend-pattern"]
+  },
+  {
+    "name": "api-cache-phrase-positive",
+    "query": "Review this API endpoint database query caching behavior.",
+    "files": ["backend/routes/orders.py"],
+    "expect": ["backend-pattern"],
+    "forbid": ["react-pattern", "frontend-scan"]
+  }
+]

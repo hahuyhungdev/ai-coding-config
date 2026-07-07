@@ -7,6 +7,10 @@ description: Backend architecture patterns, API design, database optimization, a
 
 Conventions and best practices for designing consistent, developer-friendly REST APIs and writing scalable, high-performance server-side code.
 
+## When to Use
+
+Use this skill for backend route handlers, API contracts, database access patterns, server-side caching, error handling, authentication middleware, or Node.js/Express/Next.js API architecture. Do not use it for frontend-only changes or simple command output checks.
+
 ## 1. REST API Design & Contracts
 
 ### URL Structure & Naming

@@ -6,26 +6,24 @@
       "path": "skills/react-pattern/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "fileExtensions": ["tsx", "jsx", "ts", "js"],
-        "pathPatterns": ["**/components/**", "**/pages/**", "**/app/**", "**/frontend/**"],
+        "pathPatterns": ["**/components/**", "**/frontend/**"],
         "keywords": [
-          "use client", "use server", "createContext", "useState", "useEffect", "useContext", "framer-motion", 
-          "react patterns", "react-pattern", "component patterns", "clean react", "refactor",
-          "components", "component", "custom hook", "quản lý state", "quan ly state", "state"
+          "use client", "use server", "createContext", "useState", "useEffect", "useContext", "framer-motion",
+          "react patterns", "react-pattern", "component patterns", "clean react",
+          "compound component", "boolean prop proliferation", "prop drilling", "custom hook",
+          "React 19", "React state management", "quản lý state react", "quan ly state react"
         ]
-      },
-      "dependencies": ["frontend-scan"]
+      }
     },
     {
       "name": "next-best-practices",
       "path": "skills/next-best-practices/SKILL.md",
       "userInvocable": false,
       "triggers": {
-        "fileExtensions": ["ts", "tsx", "js", "json"],
-        "pathPatterns": ["**/app/**", "**/pages/**", "next.config.*"],
+        "pathPatterns": ["**/app/**", "next.config.*"],
         "keywords": [
           "proxy.ts", "middleware.ts", "getServerSideProps", "generateStaticParams", "use cache",
-          "nextjs-turbopack", "Turbopack", "incremental bundling", "turbopack build", "turbopack dev"
+          "Next.js", "app router", "pages router", "nextjs-turbopack", "Turbopack", "incremental bundling", "turbopack build", "turbopack dev"
         ]
       },
       "dependencies": ["react-pattern"]
@@ -35,9 +33,8 @@
       "path": "skills/playwright/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "fileExtensions": ["spec.ts", "test.ts"],
-        "pathPatterns": ["**/e2e/**", "**/tests/**"],
-        "keywords": ["playwright", "page.goto", "expect(page)"]
+        "pathPatterns": ["**/e2e/**", "e2e/**", "**/playwright/**", "playwright/**"],
+        "keywords": ["playwright", "@playwright/test", "page.goto", "expect(page)", "browser_context", "browser_evaluate", "browser_snapshot"]
       }
     },
     {
@@ -58,11 +55,28 @@
       }
     },
     {
+      "name": "diagnosing-bugs",
+      "path": "skills/diagnosing-bugs/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": [
+          "diagnose", "debug this", "hard bug", "regression", "performance regression",
+          "flaky", "intermittent", "reproduce bug", "minimal repro", "root cause",
+          "throwing", "failing user flow", "does not work", "không chạy", "khong chay", "lỗi khó", "loi kho"
+        ]
+      }
+    },
+    {
       "name": "documentation-lookup",
       "path": "skills/documentation-lookup/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "keywords": ["resolve-library-id", "query-docs", "Context7"]
+        "keywords": [
+          "resolve-library-id", "query-docs", "Context7", "library docs", "framework docs",
+          "official docs", "api reference", "latest API", "current API", "check docs",
+          "React docs", "Next.js docs", "Prisma docs", "Tailwind docs", "Supabase docs",
+          "Django docs", "Spring Boot docs"
+        ]
       }
     },
     {
@@ -71,9 +85,9 @@
       "userInvocable": true,
       "triggers": {
         "keywords": [
-          "ui-ux-design", "ui ux", "ui/ux", "improve ui ux", "optimize ui", "design", "styling", "theme", "aesthetic", 
+          "ui-ux-design", "ui ux", "ui/ux", "improve ui ux", "optimize ui", "visual design", "styling", "theme", "aesthetic",
           "user experience", "accessibility", "color contrast", "touch-target-size", "loading-buttons", "cursor-pointer",
-          "glassmorphism", "claymorphism", "neumorphism", "bento grid", "micro-animations", "rich aesthetics",
+          "micro-animations", "rich aesthetics", "anti-ai slop", "generic ai slop",
           "giao diện", "giao dien", "đẹp", "dep", "thẩm mỹ", "tham my", "tối ưu giao diện", "toi uu giao dien", "chỉnh ui", "chinh ui"
         ]
       }
@@ -83,12 +97,11 @@
       "path": "skills/backend-pattern/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "fileExtensions": ["ts", "js", "go", "py", "sql"],
         "pathPatterns": ["**/backend/**", "**/services/**", "**/models/**", "**/db/**", "**/api/**", "**/routes/**", "**/controllers/**", "**/handlers/**"],
         "keywords": [
-          "backend-pattern", "backend pattern", "api-design", "api design", "REST", "API", "endpoint", "NextResponse.json", 
-          "express", "router", "GET", "POST", "PUT", "DELETE", "db", "query", "cache", "Redis", "Postgres", "SQL", 
-          "Prisma", "caching", "optimization", "error handling", "tối ưu hóa", "toi uu hoa"
+          "backend-pattern", "backend pattern", "api-design", "api design", "REST API design", "API endpoint", "endpoint", "NextResponse.json",
+          "express router", "route handler", "database query", "query caching", "Redis", "Postgres", "SQL transaction",
+          "Prisma", "server-side caching", "API error handling", "database optimization"
         ]
       }
     },
@@ -105,7 +118,7 @@
       "path": "skills/security-review/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "keywords": ["security", "vulnerability", "auth", "login", "password", "crypto", "encryption", "SSL", "TLS", "sanitize", "CSRF", "XSS", "token", "injection", "OWASP"]
+        "keywords": ["security", "vulnerability", "auth", "login", "password", "crypto", "encryption", "SSL", "TLS", "sanitize", "CSRF", "XSS", "auth token", "access token", "jwt", "api key", "secret", "credential", "injection", "OWASP"]
       }
     },
     {
@@ -116,8 +129,33 @@
         "fileExtensions": ["test.ts", "spec.ts", "test.js", "spec.js", "test.py", "test_*.py", "*_test.go"],
         "pathPatterns": ["**/tests/**", "**/test/**", "**/__tests__/**"],
         "keywords": [
-          "quality-gate", "quality gate", "tdd", "test-driven", "red-green-refactor", "pytest", "jest", "vitest", "mocha", "unittest", 
-          "testing", "coverage", "verification-loop", "validation loop", "post-modification check", "self-correction", "verify changes"
+          "quality-gate", "quality gate", "tdd", "test-driven", "red-green-refactor", "vertical slice test", "public interface test",
+          "behavior test", "unit test", "unit tests", "integration test", "pytest", "jest", "vitest", "mocha", "unittest", "test suite", "coverage", "verification-loop",
+          "validation loop", "post-modification check", "self-correction", "verify changes"
+        ]
+      }
+    },
+    {
+      "name": "codebase-design",
+      "path": "skills/codebase-design/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": [
+          "codebase-design", "deep module", "shallow module", "module interface", "clean seam", "seam placement",
+          "adapter", "testability", "architecture refactor", "deepening opportunity",
+          "AI-navigable", "module boundary", "thiết kế module", "thiet ke module", "cấu trúc module", "cau truc module"
+        ]
+      }
+    },
+    {
+      "name": "prototype-spike",
+      "path": "skills/prototype-spike/SKILL.md",
+      "userInvocable": true,
+      "triggers": {
+        "keywords": [
+          "prototype", "spike", "throwaway prototype", "sanity-check", "state model exploration",
+          "UI variations", "design options", "try a few directions",
+          "mơ hồ", "mo ho", "vague UI", "vague feature"
         ]
       }
     },
@@ -127,7 +165,7 @@
       "userInvocable": true,
       "triggers": {
         "keywords": [
-          "context-budget", "context budget", "context window", "token usage", "token consumption", "context bloat", 
+          "context-budget", "context budget", "context window", "token usage", "token consumption", "context bloat",
           "compact", "compaction", "switch_session", "session rollover", "rotate account"
         ]
       }
@@ -146,7 +184,7 @@
       "userInvocable": true,
       "triggers": {
         "keywords": [
-          "frontend-scan", "frontend scan", "scan frontend", "audit UI", "visual scan", 
+          "frontend-scan", "frontend scan", "scan frontend", "visual scan", "screenshot audit",
           "quét giao diện", "quet giao dien", "chụp ảnh màn hình", "playwright scan"
         ]
       }
@@ -174,8 +212,8 @@
       "triggers": {
         "keywords": [
           "karpathy-guidelines", "karpathy rules", "logic safety", "llm coding mistakes", "avoid overcomplication",
-          "coding-standards", "refactor", "refactoring", "clean code", "code review", "naming", "readability", 
-          "convention", "standards", "lint", "eslint", "prettier", "tối ưu hóa", "toi uu hoa", "code sạch", 
+          "coding standards review", "safe refactor", "code cleanup", "clean code", "code review",
+          "lint strategy", "eslint config", "prettier config", "tối ưu hóa code", "toi uu hoa code", "code sạch",
           "code sach", "chuẩn code", "chuan code"
         ]
       }
@@ -193,15 +231,14 @@
       "path": "skills/react-architecture/SKILL.md",
       "userInvocable": true,
       "triggers": {
-        "fileExtensions": ["tsx", "jsx", "ts"],
         "pathPatterns": ["**/features/**", "**/shared/**", "**/pages/**"],
         "keywords": [
-          "react-architecture", "react architecture", "react-of-titan", "react of titan", "titan architecture", "titan framework", 
-          "refactor", "refactoring", "refactor components", "components", "component",
+          "react-architecture", "react architecture", "react-of-titan", "react of titan", "titan architecture", "titan framework",
+          "feature-based react", "feature boundary", "feature public index", "refactor components",
           "sửa components", "sua components", "cấu trúc component", "cau truc component", "chia component", "tách component", "tach component"
         ]
       },
-      "dependencies": ["react-pattern", "karpathy-guidelines"]
+      "dependencies": ["react-pattern"]
     }
   ]
 }

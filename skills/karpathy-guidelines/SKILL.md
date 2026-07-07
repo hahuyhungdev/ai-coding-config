@@ -1,6 +1,6 @@
 ---
 name: karpathy-guidelines
-description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, enforce naming standards, prioritize immutability, and write clean, surgical changes.
+description: Use for non-trivial code review, risky refactors, or implementation planning where LLM coding mistakes are likely: overcomplication, speculative abstractions, mutation bugs, broad unrelated edits, or weak verification. Do not use for simple one-line edits or routine variable renames.
 ---
 
 # Code Quality & Simplicity Standards (Karpathy Guidelines)

@@ -7,6 +7,10 @@ description: Audits context window consumption across agents, skills, rules, and
 
 This skill handles token overhead analysis and context window compaction to ensure the active session remains fast, coherent, and within limits.
 
+## When to Use
+
+Use this skill when session context is bloated, latency is high, skills or MCPs need overhead auditing, or a long-running task needs a controlled compaction/rollover checkpoint. Do not use it for ordinary short tasks.
+
 ## 1. Context Overhead Audit
 
 Use this flow to audit loaded components when session quality degrades or before adding new skills/MCPs.

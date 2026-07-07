@@ -9,9 +9,8 @@ Validates that every SKILL.md:
   4. Has a "When to Use" or "When to Activate" section
   5. Is under 600 lines (context budget guard)
 
-Also verifies the 4 newly added skills (context-budget, council,
-click-path-audit, architecture-decision-records) meet additional
-quality criteria specific to their roles.
+Also verifies high-risk workflow skills meet additional quality criteria
+specific to their roles.
 """
 
 import re
@@ -23,30 +22,28 @@ SKILLS_DIR = REPO_DIR / "skills"
 
 # Skills that should always exist
 REQUIRED_SKILLS = {
-    "api-design",
     "architecture-decision-records",
-    "backend-patterns",
+    "backend-pattern",
     "click-path-audit",
-    "coding-standards",
-    "context-budget",           # newly added
-    "council",                  # newly added
-    "design-system",
+    "codebase-design",
+    "context-budget",
+    "council",
+    "diagnosing-bugs",
     "documentation-lookup",
     "eval-harness",
-    "frontend-design",
-    "frontend-guide",
+    "frontend-scan",
     "gh-fix-ci",
     "graphify",
     "karpathy-guidelines",
     "next-best-practices",
-    "nextjs-turbopack",
     "playwright",
     "product-lens",
+    "prototype-spike",
+    "quality-gate",
+    "react-architecture",
+    "react-pattern",
     "security-review",
-    "compact",
-    "tdd-workflow",
-    "ui-ux-pro-max",
-    "verification-loop",
+    "ui-ux-design",
 }
 
 
@@ -118,8 +115,7 @@ class TestSkillsStructure(unittest.TestCase):
     """Every SKILL.md must have a H1 heading and a When-to-Use section."""
 
     def test_h1_heading_present(self):
-        # These pre-existing skills use non-standard structure (no top-level H1)
-        H1_EXEMPT = {"frontend-design"}
+        H1_EXEMPT = set()
         for skill in REQUIRED_SKILLS:
             if skill in H1_EXEMPT:
                 continue
@@ -176,7 +172,7 @@ class TestSkillsStructure(unittest.TestCase):
 
 
 class TestNewSkillsQuality(unittest.TestCase):
-    """Deeper checks specific to the 4 newly imported skills."""
+    """Deeper checks specific to high-risk workflow skills."""
 
     def test_context_budget_references_mcp_toggle(self):
         """context-budget must reference mcp-toggle.py for MCP auditing."""
@@ -187,11 +183,15 @@ class TestNewSkillsQuality(unittest.TestCase):
         )
 
     def test_context_budget_has_classification_table(self):
-        """context-budget must have a bucket classification table."""
+        """context-budget must have inventory and savings table sections."""
         content = read_skill("context-budget")
         self.assertIn(
-            "Always-on", content,
-            "context-budget SKILL.md should contain classification bucket table"
+            "Inventory Targets", content,
+            "context-budget SKILL.md should contain inventory targets"
+        )
+        self.assertIn(
+            "Token Savings Table Format", content,
+            "context-budget SKILL.md should contain the token savings table format"
         )
 
     def test_council_has_four_roles(self):
@@ -273,18 +273,19 @@ class TestNoOverlapBetweenNewAndExisting(unittest.TestCase):
     """Smoke-check that new skills don't duplicate existing skill trigger words."""
 
     def test_context_budget_not_same_as_compact(self):
-        """context-budget (structural audit) vs compact (mid-session compaction) — different scope."""
+        """context-budget should focus on structural audit plus controlled rollover."""
         cb = read_skill("context-budget")
-        c = read_skill("compact")
-        # context-budget should focus on structural audit/inventory, not just compaction
         self.assertTrue(
             "Inventory" in cb or "inventory" in cb or "audit" in cb.lower(),
             "context-budget should focus on structural audit/inventory, not just compaction"
         )
-        # compact should not mention MCP toggle (that's context-budget's job)
-        self.assertNotIn(
-            "mcp-toggle.py", c,
-            "compact should not overlap with context-budget's MCP audit scope"
+        self.assertIn(
+            "mcp-toggle.py", cb,
+            "context-budget should own MCP overhead auditing"
+        )
+        self.assertIn(
+            "switch_session.py", cb,
+            "context-budget should document controlled session rollover"
         )
 
     def test_council_not_same_as_eval_harness(self):

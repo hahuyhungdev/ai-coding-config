@@ -14,10 +14,15 @@
         "required": ["name", "path"],
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "minLength": 1,
+            "maxLength": 64
           },
           "path": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^skills/[a-z0-9-]+/SKILL\\.md$"
           },
           "userInvocable": {
             "type": "boolean"
@@ -27,20 +32,26 @@
             "properties": {
               "fileExtensions": {
                 "type": "array",
+                "uniqueItems": true,
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1
                 }
               },
               "pathPatterns": {
                 "type": "array",
+                "uniqueItems": true,
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1
                 }
               },
               "keywords": {
                 "type": "array",
+                "uniqueItems": true,
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1
                 }
               }
             },
@@ -48,8 +59,10 @@
           },
           "dependencies": {
             "type": "array",
+            "uniqueItems": true,
             "items": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           }
         },

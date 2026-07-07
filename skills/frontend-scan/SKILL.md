@@ -1,11 +1,15 @@
 ---
 name: frontend-scan
-description: Use this skill to perform a comprehensive audit and visual scan of the frontend interface before starting any UI task. It starts the local server, runs Playwright to capture screenshots (saving them to a gitignored folder), scores the UI, checks for AI slop, and saves the final markdown report.
+description: Use this skill only when the user explicitly asks for a frontend scan, visual scan, screenshot audit, Playwright scan, or comprehensive UI audit. It starts the local server, captures desktop/mobile screenshots, checks responsiveness and AI slop, and writes a report.
 ---
 
 # Frontend Scan — Comprehensive Visual & Technical UI Auditor
 
-Use this skill at the beginning of any frontend task to audit the existing interface for style consistency, layout, responsiveness, and technical standards before writing any code.
+Use this skill for explicit visual audit requests or high-risk UI changes where screenshots are necessary evidence. For ordinary UI edits, use a lighter browser smoke test instead of the full report workflow.
+
+## When to Use
+
+Use this skill only when the user explicitly asks for a frontend scan, visual scan, screenshot audit, Playwright scan, or comprehensive UI audit. For ordinary frontend edits, use targeted browser smoke checks instead of producing the full report.
 
 ## 1. Execution Workflow
 
