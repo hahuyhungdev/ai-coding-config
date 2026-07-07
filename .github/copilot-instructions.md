@@ -43,6 +43,7 @@ Adjust your execution safety level based on the complexity and scale of the user
 
 ## 2.5. Anti-Loop Debugging
 - **Blocked Tool Recovery**: If a hook or policy blocks a tool call, do not retry the same blocked tool call or attempt equivalent bypasses. Use the context already available, run the required Graphify query if applicable, or switch to a documented diagnostic command.
+- **Graphify is the exception in graph-enabled projects**: use the required `rtk graphify query/path/explain/affected` command before direct source exploration.
 - **No Fresh-Session Bypasses**: Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions. If the current session is blocked, report the blocker and the next safe diagnostic path.
 - **Prefer Existing Diagnostics**: Before creating any temporary debugging helper, check for existing diagnostic scripts, tests, or project utilities that already answer the question. For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - **No Scratch Reader Bypasses**: Do not create or run scratch reader scripts to bypass blocked direct reads/searches or Graphify policy. Scratch scripts are allowed only for durable diagnostics when no project utility exists, and they must not hard-code magic transcript indexes without also validating the total count and search keyword.
@@ -101,8 +102,8 @@ Commands:
 Rules:
 - For broad codebase exploration, use **Graphify-first**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to discover unknown files or architecture.
 - For architecture or relationship questions, do not inspect Graphify skill files, list workspace directories, or check permissions before the first Graphify query. Use the commands listed above directly.
-- Exact user-provided file paths may be read normally first. Use Graphify after that when mapping those files to routes, components, dependencies, or architecture.
-- Use at most **20 Graphify calls** total per question. After 20 calls, hard stop and synthesize from available context.
+- Exact known file paths may be read normally first. Use Graphify after that when mapping those files to routes, components, dependencies, or architecture.
+- Use at most **50 Graphify calls** total per question. After 50 calls, hard stop and synthesize from available context.
 - **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
 - **Synthesize architecture/discovery answers from Graphify context first.** Supplement with targeted direct file reads only when the file path is explicit or Graphify has identified it.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
@@ -118,7 +119,7 @@ Post-Discovery Reads (exceptions):
 - After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, and **config review** of specific files already identified by Graphify.
 - You MUST have run at least one Graphify query before reading source files directly.
 - When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
-- After modifying code, run `graphify update .`.
+- After modifying code, run `rtk graphify update .`.
 
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.

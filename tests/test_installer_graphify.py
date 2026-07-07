@@ -389,11 +389,11 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertIn("Keep this text.", second)
         self.assertEqual(second.count("ai-coding-config:graphify-start"), 1)
         self.assertIn("Graphify-first", second)
-        self.assertIn("Exact user-provided file paths may be read normally first", second)
-        self.assertIn("20 Graphify calls", second)
+        self.assertIn("Exact known file paths may be read normally first", second)
+        self.assertIn("50 Graphify calls", second)
         self.assertIn("hard stop", second)
 
-    def test_claude_hook_denies_twenty_first_graphify_call_in_same_session(self):
+    def test_claude_hook_denies_fifty_first_graphify_call_in_same_session(self):
         # Get the hook script directly — avoids shell quoting issues on Windows
         # where subprocess.run(shell=True) uses cmd.exe, not bash.
         from installer_graphify import _hook_classifier_script
@@ -408,7 +408,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         )
 
         outputs = []
-        for _ in range(21):
+        for _ in range(51):
             result = subprocess.run(
                 **run_kwargs,
                 input=json.dumps(payload),
@@ -418,13 +418,13 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             )
             outputs.append(result.stdout.strip())
 
-        self.assertEqual(outputs[:20], [""] * 20)
+        self.assertEqual(outputs[:50], [""] * 50)
         self.assertEqual(
-            json.loads(outputs[20])["hookSpecificOutput"]["permissionDecision"],
+            json.loads(outputs[50])["hookSpecificOutput"]["permissionDecision"],
             "deny",
         )
 
-    def test_claude_hook_denies_twenty_first_graphify_call_with_conversation_id(self):
+    def test_claude_hook_denies_fifty_first_graphify_call_with_conversation_id(self):
         from installer_graphify import _hook_classifier_script
         script = _hook_classifier_script("Bash", True)
         payload = {
@@ -437,7 +437,7 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         )
 
         outputs = []
-        for _ in range(21):
+        for _ in range(51):
             result = subprocess.run(
                 **run_kwargs,
                 input=json.dumps(payload),
@@ -447,9 +447,9 @@ class TestGraphifySettingsMerge(unittest.TestCase):
             )
             outputs.append(result.stdout.strip())
 
-        self.assertEqual(outputs[:20], [""] * 20)
+        self.assertEqual(outputs[:50], [""] * 50)
         self.assertEqual(
-            json.loads(outputs[20])["hookSpecificOutput"]["permissionDecision"],
+            json.loads(outputs[50])["hookSpecificOutput"]["permissionDecision"],
             "deny",
         )
 
@@ -576,6 +576,36 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         data_grep = json.loads(res_grep.stdout.strip())
         self.assertEqual(data_grep["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIn("Broad direct search/listing", data_grep["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_claude_hook_denies_broad_search_even_with_debug_keywords(self):
+        from installer_graphify import _hook_classifier_script
+        script = _hook_classifier_script("Bash", True)
+
+        for command in (
+            "rtk rg error src",
+            "rtk find src -name '*fix*'",
+            "rtk grep bug src",
+        ):
+            with self.subTest(command=command):
+                payload = {
+                    "conversationId": f"broad-search-test-{uuid.uuid4()}",
+                    "tool_input": {"command": command, "toolAction": "Exploring"},
+                }
+                result = subprocess.run(
+                    args=[sys.executable, "-c", script],
+                    cwd=self.project,
+                    input=json.dumps(payload),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertNotEqual(result.stdout.strip(), "")
+                data = json.loads(result.stdout.strip())
+                self.assertEqual(data["hookSpecificOutput"]["permissionDecision"], "deny")
+                self.assertIn(
+                    "Broad direct search/listing",
+                    data["hookSpecificOutput"]["permissionDecisionReason"],
+                )
 
     def test_gemini_merge_preserves_settings_and_is_idempotent(self):
         settings_path = self.project / ".gemini" / "settings.json"
@@ -779,10 +809,33 @@ class TestGraphifyInstructions(unittest.TestCase):
     def test_balanced_strict_instructions(self):
         instructions = install.GRAPHIFY_INSTRUCTIONS
         self.assertIn("Graphify-first", instructions)
-        self.assertIn("Exact user-provided file paths may be read normally first", instructions)
-        self.assertIn("20 Graphify calls", instructions)
+        self.assertIn("Exact known file paths may be read normally first", instructions)
+        self.assertIn("50 Graphify calls", instructions)
         self.assertIn("targeted raw reads", instructions)
         self.assertIn("GRAPH_REPORT.md", instructions)
+        self.assertIn("rtk graphify update .", instructions)
+
+    def test_base_template_uses_same_graphify_limit_as_runtime_hook(self):
+        template = Path("templates/base_instructions.md").read_text(encoding="utf-8")
+        self.assertIn("maximum of **50 calls**", template)
+        self.assertNotIn("maximum of **20 calls**", template)
+
+    def test_generated_graphify_blocks_use_precise_exceptions_and_rtk_update(self):
+        generated_paths = [
+            Path("AGENTS.md"),
+            Path("ANTIGRAVITY.md"),
+            Path("CLAUDE.md"),
+            Path(".github/copilot-instructions.md"),
+            Path("claude/CLAUDE.md"),
+            Path("codex/AGENTS.md"),
+            Path("gemini/ANTIGRAVITY.md"),
+        ]
+        for path in generated_paths:
+            with self.subTest(path=path):
+                content = path.read_text(encoding="utf-8")
+                self.assertIn("Exact known file paths may be read normally first", content)
+                self.assertNotIn("Exact user-provided file paths may be read normally first", content)
+                self.assertIn("rtk graphify update .", content)
 
 
 if __name__ == "__main__":

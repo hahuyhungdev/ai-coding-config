@@ -17,6 +17,13 @@ This report presents a comprehensive review of the AI agent configuration, rules
 4. **Hook Lockout Latency**: The Graphify-first lockout mechanism in `.gemini/hooks/graphify_pre_tool.py` adds developer friction by forcing a query for known configuration or documentation files, while the 20-call quota limit is overly restrictive for long-running debugging/editing sessions.
 5. **Sandbox Hook Path Leaks**: Pre-tool hooks or script pathways executed within sandboxed terminals often experience path leaks (e.g., resolving to temporary directories like `/tmp/`), writing stale absolute paths to global configurations and causing CLI crashes. Implementing a robust `get_real_home()` solution ensures accurate host path resolution, unit test isolation, and prevents environment crashes.
 
+### Follow-up Note: Graphify Runtime Policy Update
+
+**Date**: 2026-07-07  
+**Status**: Implemented
+
+The Graphify-first runtime policy has been updated to keep broad source search/listing blocked before Graphify discovery while raising the discovery quota from 20 to 50 calls per session. Exact known file reads remain allowed, generated instructions now use `rtk graphify update .`, and the updated hook was verified through a real `agy --print` smoke that confirmed broad `rtk rg error src` attempts are blocked by the active project hook.
+
 ---
 
 ## 2. Skills Inventory & Size Metrics
@@ -372,4 +379,3 @@ We resolved this by writing a sandbox-aware home resolution utility in `installe
 - **Cross-Platform Support**: Uses `PureWindowsPath` to accurately parse backslashes and drives on Windows when run on a UNIX host machine.
 
 The fix has been successfully applied to all installers and wrappers in the repo.
-

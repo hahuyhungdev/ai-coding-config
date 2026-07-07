@@ -589,7 +589,7 @@ def main():
                         count = int(handle.read().strip() or "0")
                     except ValueError:
                         count = 0
-                    over_quota = count >= 20
+                    over_quota = count >= 50
                     if not over_quota:
                         handle.seek(0)
                         handle.truncate()
@@ -606,7 +606,7 @@ def main():
                             pass
             if over_quota:
                 decision = "deny"
-                context = "❌ BLOCKED: Maximum 20 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
+                context = "❌ BLOCKED: Maximum 50 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
             elif "graphify-out/graph.json" in low and not probe:
                 decision = "deny"
                 context = graph_json_denial()
@@ -629,8 +629,9 @@ def main():
             elif any(word in B for word in ex):
                 B_search = {'ack', 'ag', 'fd', 'find', 'grep', 'ls', 'rg', 'ripgrep'}
                 g_count = get_graphify_count(session)
-                is_allowed_post_graphify = (g_count >= 1 and not any(word in B_search for word in ex))
-                if tool_ctx not in {"debugging", "building"} and not is_allowed_post_graphify:
+                has_search_or_listing = any(word in B_search for word in ex)
+                is_allowed_post_graphify = (g_count >= 1 and not has_search_or_listing)
+                if has_search_or_listing or (tool_ctx not in {"debugging", "building"} and not is_allowed_post_graphify):
                     decision = "deny"
                     context = DIRECT_READ_DENIAL
         elif TOOL == "Write":

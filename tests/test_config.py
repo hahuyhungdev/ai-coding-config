@@ -40,7 +40,7 @@ class TestAiCodingConfig(unittest.TestCase):
         self.assertIn("Do not create or run scratch reader scripts", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not manually read or parse graphify-out/graph.json", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("do not list parent directories", installer_graphify.GRAPHIFY_INSTRUCTIONS)
-        self.assertIn("Exact user-provided file paths may be read normally first", installer_graphify.GRAPHIFY_INSTRUCTIONS)
+        self.assertIn("Exact known file paths may be read normally first", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("do not inspect Graphify skill files", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Explicit docs or source files may be read", installer_graphify.GRAPHIFY_INSTRUCTIONS)
         self.assertIn("Do not spawn subagents or fresh sessions to bypass", installer_graphify.GRAPHIFY_INSTRUCTIONS)
