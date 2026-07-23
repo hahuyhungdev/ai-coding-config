@@ -40,7 +40,7 @@ FILE_READER_MARKERS = (
 DIRECT_READ_DENIAL_CONTEXT = (
     "❌ BLOCKED: Broad direct search/listing is not available for codebase exploration.\n"
     "💡 TIP: Exact file reads are allowed when you already have a concrete path. "
-    "For architecture, relationships, or finding files, use Graphify: `rtk graphify query \"<specific question>\" --budget 1200` first."
+    "For architecture, relationships, or finding files, use Graphify: `rtk graphify query \"<specific question>\"` first."
 )
 GRAPHIFY_GUIDANCE = (
     "⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):\n\n"
@@ -59,7 +59,6 @@ Rules:
 - For broad codebase exploration, use **Graphify-first**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to discover unknown files or architecture.
 - For architecture or relationship questions, do not inspect Graphify skill files, list workspace directories, or check permissions before the first Graphify query. Use the commands listed above directly.
 - Exact known file paths may be read normally first. Use Graphify after that when mapping those files to routes, components, dependencies, or architecture.
-- Use at most **50 Graphify calls** total per question. After 50 calls, hard stop and synthesize from available context.
 - **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
 - **Synthesize architecture/discovery answers from Graphify context first.** Supplement with targeted direct file reads only when the file path is explicit or Graphify has identified it.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
@@ -231,7 +230,7 @@ def graph_json_denial_context() -> str:
 def graph_report_denial_context() -> str:
     return (
         "❌ BLOCKED: `graphify-out/GRAPH_REPORT.md` is not a first-pass exploration source.\n"
-        "💡 TIP: Use a scoped `rtk graphify query \"<specific question>\" --budget 1200` first. "
+        "💡 TIP: Use a scoped `rtk graphify query \"<specific question>\"` first. "
         "Read GRAPH_REPORT.md only when scoped queries are insufficient or the user asks for a broad graph report."
     )
 
@@ -244,7 +243,7 @@ def is_graphify_skill_path(raw_path: object) -> bool:
 def graphify_skill_denial_context() -> str:
     return (
         "❌ BLOCKED: Graphify skill docs are not needed before the first Graphify query in a graph-enabled project.\n"
-        "💡 TIP: Use the project instructions directly: `rtk graphify query \"<specific question>\" --budget 1200`."
+        "💡 TIP: Use the project instructions directly: `rtk graphify query \"<specific question>\"`."
     )
 
 

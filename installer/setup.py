@@ -293,6 +293,23 @@ def setup_gemini(force: bool) -> None:
     _copy_skills(GEMINI_DIR, force)
 
 
+def get_windows_home() -> Path:
+    """Helper to locate Windows home directory when running inside WSL."""
+    import os
+    if os.environ.get("WSL_DISTRO_NAME"):
+        users_dir = Path("/mnt/c/Users")
+        if users_dir.exists():
+            candidates = []
+            for item in users_dir.iterdir():
+                if item.is_dir() and item.name not in ("All Users", "Default", "Default User", "Public"):
+                    if (item / ".gemini").exists():
+                        return item
+                    candidates.append(item)
+            if candidates:
+                return candidates[0]
+    return None
+
+
 def setup_cli_wrapper(repo_dir: Path) -> None:
     """Create a global cli wrapper named ai-config in ~/.local/bin/."""
     info("Setting up global command wrapper (ai-config)...")
@@ -369,3 +386,19 @@ if "%1"=="init" (
         ok("ai-config (bash & bat) wrapper commands installed to ~/.local/bin")
     except Exception as exc:
         warn(f"Failed to install ai-config wrapper command: {exc}")
+
+    # WSL Windows Redirection setup
+    win_home = get_windows_home()
+    if win_home:
+        win_bin_dir = win_home / ".local" / "bin"
+        try:
+            win_bin_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Write ai-config.bat calling WSL
+            win_bat_path = win_bin_dir / "ai-config.bat"
+            win_bat_content = "@echo off\nwsl ~/.local/bin/ai-config %*\n"
+            win_bat_path.write_text(win_bat_content, encoding="utf-8")
+            ok(f"WSL redirection wrapper ai-config.bat written to Windows at {win_bat_path}")
+        except Exception as win_exc:
+            warn(f"Failed to write WSL redirection wrapper to Windows: {win_exc}")
+

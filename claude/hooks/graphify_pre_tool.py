@@ -32,7 +32,7 @@ G = '⚠️ GRAPHIFY WORKFLOW RULES:\n- Architecture questions → rtk graphify 
 DIRECT_READ_DENIAL = (
     "❌ BLOCKED: Broad direct search/listing is not available for codebase exploration.\n"
     "💡 TIP: Exact file reads are allowed when you already have a concrete path. "
-    "For architecture, relationships, or finding files, use Graphify: `rtk graphify query \"<specific question>\" --budget 1200` first."
+    "For architecture, relationships, or finding files, use Graphify: `rtk graphify query \"<specific question>\"` first."
 )
 
 
@@ -125,7 +125,7 @@ def graph_json_denial():
 def graph_report_denial():
     return (
         "❌ BLOCKED: `graphify-out/GRAPH_REPORT.md` is not a first-pass exploration source.\n"
-        "💡 TIP: Use a scoped `rtk graphify query \"<specific question>\" --budget 1200` first. "
+        "💡 TIP: Use a scoped `rtk graphify query \"<specific question>\"` first. "
         "Read GRAPH_REPORT.md only when scoped queries are insufficient or the user asks for a broad graph report."
     )
 
@@ -138,7 +138,7 @@ def is_graphify_skill_path(raw_path):
 def graphify_skill_denial():
     return (
         "❌ BLOCKED: Graphify skill docs are not needed before the first Graphify query in a graph-enabled project.\n"
-        "💡 TIP: Use the project instructions directly: `rtk graphify query \"<specific question>\" --budget 1200`."
+        "💡 TIP: Use the project instructions directly: `rtk graphify query \"<specific question>\"`."
     )
 
 
@@ -570,7 +570,6 @@ def main():
             words = [pathlib.Path(token).name.lower() for token in tokens]
             probe = ("graphify-out/graph.json" in low and any(word in {"test", "[", "ls", "stat"} for word in words))
             graph_call = "graphify" in ex and any(("graphify " + sub) in low for sub in ("query", "path", "explain", "affected"))
-            over_quota = False
             if graph_call and session:
                 safe = "".join(ch for ch in session if ch.isalnum() or ch in "-_")[:120]
                 state = pathlib.Path(tempfile.gettempdir()) / ("ai-coding-config-graphify-" + safe + ".count")
@@ -589,12 +588,10 @@ def main():
                         count = int(handle.read().strip() or "0")
                     except ValueError:
                         count = 0
-                    over_quota = count >= 50
-                    if not over_quota:
-                        handle.seek(0)
-                        handle.truncate()
-                        handle.write(str(count + 1))
-                        handle.flush()
+                    handle.seek(0)
+                    handle.truncate()
+                    handle.write(str(count + 1))
+                    handle.flush()
                     try:
                         import fcntl
                         fcntl.flock(handle, fcntl.LOCK_UN)
@@ -604,10 +601,7 @@ def main():
                             msvcrt.locking(handle.fileno(), 0, 1)
                         except (ImportError, PermissionError, OSError):
                             pass
-            if over_quota:
-                decision = "deny"
-                context = "❌ BLOCKED: Maximum 50 Graphify discovery calls reached for this session.\n💡 TIP: Synthesize the answer from available context. Do not attempt direct reads; they are strictly prohibited and will remain blocked."
-            elif "graphify-out/graph.json" in low and not probe:
+            if "graphify-out/graph.json" in low and not probe:
                 decision = "deny"
                 context = graph_json_denial()
             elif "graphify-out/graph_report.md" in low:

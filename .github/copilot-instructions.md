@@ -38,7 +38,6 @@ Adjust your execution safety level based on the complexity and scale of the user
 
 ### Core Guidelines:
 - **RTK Usage:** Always prefix terminal commands with `rtk` (or `rtk proxy` for full output) to maintain logging consistency; do not discard the `rtk` command prefix.
-- **Graphify Limits:** Limit Graphify queries (`rtk graphify ...`) to a maximum of **50 calls** per question. Focus queries on specific symbols.
 - **Strategic Compaction**: For long-running tasks, proactively use the `context-budget` skill at logical milestones to check token budgets and run compaction (switch_session) to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 2.5. Anti-Loop Debugging
@@ -103,7 +102,6 @@ Rules:
 - For broad codebase exploration, use **Graphify-first**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to discover unknown files or architecture.
 - For architecture or relationship questions, do not inspect Graphify skill files, list workspace directories, or check permissions before the first Graphify query. Use the commands listed above directly.
 - Exact known file paths may be read normally first. Use Graphify after that when mapping those files to routes, components, dependencies, or architecture.
-- Use at most **50 Graphify calls** total per question. After 50 calls, hard stop and synthesize from available context.
 - **Focus queries on specific symbols** — prefer `graphify query "what does X do"` over `graphify query "explain the codebase"`.
 - **Synthesize architecture/discovery answers from Graphify context first.** Supplement with targeted direct file reads only when the file path is explicit or Graphify has identified it.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.

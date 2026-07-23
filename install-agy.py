@@ -58,17 +58,20 @@ def configure_quota_hooks(home=REAL_HOME, agy_cli_dir=None):
         agy_cli_dir / "settings.json",
     ]
 
+    # Find the python command to use
+    python_cmd = "python" if sys.platform == "win32" or not shutil.which("python3") else "python3"
+
     before_hook = {
         "name": "quota-pre-check",
         "type": "command",
-        "command": f"python3 {agy_cli_dir}/before_agent.py",
+        "command": f"{python_cmd} {agy_cli_dir}/before_agent.py",
         "timeout": 10000,
         "description": "Pre-check active account quota",
     }
     after_hook = {
         "name": "quota-auto-switch",
         "type": "command",
-        "command": f"python3 {agy_cli_dir}/after_agent.py",
+        "command": f"{python_cmd} {agy_cli_dir}/after_agent.py",
         "timeout": 10000,
         "description": "Switch account on quota error and retry",
     }
@@ -267,6 +270,23 @@ def uninstall():
 
     print("\n🎉 Standalone Antigravity CLI (agy) uninstallation completed successfully!")
 
+def get_windows_home():
+    """Helper to locate Windows home directory when running inside WSL."""
+    import os
+    if os.environ.get("WSL_DISTRO_NAME"):
+        users_dir = Path("/mnt/c/Users")
+        if users_dir.exists():
+            candidates = []
+            for item in users_dir.iterdir():
+                if item.is_dir() and item.name not in ("All Users", "Default", "Default User", "Public"):
+                    if (item / ".gemini").exists():
+                        return item
+                    candidates.append(item)
+            if candidates:
+                return candidates[0]
+    return None
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(
@@ -316,21 +336,58 @@ def main():
     if src_wrapper.exists():
         dst_wrapper = bin_dir / "agy"
         real_agy = bin_dir / "agy-bin"
-        if dst_wrapper.exists() and not real_agy.exists():
-            try:
-                existing = dst_wrapper.read_text(encoding="utf-8", errors="ignore")
-                managed_wrapper = src_wrapper.read_text(encoding="utf-8", errors="ignore")
-                if existing != managed_wrapper:
-                    shutil.copy2(dst_wrapper, real_agy)
+        if not real_agy.exists():
+            if dst_wrapper.exists():
+                try:
+                    existing = dst_wrapper.read_text(encoding="utf-8", errors="ignore")
+                    if "REAL_AGY_OVERRIDE" not in existing:
+                        shutil.copy2(dst_wrapper, real_agy)
+                        try:
+                            real_agy.chmod(0o755)
+                        except Exception:
+                            pass
+                        print(f"   Preserved existing Antigravity binary as {real_agy}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Failed to preserve existing agy binary: {e}")
+            
+            if not real_agy.exists():
+                found_path = None
+                path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+                for d in path_dirs:
+                    if not d:
+                        continue
                     try:
-                        real_agy.chmod(0o755)
+                        d_path = Path(d).resolve()
                     except Exception:
-                        pass
-                    print(f"   Preserved existing Antigravity binary as {real_agy}")
+                        continue
+                    if d_path == bin_dir.resolve():
+                        continue
+                    for name in ["agy", "agy.exe", "agy.cmd", "agy.bat"]:
+                        candidate = d_path / name
+                        if candidate.exists() and not candidate.is_dir():
+                            try:
+                                content = candidate.read_text(encoding="utf-8", errors="ignore")
+                                if "REAL_AGY_OVERRIDE" not in content:
+                                    found_path = candidate
+                                    break
+                            except Exception:
+                                found_path = candidate
+                                break
+                    if found_path:
+                        break
+                
+                if found_path:
+                    try:
+                        shutil.copy2(found_path, real_agy)
+                        try:
+                            real_agy.chmod(0o755)
+                        except Exception:
+                            pass
+                        print(f"   Preserved existing Antigravity binary found at {found_path} as {real_agy}")
+                    except Exception as e:
+                        print(f"⚠️ Warning: Failed to copy {found_path} to {real_agy}: {e}")
                 else:
                     print(f"⚠️ Warning: {real_agy} is missing. Install the official Antigravity CLI before launching agy.")
-            except Exception as e:
-                print(f"⚠️ Warning: Failed to preserve existing agy binary: {e}")
         shutil.copy2(src_wrapper, dst_wrapper)
         try:
             dst_wrapper.chmod(0o755)
@@ -349,6 +406,30 @@ def main():
         print(f"   Created and installed agy.bat wrapper to {dst_bat}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to write Windows agy.bat wrapper: {e}")
+
+    # WSL Windows Redirection setup
+    win_home = get_windows_home()
+    if win_home:
+        win_bin_dir = win_home / ".local" / "bin"
+        try:
+            win_bin_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Write agy.bat calling WSL
+            win_agy_bat = win_bin_dir / "agy.bat"
+            win_agy_bat_content = "@echo off\nwsl ~/.local/bin/agy %*\n"
+            win_agy_bat.write_text(win_agy_bat_content, encoding="utf-8")
+            print(f"   WSL redirection wrapper agy.bat written to Windows at {win_agy_bat}")
+            
+            # Sync accounts.json to Windows side for compatibility
+            win_agy_dir = win_home / ".gemini" / "antigravity-cli"
+            win_agy_dir.mkdir(parents=True, exist_ok=True)
+            wsl_accounts = Path.home() / ".gemini" / "antigravity-cli" / "accounts.json"
+            if wsl_accounts.exists():
+                shutil.copy2(wsl_accounts, win_agy_dir / "accounts.json")
+                print("   Synced accounts.json to Windows.")
+        except Exception as win_exc:
+            print(f"⚠️ Warning: Failed to configure WSL redirection wrapper on Windows: {win_exc}")
+
 
     # 4. Copy ANTIGRAVITY.md
     src_readme = repo_dir / "gemini" / "ANTIGRAVITY.md"
@@ -441,11 +522,14 @@ def main():
 
     hooks_cfg = official_settings["hooks"]
 
+    # Find the python command to use
+    python_cmd = "python" if sys.platform == "win32" or not shutil.which("python3") else "python3"
+
     # UserPromptSubmit hook
     before_hook = {
         "name": "quota-pre-check",
         "type": "command",
-        "command": f"python3 {agy_cli_dir}/before_agent.py",
+        "command": f"{python_cmd} {agy_cli_dir}/before_agent.py",
         "timeout": 10000,
         "description": "Pre-check active account quota"
     }
@@ -480,7 +564,7 @@ def main():
     after_hook = {
         "name": "quota-auto-switch",
         "type": "command",
-        "command": f"python3 {agy_cli_dir}/after_agent.py",
+        "command": f"{python_cmd} {agy_cli_dir}/after_agent.py",
         "timeout": 10000,
         "description": "Switch account on quota error and retry"
     }
@@ -514,7 +598,7 @@ def main():
     tool_hook = {
         "name": "quota-pre-check-tool",
         "type": "command",
-        "command": f"python3 {agy_cli_dir}/before_agent.py",
+        "command": f"{python_cmd} {agy_cli_dir}/before_agent.py",
         "timeout": 10000,
         "description": "Pre-check active account quota before tool use"
     }

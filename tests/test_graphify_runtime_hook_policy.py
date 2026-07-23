@@ -195,7 +195,6 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
         self.assertEqual(_decision(output), "deny")
         self.assertIn("Graphify", _context(output))
         self.assertIn("rtk graphify query", _context(output))
-        self.assertIn("--budget 1200", _context(output))
 
     def test_graph_report_manual_read_is_denied(self):
         (self.project / "graphify-out" / "GRAPH_REPORT.md").write_text("# Full report\n")

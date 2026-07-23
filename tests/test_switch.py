@@ -20,6 +20,17 @@ import switch
 import utils
 
 class TestSwitch(unittest.TestCase):
+    def setUp(self):
+        self.orig_env = os.environ.copy()
+        if "AGY_SESSION_LOG_FILE" in os.environ:
+            del os.environ["AGY_SESSION_LOG_FILE"]
+        if "AGY_WRAPPER_STATE_DIR" in os.environ:
+            del os.environ["AGY_WRAPPER_STATE_DIR"]
+
+    def tearDown(self):
+        os.environ.clear()
+        os.environ.update(self.orig_env)
+
     def test_choose_same_account_fallback(self):
         # Case 1: Gemini blocked, Claude available (should return empty to trigger account switch, no fallback)
         acc = {

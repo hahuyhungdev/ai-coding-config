@@ -22,6 +22,12 @@ SANDBOX_BASE = os.path.expanduser("~/.gemini/antigravity-cli/scratch/test_sandbo
 
 class TestAgyIntegration(unittest.TestCase):
     def setUp(self):
+        self.orig_env = os.environ.copy()
+        if "AGY_SESSION_LOG_FILE" in os.environ:
+            del os.environ["AGY_SESSION_LOG_FILE"]
+        if "AGY_WRAPPER_STATE_DIR" in os.environ:
+            del os.environ["AGY_WRAPPER_STATE_DIR"]
+
         # Create fresh sandbox directory for each test
         if os.path.exists(SANDBOX_BASE):
             shutil.rmtree(SANDBOX_BASE)
@@ -55,8 +61,8 @@ class TestAgyIntegration(unittest.TestCase):
         # Clean up sandbox
         if os.path.exists(SANDBOX_BASE):
             shutil.rmtree(SANDBOX_BASE)
-        if "AGY_DIR_OVERRIDE" in os.environ:
-            del os.environ["AGY_DIR_OVERRIDE"]
+        os.environ.clear()
+        os.environ.update(self.orig_env)
 
     def test_missing_config_files(self):
         # Verify behaviour with missing accounts.json

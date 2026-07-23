@@ -2,6 +2,42 @@
 
 AGY_DIR="${AGY_DIR_OVERRIDE:-$HOME/.gemini/antigravity-cli}"
 REAL_AGY="${REAL_AGY_OVERRIDE:-$HOME/.local/bin/agy-bin}"
+
+# Determine python executable (fallback to python if python3 is not found/functional)
+PYTHON_BIN="python3"
+if ! python3 -c "import sys" >/dev/null 2>&1; then
+    if python -c "import sys" >/dev/null 2>&1; then
+        PYTHON_BIN="python"
+    elif py -c "import sys" >/dev/null 2>&1; then
+        PYTHON_BIN="py"
+    fi
+fi
+
+# Fallback: if REAL_AGY is not found, search the rest of the PATH
+if [ ! -f "$REAL_AGY" ]; then
+    wrapper_dir=$(dirname "$0")
+    abs_wrapper_dir=$(cd "$wrapper_dir" 2>/dev/null && pwd || echo "$wrapper_dir")
+    
+    IFS=':' read -ra PATH_DIRS <<< "$PATH"
+    for d in "${PATH_DIRS[@]}"; do
+        if [ -n "$d" ] && [ -d "$d" ]; then
+            abs_d=$(cd "$d" 2>/dev/null && pwd || echo "$d")
+            if [ "$abs_d" = "$abs_wrapper_dir" ]; then
+                continue
+            fi
+            for name in agy agy.exe agy.cmd agy.bat; do
+                candidate="$d/$name"
+                if [ -f "$candidate" ]; then
+                    if ! grep -q "REAL_AGY_OVERRIDE" "$candidate" 2>/dev/null; then
+                        REAL_AGY="$candidate"
+                        break 2
+                    fi
+                fi
+            done
+        fi
+    done
+fi
+
 MAX_RETRIES=2  # Up to 2 retries: 1 model-switch + 1 account-switch
 ROLLOVER_PROGRESS_CONTENT=""
 ROLLOVER_CONV_ID=""
@@ -165,12 +201,12 @@ if [[ "$has_prompt_flag" == false && "$native_command" == false && ( -n "$subcmd
 
     if [ "$is_mgmt_cmd" = true ]; then
         if [ -f "$AGY_DIR/agy-status.py" ]; then
-            exec python3 "$AGY_DIR/agy-status.py" "$@"
+            exec "$PYTHON_BIN" "$AGY_DIR/agy-status.py" "$@"
         fi
     else
         # A bare unknown word (or typo) shouldn't launch agy-bin
         if [ -f "$AGY_DIR/agy-status.py" ]; then
-            exec python3 "$AGY_DIR/agy-status.py" _suggest "$@"
+            exec "$PYTHON_BIN" "$AGY_DIR/agy-status.py" _suggest "$@"
         fi
     fi
 fi
@@ -187,7 +223,7 @@ fi
 # Captures output — last line may be a suggested model if account was switched
 SUGGESTED_MODEL=""
 if [ -f "$AGY_DIR/agy-status.py" ]; then
-    switch_output=$(python3 "$AGY_DIR/agy-status.py" auto-switch 2>&1)
+    switch_output=$("$PYTHON_BIN" "$AGY_DIR/agy-status.py" auto-switch 2>&1)
     if [ -n "$switch_output" ]; then
         echo "$switch_output" | grep -v "^MODEL:"
     fi
@@ -236,7 +272,7 @@ while [ $attempt -le $MAX_RETRIES ]; do
         # Interactive mode: run directly (no capture) with background log monitor
         MONITOR_PID=""
         if [ -f "$AGY_DIR/log_monitor.py" ]; then
-            python3 "$AGY_DIR/log_monitor.py" "$$" &
+            "$PYTHON_BIN" "$AGY_DIR/log_monitor.py" "$$" &
             MONITOR_PID=$!
         fi
 
@@ -274,7 +310,7 @@ while [ $attempt -le $MAX_RETRIES ]; do
     fi
 
     if [ "$needs_check" = true ] && [ -f "$AGY_DIR/agy-status.py" ]; then
-        recovery_output=$(python3 "$AGY_DIR/agy-status.py" post-check 2>&1)
+        recovery_output=$("$PYTHON_BIN" "$AGY_DIR/agy-status.py" post-check 2>&1)
         recovery_code=$?
         if [ -n "$recovery_output" ]; then
             echo "$recovery_output" | grep -v "^SWITCH_ACCOUNT$"

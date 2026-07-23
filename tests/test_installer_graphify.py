@@ -390,68 +390,6 @@ class TestGraphifySettingsMerge(unittest.TestCase):
         self.assertEqual(second.count("ai-coding-config:graphify-start"), 1)
         self.assertIn("Graphify-first", second)
         self.assertIn("Exact known file paths may be read normally first", second)
-        self.assertIn("50 Graphify calls", second)
-        self.assertIn("hard stop", second)
-
-    def test_claude_hook_denies_fifty_first_graphify_call_in_same_session(self):
-        # Get the hook script directly — avoids shell quoting issues on Windows
-        # where subprocess.run(shell=True) uses cmd.exe, not bash.
-        from installer_graphify import _hook_classifier_script
-        script = _hook_classifier_script("Bash", True)
-        payload = {
-            "session_id": f"quota-test-{uuid.uuid4()}",
-            "tool_input": {"command": "rtk graphify query 'architecture'"},
-        }
-        run_kwargs = dict(
-            args=[sys.executable, "-c", script],
-            cwd=self.project,
-        )
-
-        outputs = []
-        for _ in range(51):
-            result = subprocess.run(
-                **run_kwargs,
-                input=json.dumps(payload),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            outputs.append(result.stdout.strip())
-
-        self.assertEqual(outputs[:50], [""] * 50)
-        self.assertEqual(
-            json.loads(outputs[50])["hookSpecificOutput"]["permissionDecision"],
-            "deny",
-        )
-
-    def test_claude_hook_denies_fifty_first_graphify_call_with_conversation_id(self):
-        from installer_graphify import _hook_classifier_script
-        script = _hook_classifier_script("Bash", True)
-        payload = {
-            "conversationId": f"quota-test-{uuid.uuid4()}",
-            "tool_input": {"command": "rtk graphify query 'architecture'"},
-        }
-        run_kwargs = dict(
-            args=[sys.executable, "-c", script],
-            cwd=self.project,
-        )
-
-        outputs = []
-        for _ in range(51):
-            result = subprocess.run(
-                **run_kwargs,
-                input=json.dumps(payload),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            outputs.append(result.stdout.strip())
-
-        self.assertEqual(outputs[:50], [""] * 50)
-        self.assertEqual(
-            json.loads(outputs[50])["hookSpecificOutput"]["permissionDecision"],
-            "deny",
-        )
 
     def test_claude_hook_allows_rtk_proxy_exact_file_read(self):
         from installer_graphify import _hook_classifier_script
@@ -810,15 +748,9 @@ class TestGraphifyInstructions(unittest.TestCase):
         instructions = install.GRAPHIFY_INSTRUCTIONS
         self.assertIn("Graphify-first", instructions)
         self.assertIn("Exact known file paths may be read normally first", instructions)
-        self.assertIn("50 Graphify calls", instructions)
         self.assertIn("targeted raw reads", instructions)
         self.assertIn("GRAPH_REPORT.md", instructions)
         self.assertIn("rtk graphify update .", instructions)
-
-    def test_base_template_uses_same_graphify_limit_as_runtime_hook(self):
-        template = Path("templates/base_instructions.md").read_text(encoding="utf-8")
-        self.assertIn("maximum of **50 calls**", template)
-        self.assertNotIn("maximum of **20 calls**", template)
 
     def test_generated_graphify_blocks_use_precise_exceptions_and_rtk_update(self):
         generated_paths = [

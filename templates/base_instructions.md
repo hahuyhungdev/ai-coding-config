@@ -37,7 +37,6 @@ Adjust your execution safety level based on the complexity and scale of the user
 
 ### Core Guidelines:
 - **RTK Usage:** Always prefix terminal commands with `rtk` (or `rtk proxy` for full output) to maintain logging consistency; do not discard the `rtk` command prefix.
-- **Graphify Limits:** Limit Graphify queries (`rtk graphify ...`) to a maximum of **50 calls** per question. Focus queries on specific symbols.
 - **Strategic Compaction**: For long-running tasks, proactively use the `context-budget` skill at logical milestones to check token budgets and run compaction (switch_session) to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 2.5. Anti-Loop Debugging
