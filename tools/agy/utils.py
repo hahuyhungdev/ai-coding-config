@@ -3,6 +3,17 @@ import re
 from datetime import datetime, timedelta
 
 # Constants
+def sync_utils_paths():
+    global AGY_DIR, JSON_FILE, TOKEN_FILE, LOG_DIR, REAL_AGY
+    is_mocked = os.environ.get("AGY_TESTING") == "1" and ("antigravity-cli" not in JSON_FILE or "tmp" in JSON_FILE or "sandbox" in JSON_FILE)
+    if is_mocked:
+        return
+    AGY_DIR = os.environ.get("AGY_DIR_OVERRIDE", os.path.expanduser("~/.gemini/antigravity-cli"))
+    JSON_FILE = os.path.join(AGY_DIR, "accounts.json")
+    TOKEN_FILE = os.path.join(AGY_DIR, "antigravity-oauth-token")
+    LOG_DIR = os.path.join(AGY_DIR, "log")
+    REAL_AGY = os.path.expanduser("~/.local/bin/agy-bin")
+
 AGY_DIR = os.environ.get("AGY_DIR_OVERRIDE", os.path.expanduser("~/.gemini/antigravity-cli"))
 JSON_FILE = os.path.join(AGY_DIR, "accounts.json")
 TOKEN_FILE = os.path.join(AGY_DIR, "antigravity-oauth-token")

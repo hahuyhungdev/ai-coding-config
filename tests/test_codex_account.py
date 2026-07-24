@@ -951,9 +951,10 @@ class TestCodexAccount(unittest.TestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            start_new_session=True,
         )
-        time.sleep(0.2)
-        process.send_signal(signal.SIGINT)
+        time.sleep(0.5)
+        os.killpg(process.pid, signal.SIGINT)
         stdout, stderr = process.communicate(timeout=3)
 
         self.assertEqual(process.returncode, 130, stdout + stderr)

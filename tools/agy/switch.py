@@ -21,12 +21,25 @@ HIGHEST_QUOTA_POLICY = "highest-quota"
 
 
 def _sync_paths():
-    import storage, parser
+    import storage, parser, utils
+    global AGY_DIR, JSON_FILE, TOKEN_FILE, LOG_DIR
+    is_mocked = "antigravity-cli" not in JSON_FILE and ("/tmp" in JSON_FILE or "sandbox" in JSON_FILE)
+    if not is_mocked:
+        utils.sync_utils_paths()
+        AGY_DIR = utils.AGY_DIR
+        JSON_FILE = utils.JSON_FILE
+        TOKEN_FILE = utils.TOKEN_FILE
+        LOG_DIR = utils.LOG_DIR
+
+    storage.AGY_DIR = AGY_DIR
     storage.JSON_FILE = JSON_FILE
     storage.TOKEN_FILE = TOKEN_FILE
-    storage.AGY_DIR = AGY_DIR
-    parser.JSON_FILE = JSON_FILE
     parser.LOG_DIR = LOG_DIR
+    parser.JSON_FILE = JSON_FILE
+    utils.AGY_DIR = AGY_DIR
+    utils.JSON_FILE = JSON_FILE
+    utils.TOKEN_FILE = TOKEN_FILE
+    utils.LOG_DIR = LOG_DIR
 
 
 def load_rotation_policy():
@@ -534,13 +547,8 @@ def post_check_and_switch():
             accounts[active_idx]["reset_info"] = "In 2h"
             accounts[active_idx]["blocked_until"] = (datetime.now() + timedelta(hours=2)).isoformat()
         accounts[active_idx]["last_checked"] = datetime.now().isoformat()
-        with open(JSON_FILE, "w") as f:
-            json.dump(accounts, f, indent=2)
-        if os.name == 'posix':
-            try:
-                os.chmod(JSON_FILE, 0o600)
-            except OSError:
-                pass
+        from storage import write_accounts
+        write_accounts(accounts, create_backup=False)
 
     if active_idx is None:
         active_idx = 0

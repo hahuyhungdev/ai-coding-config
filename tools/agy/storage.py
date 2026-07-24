@@ -4,25 +4,25 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+import utils
 from utils import (
-    AGY_DIR,
-    JSON_FILE,
-    TOKEN_FILE,
     account_display_name,
     get_account_reset_seconds,
     get_session_token_file,
 )
 
 
-BACKUP_DIR = os.path.join(AGY_DIR, "backups")
+def get_backup_dir():
+    return os.path.join(utils.AGY_DIR, "backups")
 
 
 def load_accounts():
-    if not os.path.exists(JSON_FILE):
+    utils.sync_utils_paths()
+    if not os.path.exists(utils.JSON_FILE):
         return []
-    if os.path.exists(JSON_FILE) and os.path.getsize(JSON_FILE) == 0:
+    if os.path.exists(utils.JSON_FILE) and os.path.getsize(utils.JSON_FILE) == 0:
         return []
-    with open(JSON_FILE, "r") as handle:
+    with open(utils.JSON_FILE, "r") as handle:
         data = json.load(handle)
     if not isinstance(data, list):
         raise ValueError("accounts.json must contain a JSON array")
@@ -30,40 +30,43 @@ def load_accounts():
 
 
 def backup_accounts(output_path=None):
-    if not os.path.exists(JSON_FILE):
+    utils.sync_utils_paths()
+    if not os.path.exists(utils.JSON_FILE):
         return None
 
+    backup_dir = get_backup_dir()
     if output_path:
         destination = Path(output_path).expanduser().resolve()
         destination.parent.mkdir(parents=True, exist_ok=True)
     else:
-        Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
+        Path(backup_dir).mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-        destination = Path(BACKUP_DIR) / f"accounts-{timestamp}.json"
+        destination = Path(backup_dir) / f"accounts-{timestamp}.json"
 
-    shutil.copy2(JSON_FILE, destination)
+    shutil.copy2(utils.JSON_FILE, destination)
     try:
         os.chmod(destination, 0o600)
     except Exception:
         pass
-    shutil.copy2(JSON_FILE, os.path.join(AGY_DIR, "accounts-backup.json"))
+    shutil.copy2(utils.JSON_FILE, os.path.join(utils.AGY_DIR, "accounts-backup.json"))
     try:
-        os.chmod(os.path.join(AGY_DIR, "accounts-backup.json"), 0o600)
+        os.chmod(os.path.join(utils.AGY_DIR, "accounts-backup.json"), 0o600)
     except Exception:
         pass
     return str(destination)
 
 
 def write_accounts(accounts, create_backup=True):
-    Path(AGY_DIR).mkdir(parents=True, exist_ok=True)
+    utils.sync_utils_paths()
+    Path(utils.AGY_DIR).mkdir(parents=True, exist_ok=True)
     backup_path = backup_accounts() if create_backup else None
-    temporary = Path(JSON_FILE + ".tmp")
+    temporary = Path(utils.JSON_FILE + ".tmp")
     temporary.write_text(json.dumps(accounts, indent=2) + "\n", encoding="utf-8")
     try:
         os.chmod(temporary, 0o600)
     except Exception:
         pass
-    os.replace(temporary, JSON_FILE)
+    os.replace(temporary, utils.JSON_FILE)
     return backup_path
 
 
@@ -136,19 +139,29 @@ def resolve_account(accounts, target):
 
 
 def active_account_index(accounts, token_file=None):
-    token_path = token_file or get_session_token_file(TOKEN_FILE)
+    utils.sync_utils_paths()
+    token_path = token_file or get_session_token_file(utils.TOKEN_FILE)
     if not os.path.exists(token_path):
         return None
     try:
         token_data = json.loads(Path(token_path).read_text(encoding="utf-8"))
-        active_token = (token_data.get("token") or token_data).get("refresh_token")
+        active_token = (token_data.get("token") or token_data).get("refresh_token") if isinstance(token_data.get("token"), dict) else (token_data.get("refresh_token") or token_data.get("token"))
+        email = token_data.get("email") or token_data.get("name")
     except (OSError, ValueError, AttributeError):
         return None
-    if not active_token:
-        return None
-    for index, account in enumerate(accounts):
-        if account.get("token", {}).get("refresh_token") == active_token:
-            return index
+
+    if active_token:
+        for index, account in enumerate(accounts):
+            acc_tok = (account.get("token") or {}).get("refresh_token") if isinstance(account.get("token"), dict) else account.get("token")
+            if acc_tok == active_token:
+                return index
+
+    if email:
+        for index, account in enumerate(accounts):
+            acc_email = account.get("email") or account.get("name")
+            if acc_email and acc_email.lower() == email.lower():
+                return index
+
     return None
 
 
@@ -175,10 +188,12 @@ def public_accounts(accounts):
 
 
 def restore_accounts(source_path=None):
+    utils.sync_utils_paths()
     if source_path:
         source = Path(source_path).expanduser().resolve()
     else:
-        backups = sorted(Path(BACKUP_DIR).glob("accounts-*.json"), reverse=True)
+        backup_dir = get_backup_dir()
+        backups = sorted(Path(backup_dir).glob("accounts-*.json"), reverse=True)
         if not backups:
             raise ValueError("No account backup found")
         source = backups[0]
@@ -192,6 +207,7 @@ def restore_accounts(source_path=None):
 
 
 def doctor_report():
+    utils.sync_utils_paths()
     issues = []
     try:
         accounts = load_accounts()
@@ -205,35 +221,37 @@ def doctor_report():
         1 for account in accounts
         if not account.get("token", {}).get("refresh_token")
     )
-    if not os.path.exists(JSON_FILE):
+    if not os.path.exists(utils.JSON_FILE):
         issues.append("accounts.json is missing")
-    if not os.path.exists(TOKEN_FILE):
+    if not os.path.exists(utils.TOKEN_FILE):
         issues.append("active token file is missing")
     if missing_tokens:
         issues.append(f"{missing_tokens} account(s) have no refresh token")
 
+    backup_dir = get_backup_dir()
     return {
-        "ok": accounts_valid and os.path.exists(JSON_FILE) and missing_tokens == 0,
-        "accounts_file": JSON_FILE,
-        "accounts_file_exists": os.path.exists(JSON_FILE),
+        "ok": accounts_valid and os.path.exists(utils.JSON_FILE) and missing_tokens == 0,
+        "accounts_file": utils.JSON_FILE,
+        "accounts_file_exists": os.path.exists(utils.JSON_FILE),
         "accounts_valid": accounts_valid,
         "account_count": len(accounts),
-        "active_token_exists": os.path.exists(TOKEN_FILE),
-        "backup_directory": BACKUP_DIR,
-        "backup_count": len(list(Path(BACKUP_DIR).glob("accounts-*.json"))) if os.path.isdir(BACKUP_DIR) else 0,
+        "active_token_exists": os.path.exists(utils.TOKEN_FILE),
+        "backup_directory": backup_dir,
+        "backup_count": len(list(Path(backup_dir).glob("accounts-*.json"))) if os.path.isdir(backup_dir) else 0,
         "issues": issues,
     }
 
 
 def sync_active_token_to_accounts():
-    if not os.path.exists(TOKEN_FILE) or not os.path.exists(JSON_FILE):
+    utils.sync_utils_paths()
+    if not os.path.exists(utils.TOKEN_FILE) or not os.path.exists(utils.JSON_FILE):
         return
-    if os.path.getsize(TOKEN_FILE) == 0 or os.path.getsize(JSON_FILE) == 0:
+    if os.path.getsize(utils.TOKEN_FILE) == 0 or os.path.getsize(utils.JSON_FILE) == 0:
         return
     try:
-        with open(TOKEN_FILE, "r") as f:
+        with open(utils.TOKEN_FILE, "r") as f:
             current_data = json.load(f)
-        with open(JSON_FILE, "r") as f:
+        with open(utils.JSON_FILE, "r") as f:
             accounts = json.load(f)
     except Exception:
         return

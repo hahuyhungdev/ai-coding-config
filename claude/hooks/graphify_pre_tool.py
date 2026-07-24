@@ -65,7 +65,7 @@ def is_inline_python_file_read(command, executables):
     if not has_inline_flag:
         return False
 
-    has_read_keyword = any(kw in lowered for kw in ("open", "read", "load", "file", "listdir", "scandir", "walk", "glob"))
+    has_read_keyword = any(kw in lowered for kw in ("open", "read", "load", "file", "listdir", "scandir", "walk", "glob", "print", "<>", "gets", "cat", "echo", "puts")) or any(t.endswith(E) for t in tokens)
     if not has_read_keyword:
         return False
 
