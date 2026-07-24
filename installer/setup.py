@@ -96,12 +96,23 @@ def ensure_codex_rtk_reference(agents_path: Path, rtk_path: Path) -> None:
 
 
 def _write_codex_bin_launcher(codex_bin: Path, real_target: Path) -> None:
-    codex_bin.write_text(
-        "#!/usr/bin/env bash\n"
-        f"exec {json.dumps(str(real_target))} \"$@\"\n",
-        encoding="utf-8",
-    )
-    codex_bin.chmod(0o755)
+    import sys
+    if sys.platform == "win32":
+        codex_bin.write_text(
+            "@echo off\n"
+            f"\"{str(real_target)}\" %*\n",
+            encoding="utf-8",
+        )
+    else:
+        codex_bin.write_text(
+            "#!/usr/bin/env bash\n"
+            f"exec {json.dumps(str(real_target))} \"$@\"\n",
+            encoding="utf-8",
+        )
+        try:
+            codex_bin.chmod(0o755)
+        except Exception:
+            pass
 
 
 def _looks_like_codex_account_wrapper(path: Path, wrapper_content: str) -> bool:
@@ -111,26 +122,51 @@ def _looks_like_codex_account_wrapper(path: Path, wrapper_content: str) -> bool:
         content = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return False
-    return content == wrapper_content or "ACCOUNT_HELPER" in content
+    return content.strip() == wrapper_content.strip() or "ACCOUNT_HELPER" in content or "CODEX_ACCOUNT_PROG" in content
 
 
 def _find_real_codex_candidate(bin_dir: Path, wrapper_content: str) -> Path | None:
-    candidates = []
+    import sys
+    import os
+    
+    # Unix NVM fallback (check this first to avoid test pollution since Path.home() is mocked in tests)
     nvm_dir = Path.home() / ".nvm" / "versions" / "node"
     if nvm_dir.exists():
-        candidates.extend(nvm_dir.glob("*/bin/codex"))
-
-    for candidate in sorted(candidates, reverse=True):
-        if not candidate.exists() or _looks_like_codex_account_wrapper(candidate, wrapper_content):
+        candidates = list(nvm_dir.glob("*/bin/codex"))
+        for candidate in sorted(candidates, reverse=True):
+            if candidate.exists() and not candidate.is_dir():
+                if not _looks_like_codex_account_wrapper(candidate, wrapper_content):
+                    return candidate.resolve()
+                    
+    # Next search PATH
+    path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+    for d in path_dirs:
+        if not d:
             continue
-        if candidate.resolve() in {(bin_dir / "codex").resolve(), (bin_dir / "codex-bin").resolve()}:
+        try:
+            d_path = Path(d).resolve()
+        except Exception:
             continue
-        return candidate.resolve()
+        
+        # Skip our own wrapper directory to avoid self-reference
+        if d_path == bin_dir.resolve():
+            continue
+            
+        names = ["codex.cmd", "codex.bat", "codex.exe", "codex.ps1", "codex"] if sys.platform == "win32" else ["codex"]
+        for name in names:
+            candidate = d_path / name
+            if candidate.exists() and not candidate.is_dir():
+                if not _looks_like_codex_account_wrapper(candidate, wrapper_content):
+                    return candidate.resolve()
+                    
     return None
 
 
 def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
     """Install the Codex account wrapper while preserving the real Codex CLI."""
+    import sys
+    is_windows = (sys.platform == "win32")
+    
     bin_dir = Path.home() / ".local" / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
 
@@ -140,9 +176,65 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
         warn("Codex wrapper source is missing; skipped global codex wrapper")
         return
 
-    codex_path = bin_dir / "codex"
-    codex_bin = bin_dir / "codex-bin"
+    # On Windows, the wrapper is codex.bat, and the backup of the real binary is codex-bin.cmd
+    if is_windows:
+        codex_path = bin_dir / "codex.bat"
+        codex_bin = bin_dir / "codex-bin.cmd"
+    else:
+        codex_path = bin_dir / "codex"
+        codex_bin = bin_dir / "codex-bin"
+        
     wrapper_content = wrapper_src.read_text(encoding="utf-8")
+
+    # On Windows, generate a batch-based wrapper content instead of the bash script
+    if is_windows:
+        helper_path = helper_src.resolve()
+        helper_path_str = str(helper_path).replace("\\", "\\\\")
+        
+        wrapper_content = f"""@echo off
+setlocal
+
+set "FIRST_ARG=%~1"
+
+if "%FIRST_ARG%"=="account" goto run_helper
+if "%FIRST_ARG%"=="accounts" goto run_helper
+if "%FIRST_ARG%"=="list" goto run_helper
+if "%FIRST_ARG%"=="ls" goto run_helper
+if "%FIRST_ARG%"=="guide" goto run_helper
+if "%FIRST_ARG%"=="check" goto run_helper
+if "%FIRST_ARG%"=="status" goto run_helper
+if "%FIRST_ARG%"=="rotate" goto run_helper
+if "%FIRST_ARG%"=="current" goto run_helper
+if "%FIRST_ARG%"=="use" goto run_helper
+if "%FIRST_ARG%"=="switch" goto run_helper
+if "%FIRST_ARG%"=="add" goto run_helper
+if "%FIRST_ARG%"=="token" goto run_helper
+if "%FIRST_ARG%"=="add-current" goto run_helper
+if "%FIRST_ARG%"=="add-current-account" goto run_helper
+if "%FIRST_ARG%"=="add-token" goto run_helper
+if "%FIRST_ARG%"=="add-refresh-token" goto run_helper
+if "%FIRST_ARG%"=="login-temp" goto run_helper
+if "%FIRST_ARG%"=="temp-login" goto run_helper
+if "%FIRST_ARG%"=="relabel-accounts" goto run_helper
+if "%FIRST_ARG%"=="help" (
+    if "%~2"=="account" goto run_helper
+    if "%~2"=="accounts" goto run_helper
+)
+
+goto run_real
+
+:run_helper
+set "CODEX_ACCOUNT_PROG=codex"
+if "%FIRST_ARG%"=="account" set "CODEX_ACCOUNT_PROG=codex account"
+if "%FIRST_ARG%"=="accounts" set "CODEX_ACCOUNT_PROG=codex account"
+
+python "{helper_path_str}" %*
+exit /b %ERRORLEVEL%
+
+:run_real
+"{str(codex_bin).replace('\\', '\\\\')}" %*
+exit /b %ERRORLEVEL%
+"""
 
     current_is_repo_wrapper = _looks_like_codex_account_wrapper(codex_path, wrapper_content)
 
@@ -151,7 +243,10 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
             _write_codex_bin_launcher(codex_bin, codex_path.resolve())
         else:
             shutil.copy2(codex_path, codex_bin)
-            codex_bin.chmod(0o755)
+            try:
+                codex_bin.chmod(0o755)
+            except Exception:
+                pass
         codex_path.unlink()
 
     if (not codex_bin.exists()) or _looks_like_codex_account_wrapper(codex_bin, wrapper_content):
@@ -162,8 +257,18 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
             warn("Real Codex CLI target was not found; codex-bin may need manual repair")
 
     codex_path.write_text(wrapper_content, encoding="utf-8")
-    codex_path.chmod(0o755)
-    ok("codex wrapper installed to ~/.local/bin/codex")
+    try:
+        codex_path.chmod(0o755)
+    except Exception:
+        pass
+        
+    # Clean up extensionless file on Windows to prevent file dialog
+    if is_windows:
+        extensionless_codex = bin_dir / "codex"
+        if extensionless_codex.exists() and not extensionless_codex.is_dir():
+            extensionless_codex.unlink()
+            
+    ok(f"codex wrapper installed to {codex_path}")
 
 
 def setup_claude(force: bool) -> None:
