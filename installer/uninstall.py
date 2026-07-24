@@ -97,6 +97,23 @@ def uninstall_global() -> None:
         # Clean skills
         _clean_skills(CODEX_DIR, "Codex skills")
 
+    # Restore Codex binary and remove wrappers
+    bin_dir = Path.home() / ".local" / "bin"
+    codex_path = bin_dir / "codex"
+    codex_bin = bin_dir / "codex-bin"
+    if codex_bin.exists():
+        try:
+            if codex_path.exists() or codex_path.is_symlink():
+                codex_path.unlink()
+            shutil.copy2(codex_bin, codex_path)
+            codex_path.chmod(0o755)
+            codex_bin.unlink()
+            ok("Restored original Codex binary from codex-bin")
+        except Exception as e:
+            warn(f"Failed to restore original Codex binary: {e}")
+    else:
+        codex_path.unlink(missing_ok=True)
+
     # Clean Gemini/agy
     if GEMINI_DIR.exists():
         for name in ["ANTIGRAVITY.md"]:
@@ -109,6 +126,20 @@ def uninstall_global() -> None:
     # Remove agy wrapper and installed modules while preserving user data.
     (Path.home() / ".local" / "bin" / "agy").unlink(missing_ok=True)
     (Path.home() / ".local" / "bin" / "agy.bat").unlink(missing_ok=True)
+
+    # Clean Windows redirection wrappers
+    from .setup import get_windows_home
+    win_home = get_windows_home()
+    if win_home:
+        win_bin_dir = win_home / ".local" / "bin"
+        for name in ["agy.bat", "codex.bat"]:
+            p = win_bin_dir / name
+            if p.exists():
+                try:
+                    p.unlink()
+                    ok(f"Removed WSL redirection wrapper {name} from Windows")
+                except Exception as e:
+                    warn(f"Failed to remove Windows redirection wrapper {name}: {e}")
     agy_cli_dir = GEMINI_CLI_DIR
     agy_src_dir = REPO_DIR / "tools" / "agy"
     if agy_cli_dir.exists() and agy_src_dir.exists():

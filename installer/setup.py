@@ -387,18 +387,3 @@ if "%1"=="init" (
     except Exception as exc:
         warn(f"Failed to install ai-config wrapper command: {exc}")
 
-    # WSL Windows Redirection setup
-    win_home = get_windows_home()
-    if win_home:
-        win_bin_dir = win_home / ".local" / "bin"
-        try:
-            win_bin_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Write ai-config.bat calling WSL
-            win_bat_path = win_bin_dir / "ai-config.bat"
-            win_bat_content = "@echo off\nwsl ~/.local/bin/ai-config %*\n"
-            win_bat_path.write_text(win_bat_content, encoding="utf-8")
-            ok(f"WSL redirection wrapper ai-config.bat written to Windows at {win_bat_path}")
-        except Exception as win_exc:
-            warn(f"Failed to write WSL redirection wrapper to Windows: {win_exc}")
-

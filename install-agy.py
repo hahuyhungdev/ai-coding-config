@@ -407,29 +407,6 @@ def main():
     except Exception as e:
         print(f"⚠️ Warning: Failed to write Windows agy.bat wrapper: {e}")
 
-    # WSL Windows Redirection setup
-    win_home = get_windows_home()
-    if win_home:
-        win_bin_dir = win_home / ".local" / "bin"
-        try:
-            win_bin_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Write agy.bat calling WSL
-            win_agy_bat = win_bin_dir / "agy.bat"
-            win_agy_bat_content = "@echo off\nwsl ~/.local/bin/agy %*\n"
-            win_agy_bat.write_text(win_agy_bat_content, encoding="utf-8")
-            print(f"   WSL redirection wrapper agy.bat written to Windows at {win_agy_bat}")
-            
-            # Sync accounts.json to Windows side for compatibility
-            win_agy_dir = win_home / ".gemini" / "antigravity-cli"
-            win_agy_dir.mkdir(parents=True, exist_ok=True)
-            wsl_accounts = Path.home() / ".gemini" / "antigravity-cli" / "accounts.json"
-            if wsl_accounts.exists():
-                shutil.copy2(wsl_accounts, win_agy_dir / "accounts.json")
-                print("   Synced accounts.json to Windows.")
-        except Exception as win_exc:
-            print(f"⚠️ Warning: Failed to configure WSL redirection wrapper on Windows: {win_exc}")
-
 
     # 4. Copy ANTIGRAVITY.md
     src_readme = repo_dir / "gemini" / "ANTIGRAVITY.md"
