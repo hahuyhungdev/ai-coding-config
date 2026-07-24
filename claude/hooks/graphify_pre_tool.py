@@ -39,12 +39,13 @@ DIRECT_READ_DENIAL = (
 def is_inline_python_file_read(command, executables):
     import shlex
     import re
+    command = str(command or "").replace("\\", "/")
     lowered = command.lower()
     try:
         lx = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
         lx.whitespace_split = True
         tokens = list(lx)
-    except ValueError:
+    except Exception:
         tokens = []
 
     has_inline_flag = False
@@ -225,11 +226,12 @@ def _clean_command_name(name):
 
 
 def is_scratch_reader_script_execution(command):
+    command = str(command or "").replace("\\", "/")
     try:
         lx = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
         lx.whitespace_split = True
         tokens = list(lx)
-    except ValueError:
+    except Exception:
         return False
 
     wrappers = {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}
@@ -258,11 +260,12 @@ def is_scratch_reader_script_execution(command):
 
 
 def is_exact_file_read_command(command):
+    command = str(command or "").replace("\\", "/")
     try:
         lx = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
         lx.whitespace_split = True
         tokens = list(lx)
-    except ValueError:
+    except Exception:
         return False
 
     wrappers = {"rtk", "proxy", "sudo", "command", "builtin", "env", "nohup"}
@@ -514,11 +517,12 @@ def main():
                 import re
                 low_cmd = cmd.lower()
                 words = set(re.findall(r'[a-z]+', low_cmd))
+                cmd = str(cmd or "").replace("\\", "/")
                 try:
                     lx = shlex.shlex(cmd, posix=True, punctuation_chars="|&;()")
                     lx.whitespace_split = True
                     tokens = list(lx)
-                except ValueError:
+                except Exception:
                     tokens = []
                 ex_names = []
                 expect = True

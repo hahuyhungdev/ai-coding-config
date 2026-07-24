@@ -126,12 +126,13 @@ RTK filters and compresses command output before it reaches the LLM context, sav
 def is_inline_python_file_read(command: str, executables: list[str]) -> bool:
     import shlex
     import re
+    command = str(command or "").replace("\\", "/")
     lowered = command.lower()
     try:
         lx = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
         lx.whitespace_split = True
         tokens = list(lx)
-    except ValueError:
+    except Exception:
         tokens = []
 
     has_inline_flag = False
@@ -167,11 +168,12 @@ def is_inline_python_file_read(command: str, executables: list[str]) -> bool:
 
 
 def _command_words(command: str) -> list[str]:
+    command = str(command or "").replace("\\", "/")
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;()")
         lexer.whitespace_split = True
         tokens = list(lexer)
-    except ValueError:
+    except Exception:
         return []
 
     executables = []
@@ -196,9 +198,10 @@ def is_broad_discovery_command(command: str) -> bool:
 
 
 def is_graphify_probe_command(command: str) -> bool:
+    command = str(command or "").replace("\\", "/")
     try:
         tokens = shlex.split(command)
-    except ValueError:
+    except Exception:
         return False
     words = [Path(token).name.lower() for token in tokens]
     normalized = command.lower().replace("\\", "/")
