@@ -38,13 +38,25 @@ def sessions_dir():
 
 
 def codex_bin_path():
-    return Path(os.environ.get("CODEX_REAL_BIN", Path.home() / ".local/bin/codex-bin")).expanduser()
+    if os.environ.get("CODEX_REAL_BIN"):
+        return Path(os.environ["CODEX_REAL_BIN"]).expanduser()
+    bin_dir = Path.home() / ".local" / "bin"
+    if sys.platform == "win32":
+        for name in ("codex-bin.cmd", "codex-bin.bat", "codex-bin.exe", "codex-bin"):
+            p = bin_dir / name
+            if p.exists():
+                return p
+        return bin_dir / "codex-bin.cmd"
+    return bin_dir / "codex-bin"
 
 
 def sandbox_parent():
     path = codex_home() / "tmp"
     path.mkdir(parents=True, exist_ok=True)
-    os.chmod(path, 0o700)
+    try:
+        os.chmod(path, 0o700)
+    except Exception:
+        pass
     return path
 
 
@@ -86,7 +98,10 @@ def write_private_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    os.chmod(tmp, 0o600)
+    try:
+        os.chmod(tmp, 0o600)
+    except Exception:
+        pass
     os.replace(tmp, path)
 
 
@@ -96,7 +111,10 @@ def backup_file(path):
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     backup = path.with_name(f"{path.name}.bak-{stamp}")
     shutil.copy2(path, backup)
-    os.chmod(backup, 0o600)
+    try:
+        os.chmod(backup, 0o600)
+    except Exception:
+        pass
     return backup
 
 

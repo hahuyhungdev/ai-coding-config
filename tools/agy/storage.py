@@ -42,9 +42,15 @@ def backup_accounts(output_path=None):
         destination = Path(BACKUP_DIR) / f"accounts-{timestamp}.json"
 
     shutil.copy2(JSON_FILE, destination)
-    os.chmod(destination, 0o600)
+    try:
+        os.chmod(destination, 0o600)
+    except Exception:
+        pass
     shutil.copy2(JSON_FILE, os.path.join(AGY_DIR, "accounts-backup.json"))
-    os.chmod(os.path.join(AGY_DIR, "accounts-backup.json"), 0o600)
+    try:
+        os.chmod(os.path.join(AGY_DIR, "accounts-backup.json"), 0o600)
+    except Exception:
+        pass
     return str(destination)
 
 
@@ -53,7 +59,10 @@ def write_accounts(accounts, create_backup=True):
     backup_path = backup_accounts() if create_backup else None
     temporary = Path(JSON_FILE + ".tmp")
     temporary.write_text(json.dumps(accounts, indent=2) + "\n", encoding="utf-8")
-    os.chmod(temporary, 0o600)
+    try:
+        os.chmod(temporary, 0o600)
+    except Exception:
+        pass
     os.replace(temporary, JSON_FILE)
     return backup_path
 
