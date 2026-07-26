@@ -13,7 +13,7 @@ Adjust your execution safety level based on the complexity and scale of the user
 ### Level 1: Easy / Routine Tasks
 - **Focus:** High speed and low token footprints.
 - **Rules:**
-  - Always prefix terminal commands with `rtk` to truncate logs and save tokens.
+  - Prefix terminal commands with `rtk` to truncate logs and save tokens (only when `rtk` is on PATH — see RTK Usage below).
   - Load only the single most relevant skill if necessary. Avoid loading multiple guidelines.
   - Rely on targeted direct checks instead of broad audits.
   - **Confirmation:** Proceed automatically. Do NOT show a confirmation popup to the user upon completion. Just report the results directly in chat.
@@ -21,7 +21,7 @@ Adjust your execution safety level based on the complexity and scale of the user
 ### Level 2: Medium / Standard Tasks (Balanced)
 - **Focus:** Balance between token efficiency and code quality.
 - **Rules:**
-  - Prefix terminal commands with `rtk` for routine operations, but use `rtk proxy <cmd>` when detailed error logs or verbose compiler details are needed.
+  - Prefix terminal commands with `rtk` for routine operations (only when `rtk` is on PATH), but use `rtk proxy <cmd>` when detailed error logs or verbose compiler details are needed.
   - Load relevant skills as needed, but keep the scope targeted.
   - **Confirmation:** Always present a summary of findings and ask the user for confirmation (using the `ask_question` popup/modal tool) before applying major changes or finalizing the task.
 
@@ -31,12 +31,12 @@ Adjust your execution safety level based on the complexity and scale of the user
   - Prioritize correctness over token limits. Do not worry about token footprint if a comprehensive review is needed.
   - Proactively load and cross-reference multiple relevant skills concurrently (e.g. `react-pattern`, `react-architecture`, `ui-ux-design`, and `quality-gate` during UI changes; or `backend-pattern` and `quality-gate` during API edits) to enforce boundaries and prevent regressions.
   - Run the full verification checklist (build check, typescript typecheck, ESLint, test suite, and security scans) continuously at every coding milestone.
-  - Use `rtk proxy` to inspect all compilation details.
+  - Use `rtk proxy` to inspect all compilation details (when `rtk` is available).
   - Always run `frontend-scan` before starting and after finishing UI changes to visually verify layouts via Playwright screenshot comparisons.
   - **Confirmation:** Strictly verify results. You **must** render an interactive popup/modal using the `ask_question` tool to present options and secure explicit user confirmation before completing the task.
 
 ### Core Guidelines:
-- **RTK Usage:** Always prefix terminal commands with `rtk` (or `rtk proxy` for full output) to maintain logging consistency; do not discard the `rtk` command prefix.
+- **RTK Usage (environment-dependent):** `rtk` is installed only in WSL/Linux environments. In sessions where `rtk` is on PATH, prefix terminal commands with `rtk` (or `rtk proxy` for full output) and do not discard the prefix. In sessions without `rtk` (e.g. Claude Code running natively on Windows), run plain commands without the prefix — do NOT try to install `rtk` or route commands through `wsl.exe` just to add it.
 - **Strategic Compaction**: For long-running tasks, proactively use the `context-budget` skill at logical milestones to check token budgets and run compaction (switch_session) to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 2.5. Anti-Loop Debugging
