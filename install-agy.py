@@ -13,6 +13,23 @@ if str(REPO_ROOT) not in sys.path:
 
 from installer.constants import REAL_HOME
 
+
+def windows_batch_wrapper_content():
+    """Route management commands while preserving normal Agy CLI launches."""
+    return """@echo off
+setlocal
+set "AGY_STATUS=%USERPROFILE%\\.gemini\\antigravity-cli\\agy-status.py"
+set "AGY_BIN=%USERPROFILE%\\.local\\bin\\agy-bin.exe"
+if "%~1"=="" goto launch
+for %%C in (status list ls accounts account use select choose current rename remove rm add import save doctor backup restore weekly clean cleanup rotate config) do if /I "%~1"=="%%C" goto manage
+:launch
+"%AGY_BIN%" %*
+exit /b %ERRORLEVEL%
+:manage
+python -X utf8 "%AGY_STATUS%" %*
+"""
+
+
 def _load_settings(settings_file):
     if not settings_file.exists():
         return {}
@@ -339,7 +356,7 @@ def main():
     src_wrapper = src_dir / "agy"
     if src_wrapper.exists():
         dst_wrapper = bin_dir / "agy"
-        real_agy = bin_dir / "agy-bin"
+        real_agy = bin_dir / ("agy-bin.exe" if os.name == "nt" else "agy-bin")
         if not real_agy.exists():
             if dst_wrapper.exists():
                 try:
@@ -404,7 +421,7 @@ def main():
 
     # 3. Create/copy Windows CMD wrapper (agy.bat)
     dst_bat = bin_dir / "agy.bat"
-    bat_content = '@echo off\npython "%USERPROFILE%\\.gemini\\antigravity-cli\\agy-status.py" %*\n'
+    bat_content = windows_batch_wrapper_content()
     try:
         dst_bat.write_text(bat_content, encoding="utf-8")
         print(f"   Created and installed agy.bat wrapper to {dst_bat}")

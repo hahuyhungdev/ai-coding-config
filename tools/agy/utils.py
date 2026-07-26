@@ -1,5 +1,6 @@
 import os
 import re
+import subprocess
 from datetime import datetime, timedelta
 
 # Constants
@@ -12,13 +13,25 @@ def sync_utils_paths():
     JSON_FILE = os.path.join(AGY_DIR, "accounts.json")
     TOKEN_FILE = os.path.join(AGY_DIR, "antigravity-oauth-token")
     LOG_DIR = os.path.join(AGY_DIR, "log")
-    REAL_AGY = os.path.expanduser("~/.local/bin/agy-bin")
+    REAL_AGY = os.path.expanduser("~/.local/bin/agy-bin.exe" if os.name == "nt" else "~/.local/bin/agy-bin")
 
 AGY_DIR = os.environ.get("AGY_DIR_OVERRIDE", os.path.expanduser("~/.gemini/antigravity-cli"))
 JSON_FILE = os.path.join(AGY_DIR, "accounts.json")
 TOKEN_FILE = os.path.join(AGY_DIR, "antigravity-oauth-token")
 LOG_DIR = os.path.join(AGY_DIR, "log")
-REAL_AGY = os.path.expanduser("~/.local/bin/agy-bin")
+REAL_AGY = os.path.expanduser("~/.local/bin/agy-bin.exe" if os.name == "nt" else "~/.local/bin/agy-bin")
+
+
+def clear_windows_native_keyring():
+    """Drop the native Windows credential so Agy reloads the active token file."""
+    if os.name != "nt":
+        return
+    subprocess.run(
+        ["cmdkey.exe", "/delete:gemini:antigravity"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
 
 GEMINI_FALLBACK_MODEL = "Gemini 3.5 Flash (High)"
 CLAUDE_FALLBACK_MODEL = "Claude Opus 4.6 (Thinking)"

@@ -2,9 +2,76 @@ import os
 import time
 import select
 import signal
+import sys
+import threading
 from utils import REAL_AGY, strip_ansi
 
+
 def get_quota_via_pty(email, sandbox_dir=None):
+    if sys.platform == "win32":
+        return _get_quota_via_windows_pty(email, sandbox_dir=sandbox_dir)
+    return _get_quota_via_posix_pty(email, sandbox_dir=sandbox_dir)
+
+
+def _get_quota_via_windows_pty(email, sandbox_dir=None):
+    """Collect the upstream CLI's quota screen through the Windows ConPTY API."""
+    try:
+        from winpty import PtyProcess
+    except ImportError as exc:
+        raise RuntimeError("Windows live quota checks require pywinpty; run `python -m pip install pywinpty`.") from exc
+
+    env = os.environ.copy()
+    if sandbox_dir:
+        env["HOME"] = sandbox_dir
+        env["USERPROFILE"] = sandbox_dir
+
+    process = PtyProcess.spawn([REAL_AGY], cwd=sandbox_dir, env=env, dimensions=(24, 80))
+    chunks = []
+    reader_done = threading.Event()
+
+    def read_output():
+        try:
+            while process.isalive():
+                chunk = process.read(4096)
+                if chunk:
+                    chunks.append(chunk)
+        except (EOFError, OSError):
+            pass
+        finally:
+            reader_done.set()
+
+    threading.Thread(target=read_output, daemon=True).start()
+
+    def current_output():
+        return "".join(chunks)
+
+    def wait_for(predicate, timeout):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            output = current_output()
+            if "trust the contents" in output.lower() or "trust this folder" in output.lower():
+                process.write("\r")
+            if predicate(output):
+                return
+            time.sleep(0.05)
+
+    wait_for(lambda output: ">" in output or "shortcuts" in output.lower(), 12.0)
+    process.write("/usage\r")
+    wait_for(
+        lambda output: any(marker in output for marker in ("Model Quota", "remaining", "Quota available", "matches")),
+        4.0,
+    )
+    try:
+        process.write("/exit\r")
+        reader_done.wait(2.0)
+    finally:
+        if process.isalive():
+            process.terminate(force=True)
+
+    return strip_ansi(current_output())
+
+
+def _get_quota_via_posix_pty(email, sandbox_dir=None):
     import pty
     import fcntl
     import termios

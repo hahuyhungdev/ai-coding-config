@@ -195,6 +195,8 @@ def _write_active_account(accounts, selected_idx):
             pass
 
     clear_mcp_token_cache()
+    from utils import clear_windows_native_keyring
+    clear_windows_native_keyring()
 
     index_file = os.path.join(AGY_DIR, ".current_index")
     with open(index_file, "w") as f:
