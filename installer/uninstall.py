@@ -31,10 +31,12 @@ def _clean_agents(target_dir: Path, label: str) -> None:
 def uninstall_global() -> None:
     """Uninstall all global configurations, compiled agents, skills, and command wrappers."""
     from installer_graphify import is_managed_graphify_hook
+    from .setup import get_windows_home, wrapper_bin_dir
+
     info("Uninstalling global AI Coding Config...")
 
     # 1. Remove global CLI wrapper
-    bin_dir = Path.home() / ".local" / "bin"
+    bin_dir = wrapper_bin_dir()
     for filename in ["ai-config", "ai-config.bat"]:
         p = bin_dir / filename
         if p.exists():
@@ -98,7 +100,6 @@ def uninstall_global() -> None:
         _clean_skills(CODEX_DIR, "Codex skills")
 
     # Restore Codex binary and remove wrappers
-    bin_dir = Path.home() / ".local" / "bin"
     codex_path = bin_dir / "codex"
     codex_bin = bin_dir / "codex-bin"
     if codex_bin.exists():
@@ -114,6 +115,16 @@ def uninstall_global() -> None:
     else:
         codex_path.unlink(missing_ok=True)
 
+    helper_path = bin_dir.parent / "codex-account" / "codex-account.py"
+    helper_existed = helper_path.exists()
+    helper_path.unlink(missing_ok=True)
+    try:
+        helper_path.parent.rmdir()
+    except OSError:
+        pass
+    if helper_existed:
+        ok("Removed Codex account helper")
+
     # Clean Gemini/agy
     if GEMINI_DIR.exists():
         for name in ["ANTIGRAVITY.md"]:
@@ -128,7 +139,6 @@ def uninstall_global() -> None:
     (Path.home() / ".local" / "bin" / "agy.bat").unlink(missing_ok=True)
 
     # Clean Windows redirection wrappers
-    from .setup import get_windows_home
     win_home = get_windows_home()
     if win_home:
         win_bin_dir = win_home / ".local" / "bin"

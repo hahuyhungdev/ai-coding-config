@@ -2,11 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ACCOUNT_HELPER="$SCRIPT_DIR/../codex-account/codex-account.py"
-
-if [ ! -f "$ACCOUNT_HELPER" ]; then
-    ACCOUNT_HELPER="$HOME/projects/personals/ai-coding-config/tools/codex-account/codex-account.py"
-fi
+ACCOUNT_HELPER="${CODEX_ACCOUNT_HELPER:-$SCRIPT_DIR/../codex-account/codex-account.py}"
 
 REAL_CODEX="${CODEX_REAL_BIN:-$HOME/.local/bin/codex-bin}"
 

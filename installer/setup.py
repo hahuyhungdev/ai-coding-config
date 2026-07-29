@@ -215,6 +215,15 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
         warn("Codex wrapper source is missing; skipped global codex wrapper")
         return
 
+    helper_path = bin_dir.parent / "codex-account" / "codex-account.py"
+    try:
+        helper_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(helper_src, helper_path)
+        helper_path.chmod(0o755)
+    except Exception as exc:
+        warn(f"Failed to install Codex account helper: {exc}")
+        return
+
     # On Windows, the wrapper is codex.bat, and the backup of the real binary is codex-bin.cmd
     if is_windows:
         codex_path = bin_dir / "codex.bat"
@@ -227,7 +236,6 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
 
     # On Windows, generate a batch-based wrapper content instead of the bash script
     if is_windows:
-        helper_path = helper_src.resolve()
         helper_path_str = str(helper_path).replace("\\", "\\\\")
         
         wrapper_content = f"""@echo off
