@@ -1,16 +1,17 @@
 @echo off
 REM Windows wrapper to execute the Python installation script
+set "PYTHONUTF8=1"
 where python >nul 2>nul
-if %ERRORLEVEL% neq 0 (
+if errorlevel 1 (
     where python3 >nul 2>nul
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo [WARN] Python 3 is not found in your PATH.
         echo Python is required to run the AI Coding Config installer.
         set /p choice="Would you like to install Python 3 now via Winget? (y/n): "
         if /i "%choice%"=="y" (
             echo Installing Python 3 via Winget...
             winget install Python.Python.3
-            if %ERRORLEVEL% neq 0 (
+            if errorlevel 1 (
                 echo [ERROR] Failed to install Python. Please install it manually from https://python.org
                 exit /b 1
             )

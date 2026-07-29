@@ -23,7 +23,7 @@ class TestInstallAgyHooks(unittest.TestCase):
         self.assertIn('python -X utf8 "%AGY_STATUS%" %*', wrapper)
         self.assertIn('if "%~1"=="" goto launch', wrapper)
         self.assertIn('if /I "%~1"=="%%C" goto manage', wrapper)
-        self.assertIn('set "AGY_BIN=%USERPROFILE%\\.local\\bin\\agy-bin.exe"', wrapper)
+        self.assertIn('set "AGY_BIN=%LOCALAPPDATA%\\ai-coding-config\\bin\\agy-bin.exe"', wrapper)
         self.assertIn('"%AGY_BIN%" %*', wrapper)
 
     def test_configures_quota_hooks_in_official_and_runtime_settings(self):

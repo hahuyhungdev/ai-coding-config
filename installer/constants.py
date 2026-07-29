@@ -1,9 +1,14 @@
 """Constants for installer."""
 
 import os
+import sys
 from pathlib import Path
 
 def get_real_home(check_paths: list[str] = None) -> Path:
+    if sys.platform == "win32":
+        user_profile = os.environ.get("USERPROFILE")
+        if user_profile:
+            return Path(user_profile)
     home = Path.home()
     if "tmp" in str(home).lower() or "temp" in str(home).lower():
         # If CWD is also under a tmp/temp folder, we are likely running in a unit test
@@ -37,4 +42,3 @@ CODEX_DIR = REAL_HOME / ".codex"
 GEMINI_DIR = REAL_HOME / ".gemini" / "config"
 GEMINI_CLI_DIR = REAL_HOME / ".gemini" / "antigravity-cli"
 REPO_DIR = Path(__file__).resolve().parent.parent
-

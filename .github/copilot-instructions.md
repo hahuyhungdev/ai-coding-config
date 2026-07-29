@@ -14,7 +14,7 @@ Adjust your execution safety level based on the complexity and scale of the user
 ### Level 1: Easy / Routine Tasks
 - **Focus:** High speed and low token footprints.
 - **Rules:**
-  - Always prefix terminal commands with `rtk` to truncate logs and save tokens.
+  - Prefix terminal commands with `rtk` to truncate logs and save tokens (only when `rtk` is on PATH — see RTK Usage below).
   - Load only the single most relevant skill if necessary. Avoid loading multiple guidelines.
   - Rely on targeted direct checks instead of broad audits.
   - **Confirmation:** Proceed automatically. Do NOT show a confirmation popup to the user upon completion. Just report the results directly in chat.
@@ -22,7 +22,7 @@ Adjust your execution safety level based on the complexity and scale of the user
 ### Level 2: Medium / Standard Tasks (Balanced)
 - **Focus:** Balance between token efficiency and code quality.
 - **Rules:**
-  - Prefix terminal commands with `rtk` for routine operations, but use `rtk proxy <cmd>` when detailed error logs or verbose compiler details are needed.
+  - Prefix terminal commands with `rtk` for routine operations (only when `rtk` is on PATH), but use `rtk proxy <cmd>` when detailed error logs or verbose compiler details are needed.
   - Load relevant skills as needed, but keep the scope targeted.
   - **Confirmation:** Always present a summary of findings and ask the user for confirmation (using the `ask_question` popup/modal tool) before applying major changes or finalizing the task.
 
@@ -32,17 +32,17 @@ Adjust your execution safety level based on the complexity and scale of the user
   - Prioritize correctness over token limits. Do not worry about token footprint if a comprehensive review is needed.
   - Proactively load and cross-reference multiple relevant skills concurrently (e.g. `react-pattern`, `react-architecture`, `ui-ux-design`, and `quality-gate` during UI changes; or `backend-pattern` and `quality-gate` during API edits) to enforce boundaries and prevent regressions.
   - Run the full verification checklist (build check, typescript typecheck, ESLint, test suite, and security scans) continuously at every coding milestone.
-  - Use `rtk proxy` to inspect all compilation details.
+  - Use `rtk proxy` to inspect all compilation details (when `rtk` is available).
   - Always run `frontend-scan` before starting and after finishing UI changes to visually verify layouts via Playwright screenshot comparisons.
   - **Confirmation:** Strictly verify results. You **must** render an interactive popup/modal using the `ask_question` tool to present options and secure explicit user confirmation before completing the task.
 
 ### Core Guidelines:
-- **RTK Usage:** Always prefix terminal commands with `rtk` (or `rtk proxy` for full output) to maintain logging consistency; do not discard the `rtk` command prefix.
+- **RTK Usage (environment-dependent):** `rtk` is installed only in WSL/Linux environments. In sessions where `rtk` is on PATH, prefix terminal commands with `rtk` (or `rtk proxy` for full output) and do not discard the prefix. In sessions without `rtk` (e.g. Claude Code running natively on Windows), run plain commands without the prefix — do NOT try to install `rtk` or route commands through `wsl.exe` just to add it.
 - **Strategic Compaction**: For long-running tasks, proactively use the `context-budget` skill at logical milestones to check token budgets and run compaction (switch_session) to summarize progress, keep latency fast, and prevent token bloat.
 
 ## 2.5. Anti-Loop Debugging
 - **Blocked Tool Recovery**: If a hook or policy blocks a tool call, do not retry the same blocked tool call or attempt equivalent bypasses. Use the context already available, run the required Graphify query if applicable, or switch to a documented diagnostic command.
-- **Graphify is the exception in graph-enabled projects**: use the required `rtk graphify query/path/explain/affected` command before direct source exploration.
+- **Graphify is the exception in graph-enabled projects**: use the required `graphify query/path/explain/affected` command before direct source exploration. On Linux/WSL, `rtk graphify …` remains an optional token-optimized equivalent.
 - **No Fresh-Session Bypasses**: Do not spawn subagents or fresh sessions to bypass blocked tools, Graphify quota, or current session scope restrictions. If the current session is blocked, report the blocker and the next safe diagnostic path.
 - **Prefer Existing Diagnostics**: Before creating any temporary debugging helper, check for existing diagnostic scripts, tests, or project utilities that already answer the question. For conversation log debugging in this repo, use `rtk python3 scripts/inspect_conversation.py <conversation_id> --step-index <n> --keyword "<text>"`; add `--compare-logs` when comparing compact vs full transcripts.
 - **No Scratch Reader Bypasses**: Do not create or run scratch reader scripts to bypass blocked direct reads/searches or Graphify policy. Scratch scripts are allowed only for durable diagnostics when no project utility exists, and they must not hard-code magic transcript indexes without also validating the total count and search keyword.
@@ -90,13 +90,13 @@ Load and delegate complex tasks to specialized agents under `~/.claude/agents/ (
 
 ⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):
 
-**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `rtk graphify query "<question>"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**
+**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `graphify query "<question>"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**
 
 Commands:
-- Architecture questions → `rtk graphify query "question"`
-- Code relationships → `rtk graphify path "A" "B"`
-- Deep-dive concepts → `rtk graphify explain "concept"`
-- Impact analysis / reverse dependencies → `rtk graphify affected "SymbolName"`
+- Architecture questions → `graphify query "question"`
+- Code relationships → `graphify path "A" "B"`
+- Deep-dive concepts → `graphify explain "concept"`
+- Impact analysis / reverse dependencies → `graphify affected "SymbolName"`
 
 Rules:
 - For broad codebase exploration, use **Graphify-first**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to discover unknown files or architecture.
@@ -106,7 +106,7 @@ Rules:
 - **Synthesize architecture/discovery answers from Graphify context first.** Supplement with targeted direct file reads only when the file path is explicit or Graphify has identified it.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
-- Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
+- Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
 - When the user provides an exact `@path` or file path, read that path directly if useful; do not list parent directories to locate it.
 - Explicit docs or source files may be read as user-provided context before Graphify. Mapping those files to source code, routes, components, or architecture still requires Graphify.
 - Do not create or run scratch reader scripts such as `scratch_read.py` to inspect files; use Graphify or targeted direct reads after Graphify instead.
@@ -117,7 +117,7 @@ Post-Discovery Reads (exceptions):
 - After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, and **config review** of specific files already identified by Graphify.
 - You MUST have run at least one Graphify query before reading source files directly.
 - When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
-- After modifying code, run `rtk graphify update .`.
+- After modifying code, run `graphify update .`.
 
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.

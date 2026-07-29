@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -105,6 +106,75 @@ class TestSkillSync(unittest.TestCase):
             self.assertEqual(target_script.read_text(encoding="utf-8"), "print('new')\n")
 
 
+class TestClaudeRtkHookConfiguration(unittest.TestCase):
+    def test_disabling_rtk_removes_only_the_managed_hook(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings_path = Path(temp_dir) / "settings.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "hooks": {
+                            "PreToolUse": [
+                                {
+                                    "matcher": "Bash",
+                                    "hooks": [
+                                        {"type": "command", "command": "rtk hook claude"}
+                                    ],
+                                },
+                                {
+                                    "matcher": "Bash",
+                                    "hooks": [
+                                        {"type": "command", "command": "custom-hook"}
+                                    ],
+                                },
+                            ]
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            installer_setup.ensure_claude_rtk_hook(settings_path, enabled=False)
+
+            hooks = json.loads(settings_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+            commands = [
+                command["command"]
+                for hook in hooks
+                for command in hook["hooks"]
+            ]
+            self.assertNotIn("rtk hook claude", commands)
+            self.assertIn("custom-hook", commands)
+
+    def test_disabling_antigravity_rtk_removes_the_managed_rule(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            rule = project / ".agents" / "rules" / "antigravity-rtk-rules.md"
+            rule.parent.mkdir(parents=True)
+            rule.write_text("managed RTK rule\n", encoding="utf-8")
+
+            from installer_graphify import _ensure_antigravity_rtk_rule
+
+            _ensure_antigravity_rtk_rule(project, enabled=False)
+
+            self.assertFalse(rule.exists())
+
+
+class TestGraphifyWrapperSafety(unittest.TestCase):
+    def test_never_rewrites_a_windows_graphify_launcher(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            launcher = root / "graphify.exe"
+            launcher.write_bytes(b"MZ\x00\x01upstream-launcher")
+            wrapper = root / "graphify-wrapper.py"
+            wrapper.write_text("print('wrapper')\n", encoding="utf-8")
+
+            with mock.patch.object(sys, "platform", "win32"):
+                optimized = install.optimize_graphify_cli_wrapper(launcher, wrapper)
+
+            self.assertFalse(optimized)
+            self.assertEqual(launcher.read_bytes(), b"MZ\x00\x01upstream-launcher")
+
+
 class TestCodexWrapperInstall(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -129,6 +199,15 @@ class TestCodexWrapperInstall(unittest.TestCase):
         self.home_patcher.stop()
         self.tmp.cleanup()
 
+    def test_native_windows_uses_a_dedicated_wrapper_directory(self):
+        with mock.patch.object(sys, "platform", "win32"), mock.patch.dict(
+            os.environ, {"LOCALAPPDATA": str(self.root / "local-app-data")}, clear=False
+        ):
+            self.assertEqual(
+                installer_setup.wrapper_bin_dir(),
+                self.root / "local-app-data" / "ai-coding-config" / "bin",
+            )
+
     def test_installs_codex_wrapper_and_preserves_real_cli_target(self):
         real_codex = self.root / "node" / "codex.js"
         real_codex.parent.mkdir()
@@ -144,7 +223,8 @@ class TestCodexWrapperInstall(unittest.TestCase):
         installed = bin_dir / "codex"
         preserved = bin_dir / "codex-bin"
         self.assertEqual(installed.read_text(encoding="utf-8"), "#!/usr/bin/env bash\nprintf 'WRAPPER\\n'\n")
-        self.assertIn(str(real_codex), preserved.read_text(encoding="utf-8"))
+        self.assertEqual(preserved.read_text(encoding="utf-8"), "#!/usr/bin/env node\n")
+        self.assertFalse(preserved.is_symlink())
         self.assertTrue(installed.stat().st_mode & 0o111)
         self.assertTrue(preserved.stat().st_mode & 0o111)
 
@@ -750,24 +830,24 @@ class TestGraphifyInstructions(unittest.TestCase):
         self.assertIn("Exact known file paths may be read normally first", instructions)
         self.assertIn("targeted raw reads", instructions)
         self.assertIn("GRAPH_REPORT.md", instructions)
-        self.assertIn("rtk graphify update .", instructions)
+        self.assertIn("`graphify update .`", instructions)
+        self.assertIn("`graphify query", instructions)
+        self.assertNotIn("MUST be `rtk graphify query", instructions)
 
     def test_generated_graphify_blocks_use_precise_exceptions_and_rtk_update(self):
         generated_paths = [
-            Path("AGENTS.md"),
-            Path("ANTIGRAVITY.md"),
-            Path("CLAUDE.md"),
-            Path(".github/copilot-instructions.md"),
             Path("claude/CLAUDE.md"),
             Path("codex/AGENTS.md"),
             Path("gemini/ANTIGRAVITY.md"),
+            Path(".github/copilot-instructions.md"),
         ]
         for path in generated_paths:
             with self.subTest(path=path):
                 content = path.read_text(encoding="utf-8")
                 self.assertIn("Exact known file paths may be read normally first", content)
                 self.assertNotIn("Exact user-provided file paths may be read normally first", content)
-                self.assertIn("rtk graphify update .", content)
+                self.assertIn("`graphify update .`", content)
+                self.assertIn("`graphify query", content)
 
 
 if __name__ == "__main__":

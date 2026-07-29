@@ -45,6 +45,32 @@ from installer import (
 
 from installer.constants import CLAUDE_DIR, GEMINI_CLI_DIR, REPO_DIR
 
+
+def optimize_graphify_cli_wrapper(graphify_bin: Path, wrapper_src: Path) -> bool:
+    """Safely enhance a script launcher without ever replacing a native binary.
+
+    Windows package managers commonly expose Graphify through ``graphify.exe``
+    or a ``.cmd`` shim.  Replacing either with Python source corrupts the
+    command.  The enhanced wrapper is optional, so native launchers are left
+    untouched and retain their upstream behavior.
+    """
+    if sys.platform == "win32" or graphify_bin.suffix.lower() in {".exe", ".bat", ".cmd", ".ps1"}:
+        return False
+
+    try:
+        original_content = graphify_bin.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    shebang = "#!/usr/bin/env python3"
+    if original_content.startswith("#!"):
+        shebang = original_content.splitlines()[0]
+    wrapper_code = shebang + "\n" + wrapper_src.read_text(encoding="utf-8")
+    graphify_bin.write_text(wrapper_code, encoding="utf-8")
+    graphify_bin.chmod(0o755)
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="AI Coding Config Installer",
@@ -307,17 +333,11 @@ Examples:
         # Install/upgrade the optimized Graphify CLI wrapper to ~/.local/bin/graphify
         try:
             graphify_bin = Path(shutil.which("graphify")).resolve()
-            original_content = graphify_bin.read_text(encoding="utf-8")
-            shebang = "#!/usr/bin/env python3"
-            if original_content.startswith("#!"):
-                shebang = original_content.splitlines()[0]
-            
             wrapper_src = REPO_DIR / "scripts" / "graphify-wrapper.py"
-            if wrapper_src.exists():
-                wrapper_code = shebang + "\n" + wrapper_src.read_text(encoding="utf-8")
-                graphify_bin.write_text(wrapper_code, encoding="utf-8")
-                graphify_bin.chmod(0o755)
+            if wrapper_src.exists() and optimize_graphify_cli_wrapper(graphify_bin, wrapper_src):
                 ok("Graphify CLI wrapper optimized with call chains & recommendations")
+            elif sys.platform == "win32":
+                info("Keeping the native Windows Graphify launcher unchanged")
         except Exception as wrapper_exc:
             warn(f"Failed to optimize Graphify CLI wrapper: {wrapper_exc}")
 

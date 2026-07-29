@@ -158,7 +158,8 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
 
         self.assertEqual(_decision(output), "deny")
         self.assertIn("Graphify skill docs", _context(output))
-        self.assertIn("rtk graphify query", _context(output))
+        self.assertIn("graphify query", _context(output))
+        self.assertNotIn("rtk graphify", _context(output))
 
     def test_bash_graphify_skill_read_before_graphify_is_denied(self):
         output = _run_hook(
@@ -176,7 +177,8 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
 
         self.assertEqual(_decision(output), "deny")
         self.assertIn("Graphify skill docs", _context(output))
-        self.assertIn("rtk graphify query", _context(output))
+        self.assertIn("graphify query", _context(output))
+        self.assertNotIn("rtk graphify", _context(output))
 
     def test_bash_directory_listing_before_graphify_is_denied(self):
         output = _run_hook(
@@ -194,7 +196,7 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
 
         self.assertEqual(_decision(output), "deny")
         self.assertIn("Graphify", _context(output))
-        self.assertIn("rtk graphify query", _context(output))
+        self.assertIn("graphify query", _context(output))
 
     def test_graph_report_manual_read_is_denied(self):
         (self.project / "graphify-out" / "GRAPH_REPORT.md").write_text("# Full report\n")
@@ -294,7 +296,8 @@ class TestGraphifyRuntimeHookPolicy(unittest.TestCase):
 
         self.assertEqual(_decision(output), "deny")
         self.assertIn("scratch reader scripts", _context(output))
-        self.assertIn("rtk graphify query", _context(output))
+        self.assertIn("graphify query", _context(output))
+        self.assertNotIn("rtk graphify", _context(output))
 
     def test_scratch_reader_script_execution_is_denied(self):
         (self.project / "scratch_read.py").write_text(

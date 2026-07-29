@@ -6,9 +6,14 @@ import shutil
 from pathlib import Path
 
 REPO_DIR = Path(__file__).resolve().parent.parent
+if str(REPO_DIR) not in sys.path:
+    sys.path.insert(0, str(REPO_DIR))
+
+from installer.constants import REAL_HOME
+
 SRC_AGENTS_DIR = REPO_DIR / "agents"
 
-HOME_DIR = Path.home()
+HOME_DIR = REAL_HOME
 CLAUDE_AGENTS_DIR = HOME_DIR / ".claude" / "agents"
 CODEX_AGENTS_DIR = HOME_DIR / ".codex" / "agents"
 AGY_AGENTS_DIR = HOME_DIR / ".gemini" / "config" / "agents"

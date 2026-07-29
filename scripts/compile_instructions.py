@@ -95,13 +95,13 @@ GRAPHIFY_RULES = """<!-- ai-coding-config:graphify-start -->
 
 ⚠️ GRAPHIFY WORKFLOW RULES (MANDATORY — READ BEFORE ANY CODEBASE EXPLORATION):
 
-**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `rtk graphify query "<question>"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**
+**CRITICAL: For ANY question about codebase structure, architecture, or file relationships, your VERY FIRST tool call MUST be `graphify query "<question>"`. Do NOT use `list_dir`, `grep_search`, `find`, `cat`, or `view_file` as your first exploration step. Graphify-first is non-negotiable.**
 
 Commands:
-- Architecture questions → `rtk graphify query "question"`
-- Code relationships → `rtk graphify path "A" "B"`
-- Deep-dive concepts → `rtk graphify explain "concept"`
-- Impact analysis / reverse dependencies → `rtk graphify affected "SymbolName"`
+- Architecture questions → `graphify query "question"`
+- Code relationships → `graphify path "A" "B"`
+- Deep-dive concepts → `graphify explain "concept"`
+- Impact analysis / reverse dependencies → `graphify affected "SymbolName"`
 
 Rules:
 - For broad codebase exploration, use **Graphify-first**. Do NOT use view_file, list_dir, cat, grep, sed, awk, or inline scripts to discover unknown files or architecture.
@@ -111,7 +111,7 @@ Rules:
 - **Synthesize architecture/discovery answers from Graphify context first.** Supplement with targeted direct file reads only when the file path is explicit or Graphify has identified it.
 - **If a tool call is blocked, do not retry.** Proceed and answer using the available context.
 - Dirty `graphify-out/` files are expected after hooks or incremental updates and are not a reason to skip Graphify.
-- Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`rtk graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
+- Do not manually read or parse graphify-out/graph.json; it is an internal artifact. Use the graphify CLI (`graphify query/path/explain/affected`) instead. Existence probes such as `test -f graphify-out/graph.json` are acceptable.
 - When the user provides an exact `@path` or file path, read that path directly if useful; do not list parent directories to locate it.
 - Explicit docs or source files may be read as user-provided context before Graphify. Mapping those files to source code, routes, components, or architecture still requires Graphify.
 - Do not create or run scratch reader scripts such as `scratch_read.py` to inspect files; use Graphify or targeted direct reads after Graphify instead.
@@ -122,7 +122,7 @@ Post-Discovery Reads (exceptions):
 - After Graphify discovery, targeted raw reads ARE allowed for: **editing**, **debugging**, and **config review** of specific files already identified by Graphify.
 - You MUST have run at least one Graphify query before reading source files directly.
 - When reading after discovery, state your justification (e.g., "Reading for editing" or "Verifying config structure").
-- After modifying code, run `rtk graphify update .`.
+- After modifying code, run `graphify update .`.
 
 Blocked Tool Recovery:
 - If a hook blocks a direct read/search or inline script, do not retry the same blocked call or attempt an equivalent bypass.

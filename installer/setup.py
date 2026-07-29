@@ -1,6 +1,7 @@
 """Setup functions for different AI coding assistants."""
 
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -8,6 +9,15 @@ from pathlib import Path
 from .cli import info, ok, warn
 from .constants import CLAUDE_DIR, CODEX_DIR, GEMINI_DIR, REPO_DIR
 from .file_ops import copy_config, merge_json, install_local_config, count_files, count_dirs
+
+
+def wrapper_bin_dir() -> Path:
+    """Return the native wrapper directory without crossing OS environments."""
+    if sys.platform == "win32":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        base = Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
+        return base / "ai-coding-config" / "bin"
+    return Path.home() / ".local" / "bin"
 
 
 def _copy_skills(target_dir: Path, force: bool) -> None:
@@ -60,8 +70,13 @@ def configure_project_assistants(project_dir: Path, assistants: list[str]) -> di
     return results
 
 
-def ensure_claude_rtk_hook(settings_path: Path) -> None:
-    """Ensure Claude Code has the RTK Bash hook without disturbing other hooks."""
+def ensure_claude_rtk_hook(settings_path: Path, *, enabled: bool = True) -> None:
+    """Synchronize the optional RTK Bash hook without disturbing other hooks.
+
+    RTK's shell hook is supported in Linux/WSL only.  Native Windows installs
+    must not retain it: Claude would try to execute a command that is absent
+    from PATH before every Bash tool call.
+    """
     try:
         data = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
     except Exception:
@@ -69,6 +84,30 @@ def ensure_claude_rtk_hook(settings_path: Path) -> None:
 
     hooks = data.setdefault("hooks", {})
     pre_tool_hooks = hooks.setdefault("PreToolUse", [])
+    if not enabled:
+        retained_hooks = []
+        for hook in pre_tool_hooks:
+            commands = hook.get("hooks", [])
+            if not isinstance(commands, list):
+                retained_hooks.append(hook)
+                continue
+            retained_commands = [
+                command
+                for command in commands
+                if not (
+                    isinstance(command, dict)
+                    and command.get("type") == "command"
+                    and command.get("command") == "rtk hook claude"
+                )
+            ]
+            if retained_commands:
+                retained_hook = dict(hook)
+                retained_hook["hooks"] = retained_commands
+                retained_hooks.append(retained_hook)
+        hooks["PreToolUse"] = retained_hooks
+        settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        return
+
     for hook in pre_tool_hooks:
         if hook.get("matcher") != "Bash":
             continue
@@ -167,7 +206,7 @@ def setup_codex_global_wrapper(repo_dir: Path = REPO_DIR) -> None:
     import sys
     is_windows = (sys.platform == "win32")
     
-    bin_dir = Path.home() / ".local" / "bin"
+    bin_dir = wrapper_bin_dir()
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     wrapper_src = repo_dir / "tools" / "codex" / "codex"
@@ -238,15 +277,14 @@ exit /b %ERRORLEVEL%
 
     current_is_repo_wrapper = _looks_like_codex_account_wrapper(codex_path, wrapper_content)
 
-    if (codex_path.exists() or codex_path.is_symlink()) and not current_is_repo_wrapper:
-        if codex_path.is_symlink():
-            _write_codex_bin_launcher(codex_bin, codex_path.resolve())
-        else:
-            shutil.copy2(codex_path, codex_bin)
-            try:
-                codex_bin.chmod(0o755)
-            except Exception:
-                pass
+    if codex_path.exists() and not current_is_repo_wrapper:
+        # Dereference an existing launcher into a regular backup file.  This
+        # deliberately avoids retaining or creating symlinks in either OS.
+        shutil.copy2(codex_path.resolve(), codex_bin)
+        try:
+            codex_bin.chmod(0o755)
+        except Exception:
+            pass
         codex_path.unlink()
 
     if (not codex_bin.exists()) or _looks_like_codex_account_wrapper(codex_bin, wrapper_content):
@@ -325,7 +363,10 @@ def setup_claude(force: bool) -> None:
                 f.write("\n")
         except Exception:
             pass
-    ensure_claude_rtk_hook(target_settings)
+    ensure_claude_rtk_hook(
+        target_settings,
+        enabled=sys.platform != "win32" and shutil.which("rtk") is not None,
+    )
     ok("settings.json")
 
     # RTK.md
@@ -419,7 +460,7 @@ def setup_cli_wrapper(repo_dir: Path) -> None:
     """Create a global cli wrapper named ai-config in ~/.local/bin/."""
     info("Setting up global command wrapper (ai-config)...")
 
-    bin_dir = Path.home() / ".local" / "bin"
+    bin_dir = wrapper_bin_dir()
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     bash_path = bin_dir / "ai-config"
@@ -449,13 +490,14 @@ fi
     bat_path = bin_dir / "ai-config.bat"
     bat_content = f"""@echo off
 REM Windows wrapper for AI Coding Config Engine
+set "PYTHONUTF8=1"
 
-set REPO_DIR={repo_dir.resolve()}
+set "REPO_DIR={repo_dir.resolve()}"
 
 where python >nul 2>nul
-if %ERRORLEVEL% neq 0 (
+if errorlevel 1 (
     where python3 >nul 2>nul
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo [ERROR] python is not found in your PATH.
         exit /b 1
     ) else (
@@ -491,4 +533,3 @@ if "%1"=="init" (
         ok("ai-config (bash & bat) wrapper commands installed to ~/.local/bin")
     except Exception as exc:
         warn(f"Failed to install ai-config wrapper command: {exc}")
-

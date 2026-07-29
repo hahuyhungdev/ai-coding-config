@@ -12,14 +12,16 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from installer.constants import REAL_HOME
+from installer.setup import wrapper_bin_dir
 
 
-def windows_batch_wrapper_content():
+def windows_batch_wrapper_content(bin_dir=None):
     """Route management commands while preserving normal Agy CLI launches."""
-    return """@echo off
+    bin_path = str(bin_dir) if bin_dir is not None else r"%LOCALAPPDATA%\ai-coding-config\bin"
+    return f"""@echo off
 setlocal
 set "AGY_STATUS=%USERPROFILE%\\.gemini\\antigravity-cli\\agy-status.py"
-set "AGY_BIN=%USERPROFILE%\\.local\\bin\\agy-bin.exe"
+set "AGY_BIN={bin_path}\\agy-bin.exe"
 if "%~1"=="" goto launch
 for %%C in (status list ls accounts account use select choose current rename remove rm add import save doctor backup restore weekly clean cleanup rotate config) do if /I "%~1"=="%%C" goto manage
 :launch
@@ -119,7 +121,7 @@ def uninstall():
     home = REAL_HOME
     gemini_dir = home / ".gemini" / "config"
     agy_cli_dir = home / ".gemini" / "antigravity-cli"
-    bin_dir = home / ".local" / "bin"
+    bin_dir = wrapper_bin_dir()
     repo_dir = Path(__file__).resolve().parent
 
     # 1. Remove wrappers
@@ -330,7 +332,7 @@ def main():
     home = REAL_HOME
     gemini_dir = home / ".gemini" / "config"
     agy_cli_dir = home / ".gemini" / "antigravity-cli"
-    bin_dir = home / ".local" / "bin"
+    bin_dir = wrapper_bin_dir()
 
     # Create directories
     gemini_dir.mkdir(parents=True, exist_ok=True)
@@ -421,7 +423,7 @@ def main():
 
     # 3. Create/copy Windows CMD wrapper (agy.bat)
     dst_bat = bin_dir / "agy.bat"
-    bat_content = windows_batch_wrapper_content()
+    bat_content = windows_batch_wrapper_content(bin_dir)
     try:
         dst_bat.write_text(bat_content, encoding="utf-8")
         print(f"   Created and installed agy.bat wrapper to {dst_bat}")

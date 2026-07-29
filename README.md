@@ -16,13 +16,15 @@ cd ~/projects/ai-coding-config
 ```
 *Tip: This automatically installs the global `ai-config` CLI wrapper in `~/.local/bin/` (make sure this is in your `PATH`). You can re-run `ai-config` at any time to refresh configurations. Add the `--force` flag to run completely non-interactively and auto-overwrite any file conflicts (e.g. `./install.py --force`).*
 
+**Native Windows:** use [`docs/WINDOWS.md`](docs/WINDOWS.md). Windows and WSL are separate installations; native Windows wrappers use `%LOCALAPPDATA%\ai-coding-config\bin`, while WSL/Linux wrappers use `~/.local/bin`.
+
 ### 🚀 Standalone Antigravity CLI (agy) Setup
 If you only want to install the `agy` quota status checker wrapper and manage Gemini accounts without setting up the entire config engine:
 ```bash
 python3 install-agy.py
 ```
 *   **Ubuntu / Linux:** Add `export PATH="$HOME/.local/bin:$PATH"` to your `~/.bashrc` or `~/.zshrc` if not already present, then run `source ~/.bashrc`.
-*   **Windows:** Make sure your Windows `PATH` environment variable includes `%USERPROFILE%\.local\bin`.
+*   **Windows:** Make sure your Windows `PATH` environment variable includes `%LOCALAPPDATA%\ai-coding-config\bin`.
 *   **Verify Globally:** Run `agy status` from any directory.
 *   **Manage Accounts:** Run `agy account list`, `agy account add`, and `agy account use <target>`.
 *   **Full CLI Guide:** See [`docs/AGY_CLI.md`](docs/AGY_CLI.md).

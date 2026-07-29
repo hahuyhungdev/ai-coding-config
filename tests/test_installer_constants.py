@@ -2,10 +2,19 @@ import unittest
 from pathlib import Path
 from unittest import mock
 import os
+import sys
 
 from installer.constants import get_real_home
 
 class TestInstallerConstants(unittest.TestCase):
+    @mock.patch("pathlib.Path.home")
+    def test_native_windows_prefers_userprofile(self, mock_home):
+        mock_home.return_value = Path("C:\\Users\\fallback")
+        with mock.patch.object(sys, "platform", "win32"), mock.patch.dict(
+            os.environ, {"USERPROFILE": "C:\\Users\\isolated"}, clear=False
+        ):
+            self.assertEqual(get_real_home(), Path("C:\\Users\\isolated"))
+
     @mock.patch("pathlib.Path.home")
     def test_get_real_home_normal(self, mock_home):
         # When home is normal, it should return that home

@@ -46,6 +46,12 @@ exit /b 0
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_windows_launcher_checks_errorlevel_at_runtime(self):
+        launcher = (REPO_DIR / "install.bat").read_text(encoding="utf-8")
+        self.assertIn("if errorlevel 1 (", launcher.lower())
+        self.assertNotIn("%errorlevel% neq", launcher.lower())
+        self.assertIn('set "pythonutf8=1"', launcher.lower())
+
     def _write_executable(self, name, bash_content, bat_content=None):
         if sys.platform == "win32":
             path = self.bin / f"{name}.bat"
@@ -230,6 +236,8 @@ exit /b 0
         self.assertTrue(bat_path.is_file())
         self.assertIn("install.py", bat_path.read_text())
         self.assertIn("init", bat_path.read_text())
+        self.assertIn('set "PYTHONUTF8=1"', bat_path.read_text())
+        self.assertIn("if errorlevel 1", bat_path.read_text().lower())
 
     def test_global_install_configures_rtk_for_claude_and_codex(self):
         result = self._run("--all", "--force")
