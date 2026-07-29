@@ -1,6 +1,7 @@
 import json
 import os
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -288,6 +289,56 @@ class TestCodexAccount(unittest.TestCase):
         self.assertNotIn("REAL_CODEX", result.stdout)
 
         result = self._run_wrapper("exec", "hello")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("REAL_CODEX:exec hello", result.stdout)
+
+    def test_installed_codex_wrapper_bundles_helper_independently_of_repo_location(self):
+        from installer.setup import setup_codex_global_wrapper
+
+        repo_dir = self.home / "relocated-repo"
+        wrapper_source = repo_dir / "tools" / "codex" / "codex"
+        helper_source = repo_dir / "tools" / "codex-account" / "codex-account.py"
+        wrapper_source.parent.mkdir(parents=True)
+        helper_source.parent.mkdir(parents=True)
+        shutil.copy2(WRAPPER, wrapper_source)
+        shutil.copy2(SCRIPT, helper_source)
+
+        bin_dir = self.home / ".local" / "bin"
+        bin_dir.mkdir(parents=True)
+        real_codex = bin_dir / "codex-bin"
+        real_codex.write_text(
+            "#!/bin/sh\nprintf 'REAL_CODEX:%s\\n' \"$*\"\n",
+            encoding="utf-8",
+        )
+        real_codex.chmod(0o755)
+
+        with mock.patch("installer.setup.wrapper_bin_dir", return_value=bin_dir):
+            setup_codex_global_wrapper(repo_dir)
+
+        shutil.rmtree(repo_dir)
+        env = os.environ.copy()
+        env["HOME"] = str(self.home)
+        env["CODEX_HOME"] = str(self.codex_home)
+        env["PYTHONPYCACHEPREFIX"] = str(self.home / "pycache")
+        installed_wrapper = bin_dir / "codex"
+
+        result = subprocess.run(
+            [str(installed_wrapper), "guide"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Codex account quick guide", result.stdout)
+
+        result = subprocess.run(
+            [str(installed_wrapper), "exec", "hello"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("REAL_CODEX:exec hello", result.stdout)
 
