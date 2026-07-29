@@ -362,6 +362,39 @@ class TestCodexAccount(unittest.TestCase):
 
         self.assertFalse(helper_dir.exists())
 
+    def test_uninstall_global_restores_native_windows_codex_launcher(self):
+        import installer.setup as installer_setup
+        import installer.uninstall as installer_uninstall
+
+        bin_dir = self.home / "AppData" / "Local" / "ai-coding-config" / "bin"
+        bin_dir.mkdir(parents=True)
+        codex_wrapper = bin_dir / "codex.bat"
+        codex_backup = bin_dir / "codex-bin.cmd"
+        codex_wrapper.write_text("@echo off\nREM managed wrapper\n", encoding="utf-8")
+        codex_backup.write_text("@echo off\nREM real Codex\n", encoding="utf-8")
+
+        helper_dir = bin_dir.parent / "codex-account"
+        helper_dir.mkdir()
+        (helper_dir / "codex-account.py").write_text("# managed helper\n", encoding="utf-8")
+
+        with (
+            mock.patch.object(sys, "platform", "win32"),
+            mock.patch.object(installer_setup, "wrapper_bin_dir", return_value=bin_dir),
+            mock.patch.object(installer_uninstall, "CLAUDE_DIR", self.home / ".claude"),
+            mock.patch.object(installer_uninstall, "CODEX_DIR", self.home / ".codex-target"),
+            mock.patch.object(installer_uninstall, "GEMINI_DIR", self.home / ".gemini-target"),
+            mock.patch.object(installer_uninstall, "GEMINI_CLI_DIR", self.home / ".gemini-cli"),
+            mock.patch.object(installer_setup, "get_windows_home", return_value=None),
+        ):
+            installer_uninstall.uninstall_global()
+
+        self.assertEqual(
+            codex_wrapper.read_text(encoding="utf-8"),
+            "@echo off\nREM real Codex\n",
+        )
+        self.assertFalse(codex_backup.exists())
+        self.assertFalse(helper_dir.exists())
+
     def test_codex_wrapper_routes_short_account_aliases_like_agy(self):
         active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
         candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
