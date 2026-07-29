@@ -534,10 +534,57 @@ if "%1"=="init" (
 )
 """
 
+    # rtk wrappers (Windows .bat and Unix bash)
+    rtk_bat_path = bin_dir / "rtk.bat"
+    rtk_bat_content = f"""@echo off
+set REPO_DIR={repo_dir.resolve()}
+if /i "%~1"=="graphify" (
+    shift
+    goto :run_graphify
+)
+%*
+exit /b %ERRORLEVEL%
+
+:run_graphify
+python -X utf8 "%REPO_DIR%\\scripts\\graphify-wrapper.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
+exit /b %ERRORLEVEL%
+"""
+    rtk_bash_path = bin_dir / "rtk"
+    rtk_bash_content = f"""#!/usr/bin/env bash
+REPO_DIR="{repo_dir.resolve()}"
+if [ "$1" = "graphify" ]; then
+    shift
+    python3 "$REPO_DIR/scripts/graphify-wrapper.py" "$@"
+else
+    exec "$@"
+fi
+"""
+
+    # graphify wrappers
+    graphify_bat_path = bin_dir / "graphify.bat"
+    graphify_bat_content = f"""@echo off
+set REPO_DIR={repo_dir.resolve()}
+python -X utf8 "%REPO_DIR%\\scripts\\graphify-wrapper.py" %*
+"""
+    graphify_bash_path = bin_dir / "graphify"
+    graphify_bash_content = f"""#!/usr/bin/env bash
+REPO_DIR="{repo_dir.resolve()}"
+python3 "$REPO_DIR/scripts/graphify-wrapper.py" "$@"
+"""
+
     try:
         bash_path.write_text(bash_content, encoding="utf-8")
         bash_path.chmod(0o755)
         bat_path.write_text(bat_content, encoding="utf-8")
-        ok("ai-config (bash & bat) wrapper commands installed to ~/.local/bin")
+
+        rtk_bash_path.write_text(rtk_bash_content, encoding="utf-8")
+        rtk_bash_path.chmod(0o755)
+        rtk_bat_path.write_text(rtk_bat_content, encoding="utf-8")
+
+        graphify_bash_path.write_text(graphify_bash_content, encoding="utf-8")
+        graphify_bash_path.chmod(0o755)
+        graphify_bat_path.write_text(graphify_bat_content, encoding="utf-8")
+
+        ok("ai-config, rtk, and graphify wrappers installed to ~/.local/bin")
     except Exception as exc:
-        warn(f"Failed to install ai-config wrapper command: {exc}")
+        warn(f"Failed to install CLI wrapper commands: {exc}")
