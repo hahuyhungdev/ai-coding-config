@@ -3,6 +3,7 @@
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .cli import info, ok, warn
@@ -100,8 +101,12 @@ def uninstall_global() -> None:
         _clean_skills(CODEX_DIR, "Codex skills")
 
     # Restore Codex binary and remove wrappers
-    codex_path = bin_dir / "codex"
-    codex_bin = bin_dir / "codex-bin"
+    if sys.platform == "win32":
+        codex_path = bin_dir / "codex.bat"
+        codex_bin = bin_dir / "codex-bin.cmd"
+    else:
+        codex_path = bin_dir / "codex"
+        codex_bin = bin_dir / "codex-bin"
     if codex_bin.exists():
         try:
             if codex_path.exists() or codex_path.is_symlink():
