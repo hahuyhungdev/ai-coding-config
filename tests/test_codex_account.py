@@ -342,6 +342,26 @@ class TestCodexAccount(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("REAL_CODEX:exec hello", result.stdout)
 
+    def test_uninstall_global_removes_codex_account_helper_bundle(self):
+        import installer.setup as installer_setup
+        import installer.uninstall as installer_uninstall
+
+        helper_dir = self.home / ".local" / "codex-account"
+        helper_dir.mkdir(parents=True)
+        (helper_dir / "codex-account.py").write_text("# managed helper\n", encoding="utf-8")
+
+        with (
+            mock.patch.object(installer_uninstall.Path, "home", return_value=self.home),
+            mock.patch.object(installer_uninstall, "CLAUDE_DIR", self.home / ".claude"),
+            mock.patch.object(installer_uninstall, "CODEX_DIR", self.home / ".codex-target"),
+            mock.patch.object(installer_uninstall, "GEMINI_DIR", self.home / ".gemini-target"),
+            mock.patch.object(installer_uninstall, "GEMINI_CLI_DIR", self.home / ".gemini-cli"),
+            mock.patch.object(installer_setup, "get_windows_home", return_value=None),
+        ):
+            installer_uninstall.uninstall_global()
+
+        self.assertFalse(helper_dir.exists())
+
     def test_codex_wrapper_routes_short_account_aliases_like_agy(self):
         active = self._auth("acct-plus", refresh_token="refresh-plus", plan="plus")
         candidate = self._auth("acct-k12", refresh_token="refresh-k12", plan="k12")
