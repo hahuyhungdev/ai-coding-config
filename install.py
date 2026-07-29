@@ -306,8 +306,16 @@ Examples:
     # Target project directory for hooks
     target_project_dir = Path(args.project).resolve() if args.project else REPO_DIR
 
+    # Helper for graphify binary execution across platforms
+    def get_graphify_cmd() -> list[str]:
+        bin_path = shutil.which("graphify") or shutil.which("graphify.bat") or shutil.which("graphify.cmd")
+        if bin_path:
+            return [bin_path]
+        return [sys.executable, "-m", "graphify"]
+
     # Install Graphify git hooks if graphify is available
-    if not shutil.which("graphify"):
+    has_graphify = bool(shutil.which("graphify") or shutil.which("graphify.bat") or shutil.which("graphify.cmd"))
+    if not has_graphify:
         # If running in a non-interactive environment (like force mode or CI), skip asking
         if args.force:
             info("Graphify is not installed. Force mode enabled, attempting auto-installation...")
@@ -326,10 +334,11 @@ Examples:
             try:
                 subprocess.run([sys.executable, "-m", "pip", "install", "graphifyy"], check=True)
                 ok("Graphify installed successfully!")
+                has_graphify = True
             except Exception as e:
                 warn(f"Failed to install Graphify: {e}. Skipping Graphify setup.")
 
-    if shutil.which("graphify"):
+    if has_graphify:
         # Install/upgrade the optimized Graphify CLI wrapper to ~/.local/bin/graphify
         try:
             graphify_bin = Path(shutil.which("graphify")).resolve()
@@ -343,14 +352,14 @@ Examples:
 
         info(f"Initializing Graphify knowledge graph in {target_project_dir}...")
         try:
-            subprocess.run(["graphify", "update", "."], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(target_project_dir))
+            subprocess.run([*get_graphify_cmd(), "update", "."], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(target_project_dir))
             ok("Graphify graph initialized")
         except subprocess.CalledProcessError:
             warn("Failed to initialize Graphify graph")
 
         info(f"Installing Graphify git hooks in {target_project_dir}...")
         try:
-            subprocess.run(["graphify", "hook", "install"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(target_project_dir))
+            subprocess.run([*get_graphify_cmd(), "hook", "install"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(target_project_dir))
             ok("Graphify git hooks")
         except subprocess.CalledProcessError:
             warn("Failed to install Graphify git hooks")

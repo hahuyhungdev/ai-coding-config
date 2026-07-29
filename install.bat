@@ -22,8 +22,8 @@ if errorlevel 1 (
             exit /b 1
         )
     ) else (
-        python3 "%~dp0install.py" %*
+        python3 -X utf8 "%~dp0install.py" %*
     )
 ) else (
-    python "%~dp0install.py" %*
+    python -X utf8 "%~dp0install.py" %*
 )
