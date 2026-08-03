@@ -454,6 +454,15 @@ def main():
     try:
         dst_bat.write_text(bat_content, encoding="utf-8")
         print(f"   Created and installed agy.bat wrapper to {dst_bat}")
+        
+        # Also copy to ~/.local/bin/agy.bat on Windows if it exists to ensure precedence
+        local_bin = Path.home() / ".local" / "bin"
+        if local_bin.exists():
+            try:
+                shutil.copy2(dst_bat, local_bin / "agy.bat")
+                print(f"   Also copied agy.bat wrapper to {local_bin / 'agy.bat'}")
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to copy agy.bat to ~/.local/bin: {e}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to write Windows agy.bat wrapper: {e}")
 

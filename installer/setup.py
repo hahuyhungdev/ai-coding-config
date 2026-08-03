@@ -616,5 +616,17 @@ python3 "$REPO_DIR/scripts/graphify-wrapper.py" "$@"
 
         ok("ai-config, rtk, and graphify wrappers installed to ~/.local/bin")
         add_to_windows_path(bin_dir)
+
+        # Also copy Windows batch files to ~/.local/bin if it exists to ensure precedence
+        if sys.platform == "win32":
+            local_bin = Path.home() / ".local" / "bin"
+            if local_bin.exists() and local_bin.resolve() != bin_dir.resolve():
+                for name in ["ai-config.bat", "rtk.bat", "graphify.bat"]:
+                    if (bin_dir / name).exists():
+                        try:
+                            shutil.copy2(bin_dir / name, local_bin / name)
+                        except Exception as e:
+                            warn(f"Failed to copy {name} to ~/.local/bin: {e}")
+                ok("Also copied Windows batch wrappers to ~/.local/bin")
     except Exception as exc:
         warn(f"Failed to install CLI wrapper commands: {exc}")
