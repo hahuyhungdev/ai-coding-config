@@ -462,6 +462,35 @@ def get_windows_home() -> Path:
             if candidates:
                 return candidates[0]
     return None
+def add_to_windows_path(bin_dir: Path) -> None:
+    """Automatically prepend bin_dir to the Windows User PATH registry key if not present."""
+    if sys.platform != "win32":
+        return
+    try:
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS)
+        try:
+            path_val, _ = winreg.QueryValueEx(key, "Path")
+        except FileNotFoundError:
+            path_val = ""
+
+        bin_dir_str = str(bin_dir.resolve())
+        if bin_dir_str not in path_val:
+            new_path = bin_dir_str + ";" + path_val if path_val else bin_dir_str
+            new_path = ";".join([p for p in new_path.split(";") if p])
+            winreg.SetValueEx(key, "Path", 0, winreg.REG_EXPAND_SZ, new_path)
+            
+            # Broadcast the settings change
+            import ctypes
+            HWND_BROADCAST = 0xFFFF
+            WM_SETTINGCHANGE = 0x001A
+            ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment")
+            ok(f"Added {bin_dir_str} to Windows User PATH environment variable!")
+            warn("Please RESTART your terminal (close and reopen CMD/PowerShell) to apply PATH changes.")
+        else:
+            info(f"{bin_dir_str} is already in Windows User PATH.")
+    except Exception as e:
+        warn(f"Failed to automatically add to Windows PATH: {e}")
 
 
 def setup_cli_wrapper(repo_dir: Path) -> None:
@@ -586,5 +615,6 @@ python3 "$REPO_DIR/scripts/graphify-wrapper.py" "$@"
         graphify_bat_path.write_text(graphify_bat_content, encoding="utf-8")
 
         ok("ai-config, rtk, and graphify wrappers installed to ~/.local/bin")
+        add_to_windows_path(bin_dir)
     except Exception as exc:
         warn(f"Failed to install CLI wrapper commands: {exc}")
