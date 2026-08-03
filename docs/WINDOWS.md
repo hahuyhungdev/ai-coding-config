@@ -12,17 +12,21 @@ wrapper files, home directories, or configuration folders between them.
 
 ## Install
 
-Open PowerShell in the cloned repository and run:
+For a complete setup (including both the `agy` wrapper and all configurations/hooks for AI assistants), open PowerShell in the cloned repository and run the scripts in the following order:
 
-```powershell
-.\install.bat --all --force
-```
+1. **Install the `agy` account manager wrapper first:**
+   This sets up the `agy` command, creates the global `agy.bat` wrapper, and registers accounts.
+   ```powershell
+   python .\install-agy.py
+   ```
 
-For the Antigravity account wrapper only:
+2. **Install general configurations and project hooks:**
+   This copies rules, agents, skills, and registers Git Hooks for AI assistants (Claude Code, Codex, Copilot, Gemini).
+   ```powershell
+   .\install.bat --all --force
+   ```
 
-```powershell
-python .\install-agy.py
-```
+*Note: The installer automatically configures custom commands (like the `/rotate` slash command) to run with the correct Windows Python path and absolute directory settings on your machine, enabling them to run natively without shell issues.*
 
 Native Windows wrappers are installed in:
 
