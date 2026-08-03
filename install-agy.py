@@ -670,10 +670,23 @@ def main():
             repo_dir / ".gemini" / "commands",
             repo_dir / ".claude" / "commands"
         ]
+        python_cmd = "python" if sys.platform == "win32" or not shutil.which("python3") else "python3"
+        agy_status_path = (agy_cli_dir / "agy-status.py").resolve().as_posix()
+        if sys.platform == "win32":
+            resolved_command_base = f'{python_cmd} -X utf8 "{agy_status_path}"'
+        else:
+            resolved_command_base = f'{python_cmd} "{agy_status_path}"'
+
         for d in dest_dirs:
             d.mkdir(parents=True, exist_ok=True)
             for item in src_commands.glob("*.*"):
-                shutil.copy2(item, d / item.name)
+                dest_file = d / item.name
+                try:
+                    content = item.read_text(encoding="utf-8")
+                    updated_content = content.replace("python3 ~/.gemini/antigravity-cli/agy-status.py", resolved_command_base)
+                    dest_file.write_text(updated_content, encoding="utf-8")
+                except Exception as e:
+                    print(f"⚠️ Warning: Failed to process and copy custom command {item.name}: {e}")
             print(f"   Copied custom commands to {d}")
 
     print("\n🎉 Standalone Antigravity CLI (agy) installation completed successfully!")
